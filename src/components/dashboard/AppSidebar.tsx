@@ -1,5 +1,7 @@
-import { LayoutDashboard, Package, Upload, Leaf } from "lucide-react";
+import { LayoutDashboard, Package, Upload, Leaf, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/AuthContext";
 import {
   Sidebar,
   SidebarContent,
@@ -23,6 +25,7 @@ const navItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const { signOut, user } = useAuth();
 
   return (
     <Sidebar collapsible="icon">
@@ -65,7 +68,21 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="p-4 space-y-3">
+        {!collapsed && user && (
+          <p className="text-xs text-sidebar-foreground/60 truncate">
+            {user.email}
+          </p>
+        )}
+        <Button
+          variant="ghost"
+          size={collapsed ? "icon" : "sm"}
+          className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          onClick={signOut}
+        >
+          <LogOut className={collapsed ? "h-4 w-4" : "mr-2 h-4 w-4"} />
+          {!collapsed && "Abmelden"}
+        </Button>
         {!collapsed && (
           <p className="text-[10px] text-sidebar-foreground/40">
             © 2026 e-cargo · Ruhrgebiet
