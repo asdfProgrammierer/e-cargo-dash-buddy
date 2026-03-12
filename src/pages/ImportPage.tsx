@@ -1,10 +1,10 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { ExcelImport } from "@/components/dashboard/ExcelImport";
-import { useOrderStore } from "@/stores/orderStore";
+import { useOrders } from "@/context/OrderContext";
 
 const ImportPage = () => {
-  const { addOrders } = useOrderStore();
+  const { addOrders } = useOrders();
 
   return (
     <SidebarProvider>

@@ -5,13 +5,12 @@ import { StatsCards } from "@/components/dashboard/StatsCards";
 import { OrderTable } from "@/components/dashboard/OrderTable";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import { StatusFilter } from "@/components/dashboard/StatusFilter";
-import { useOrderStore } from "@/stores/orderStore";
+import { useOrders } from "@/context/OrderContext";
 import { OrderStatus } from "@/types/order";
 
 const DashboardPage = () => {
-  const { orders, addOrder, updateStatus, deleteOrder } = useOrderStore();
+  const { orders, addOrder, updateStatus, deleteOrder } = useOrders();
   const [filter, setFilter] = useState<OrderStatus | "alle">("alle");
-
   const filtered = filter === "alle" ? orders : orders.filter((o) => o.status === filter);
 
   return (
