@@ -8,7 +8,9 @@ import { OrderProvider } from "@/context/OrderContext";
 import DashboardPage from "./pages/DashboardPage";
 import AuftraegePage from "./pages/AuftraegePage";
 import ImportPage from "./pages/ImportPage";
+import ProfilPage from "./pages/ProfilPage";
 import LoginPage from "./pages/LoginPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +41,8 @@ const AppRoutes = () => (
     <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
     <Route path="/auftraege" element={<ProtectedRoute><AuftraegePage /></ProtectedRoute>} />
     <Route path="/import" element={<ProtectedRoute><ImportPage /></ProtectedRoute>} />
+    <Route path="/profil" element={<ProtectedRoute><ProfilPage /></ProtectedRoute>} />
+    <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
