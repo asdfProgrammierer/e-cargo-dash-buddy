@@ -8,7 +8,9 @@ import { OrderProvider } from "@/context/OrderContext";
 import DashboardPage from "./pages/DashboardPage";
 import AuftraegePage from "./pages/AuftraegePage";
 import ImportPage from "./pages/ImportPage";
+import ProfilPage from "./pages/ProfilPage";
 import LoginPage from "./pages/LoginPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
