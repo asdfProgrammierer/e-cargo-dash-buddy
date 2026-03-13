@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, Upload, Leaf, LogOut } from "lucide-react";
+import { LayoutDashboard, Package, Upload, Leaf, LogOut, UserCircle } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
