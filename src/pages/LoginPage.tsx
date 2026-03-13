@@ -84,6 +84,27 @@ const LoginPage = () => {
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Anmelden
                   </Button>
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
+                      onClick={async () => {
+                        if (!email) {
+                          toast.error("Bitte gib deine E-Mail-Adresse ein");
+                          return;
+                        }
+                        setLoading(true);
+                        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                          redirectTo: `${window.location.origin}/reset-password`,
+                        });
+                        if (error) toast.error(error.message);
+                        else toast.success("E-Mail zum Zurücksetzen wurde gesendet");
+                        setLoading(false);
+                      }}
+                    >
+                      Passwort vergessen?
+                    </button>
+                  </div>
                 </form>
               </TabsContent>
 

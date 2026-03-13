@@ -20,6 +20,7 @@ const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Aufträge", url: "/auftraege", icon: Package },
   { title: "Excel Import", url: "/import", icon: Upload },
+  { title: "Mein Profil", url: "/profil", icon: UserCircle },
 ];
 
 export function AppSidebar() {
