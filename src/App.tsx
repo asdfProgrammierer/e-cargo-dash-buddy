@@ -7,7 +7,9 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { OrderProvider } from "@/context/OrderContext";
 import DashboardPage from "./pages/DashboardPage";
 import AuftraegePage from "./pages/AuftraegePage";
+import AdressbuchPage from "./pages/AdressbuchPage";
 import ImportPage from "./pages/ImportPage";
+import OnlineShopPage from "./pages/OnlineShopPage";
 import ProfilPage from "./pages/ProfilPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -40,7 +42,9 @@ const AppRoutes = () => (
     <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
     <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
     <Route path="/auftraege" element={<ProtectedRoute><AuftraegePage /></ProtectedRoute>} />
+    <Route path="/adressbuch" element={<ProtectedRoute><AdressbuchPage /></ProtectedRoute>} />
     <Route path="/import" element={<ProtectedRoute><ImportPage /></ProtectedRoute>} />
+    <Route path="/online-shop" element={<ProtectedRoute><OnlineShopPage /></ProtectedRoute>} />
     <Route path="/profil" element={<ProtectedRoute><ProfilPage /></ProtectedRoute>} />
     <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route path="*" element={<NotFound />} />

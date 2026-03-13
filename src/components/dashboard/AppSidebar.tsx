@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, Upload, Leaf, LogOut, UserCircle } from "lucide-react";
+import { LayoutDashboard, Package, Upload, Leaf, LogOut, UserCircle, BookUser, ShoppingBag } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
@@ -19,7 +19,9 @@ import {
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Aufträge", url: "/auftraege", icon: Package },
+  { title: "Adressbuch", url: "/adressbuch", icon: BookUser },
   { title: "Excel Import", url: "/import", icon: Upload },
+  { title: "Online-Shop", url: "/online-shop", icon: ShoppingBag },
   { title: "Mein Profil", url: "/profil", icon: UserCircle },
 ];
 

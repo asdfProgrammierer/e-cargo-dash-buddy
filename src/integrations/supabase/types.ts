@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      address_book: {
+        Row: {
+          ansprechpartner: string
+          created_at: string
+          email: string | null
+          firma_name: string | null
+          id: string
+          is_favorite: boolean
+          notizen: string | null
+          plz: string | null
+          stadt: string | null
+          strasse: string | null
+          telefon: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ansprechpartner: string
+          created_at?: string
+          email?: string | null
+          firma_name?: string | null
+          id?: string
+          is_favorite?: boolean
+          notizen?: string | null
+          plz?: string | null
+          stadt?: string | null
+          strasse?: string | null
+          telefon?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ansprechpartner?: string
+          created_at?: string
+          email?: string | null
+          firma_name?: string | null
+          id?: string
+          is_favorite?: boolean
+          notizen?: string | null
+          plz?: string | null
+          stadt?: string | null
+          strasse?: string | null
+          telefon?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           ansprechpartner: string | null
