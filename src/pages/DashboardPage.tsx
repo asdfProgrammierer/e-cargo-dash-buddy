@@ -2,15 +2,28 @@ import { useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { OrderTable } from "@/components/dashboard/OrderTable";
+import { OrderDetailSheet } from "@/components/dashboard/OrderDetailSheet";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import { StatusFilter } from "@/components/dashboard/StatusFilter";
 import { useOrders } from "@/context/OrderContext";
-import { OrderStatus } from "@/types/order";
+import { Order, OrderStatus } from "@/types/order";
 
 const DashboardPage = () => {
-  const { orders, addOrder, updateStatus, deleteOrder } = useOrders();
+  const { orders, addOrder, updateStatus, deleteOrder, updateOrder } = useOrders();
   const [filter, setFilter] = useState<OrderStatus | "alle">("alle");
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
   const filtered = filter === "alle" ? orders : orders.filter((o) => o.status === filter);
+
+  const currentOrder = selectedOrder
+    ? orders.find((o) => o.id === selectedOrder.id) ?? null
+    : null;
+
+  const handleSelect = (order: Order) => {
+    setSelectedOrder(order);
+    setSheetOpen(true);
+  };
 
   return (
     <DashboardLayout title="Dashboard">
@@ -20,8 +33,21 @@ const DashboardPage = () => {
           <StatusFilter activeFilter={filter} onFilter={setFilter} />
           <CreateOrderDialog onSubmit={addOrder} />
         </div>
-        <OrderTable orders={filtered} onUpdateStatus={updateStatus} onDelete={deleteOrder} />
+        <OrderTable
+          orders={filtered}
+          onUpdateStatus={updateStatus}
+          onDelete={deleteOrder}
+          onSelect={handleSelect}
+        />
       </div>
+
+      <OrderDetailSheet
+        order={currentOrder}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onUpdateStatus={updateStatus}
+        onUpdateOrder={updateOrder}
+      />
     </DashboardLayout>
   );
 };
