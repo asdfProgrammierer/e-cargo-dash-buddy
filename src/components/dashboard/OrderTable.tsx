@@ -53,7 +53,7 @@ export function OrderTable({ orders, onUpdateStatus, onDelete, onSelect }: Order
         </TableHeader>
         <TableBody>
           {orders.map((order) => (
-            <TableRow key={order.id} className="hover:bg-muted/30">
+            <TableRow key={order.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => onSelect(order)}>
               <TableCell className="font-mono text-sm font-medium">{order.auftragsNr}</TableCell>
               <TableCell>{order.absenderName}</TableCell>
               <TableCell>{order.empfaengerName}</TableCell>
