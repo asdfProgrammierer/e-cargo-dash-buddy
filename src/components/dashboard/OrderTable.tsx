@@ -66,7 +66,7 @@ export function OrderTable({ orders, onUpdateStatus, onDelete, onSelect }: Order
                 </Badge>
               </TableCell>
               <TableCell className="text-muted-foreground text-sm">{order.erstelltAm}</TableCell>
-              <TableCell>
+              <TableCell onClick={(e) => e.stopPropagation()}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-8 w-8">
