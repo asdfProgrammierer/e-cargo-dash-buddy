@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,15 +10,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus } from "lucide-react";
+import { Plus, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { Order } from "@/types/order";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
 interface CreateOrderDialogProps {
   onSubmit: (order: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">) => void;
 }
 
-const initialForm = {
+const emptyForm = {
   absenderName: "",
   absenderAdresse: "",
   empfaengerName: "",
@@ -30,8 +32,43 @@ const initialForm = {
 };
 
 export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState(emptyForm);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [senderDefaults, setSenderDefaults] = useState({ absenderName: "", absenderAdresse: "" });
+
+  // Load profile data once
+  useEffect(() => {
+    if (!user || profileLoaded) return;
+    const load = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+
+      if (data) {
+        const name = data.firma_name || data.ansprechpartner || "";
+        const parts = [(data as any).strasse, (data as any).plz, (data as any).stadt].filter(Boolean);
+        const adresse = parts.join(", ");
+        setSenderDefaults({ absenderName: name, absenderAdresse: adresse });
+      }
+      setProfileLoaded(true);
+    };
+    load();
+  }, [user, profileLoaded]);
+
+  // Pre-fill sender when dialog opens
+  useEffect(() => {
+    if (open && profileLoaded) {
+      setForm((prev) => ({
+        ...prev,
+        absenderName: prev.absenderName || senderDefaults.absenderName,
+        absenderAdresse: prev.absenderAdresse || senderDefaults.absenderAdresse,
+      }));
+    }
+  }, [open, profileLoaded, senderDefaults]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +77,7 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
       return;
     }
     onSubmit(form);
-    setForm(initialForm);
+    setForm(emptyForm);
     setOpen(false);
     toast.success("Auftrag erfolgreich angelegt");
   };
@@ -61,16 +98,25 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
           <DialogTitle>Neuen Auftrag anlegen</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 pt-2">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Absender Name *</Label>
-              <Input value={form.absenderName} onChange={(e) => update("absenderName", e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Absender Adresse</Label>
-              <Input value={form.absenderAdresse} onChange={(e) => update("absenderAdresse", e.target.value)} />
+          {/* Sender – pre-filled from profile */}
+          <div className="rounded-lg bg-muted/50 p-3 space-y-3">
+            <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <Building2 className="h-3.5 w-3.5" />
+              Absender (aus Profil)
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Name *</Label>
+                <Input value={form.absenderName} onChange={(e) => update("absenderName", e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Adresse</Label>
+                <Input value={form.absenderAdresse} onChange={(e) => update("absenderAdresse", e.target.value)} />
+              </div>
             </div>
           </div>
+
+          {/* Recipient */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Empfänger Name *</Label>
