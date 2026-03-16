@@ -69,9 +69,16 @@ export type Database = {
           created_at: string
           firma_name: string | null
           id: string
+          land: string | null
+          logo_url: string | null
+          plz: string | null
+          stadt: string | null
+          strasse: string | null
           telefon: string | null
           updated_at: string
           user_id: string
+          ustid: string | null
+          website: string | null
         }
         Insert: {
           ansprechpartner?: string | null
@@ -79,9 +86,16 @@ export type Database = {
           created_at?: string
           firma_name?: string | null
           id?: string
+          land?: string | null
+          logo_url?: string | null
+          plz?: string | null
+          stadt?: string | null
+          strasse?: string | null
           telefon?: string | null
           updated_at?: string
           user_id: string
+          ustid?: string | null
+          website?: string | null
         }
         Update: {
           ansprechpartner?: string | null
@@ -89,9 +103,16 @@ export type Database = {
           created_at?: string
           firma_name?: string | null
           id?: string
+          land?: string | null
+          logo_url?: string | null
+          plz?: string | null
+          stadt?: string | null
+          strasse?: string | null
           telefon?: string | null
           updated_at?: string
           user_id?: string
+          ustid?: string | null
+          website?: string | null
         }
         Relationships: []
       }
