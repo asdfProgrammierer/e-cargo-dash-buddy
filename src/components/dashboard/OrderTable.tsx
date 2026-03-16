@@ -26,7 +26,7 @@ interface OrderTableProps {
 
 const ALL_STATUSES: OrderStatus[] = ["neu", "in_bearbeitung", "unterwegs", "zugestellt", "storniert"];
 
-export function OrderTable({ orders, onUpdateStatus, onDelete }: OrderTableProps) {
+export function OrderTable({ orders, onUpdateStatus, onDelete, onSelect }: OrderTableProps) {
   if (orders.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16">
