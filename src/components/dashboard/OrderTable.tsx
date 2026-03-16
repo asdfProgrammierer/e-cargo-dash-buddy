@@ -21,11 +21,12 @@ interface OrderTableProps {
   orders: Order[];
   onUpdateStatus: (id: string, status: OrderStatus) => void;
   onDelete: (id: string) => void;
+  onSelect: (order: Order) => void;
 }
 
 const ALL_STATUSES: OrderStatus[] = ["neu", "in_bearbeitung", "unterwegs", "zugestellt", "storniert"];
 
-export function OrderTable({ orders, onUpdateStatus, onDelete }: OrderTableProps) {
+export function OrderTable({ orders, onUpdateStatus, onDelete, onSelect }: OrderTableProps) {
   if (orders.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16">
@@ -52,7 +53,7 @@ export function OrderTable({ orders, onUpdateStatus, onDelete }: OrderTableProps
         </TableHeader>
         <TableBody>
           {orders.map((order) => (
-            <TableRow key={order.id} className="hover:bg-muted/30">
+            <TableRow key={order.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => onSelect(order)}>
               <TableCell className="font-mono text-sm font-medium">{order.auftragsNr}</TableCell>
               <TableCell>{order.absenderName}</TableCell>
               <TableCell>{order.empfaengerName}</TableCell>
@@ -65,7 +66,7 @@ export function OrderTable({ orders, onUpdateStatus, onDelete }: OrderTableProps
                 </Badge>
               </TableCell>
               <TableCell className="text-muted-foreground text-sm">{order.erstelltAm}</TableCell>
-              <TableCell>
+              <TableCell onClick={(e) => e.stopPropagation()}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-8 w-8">

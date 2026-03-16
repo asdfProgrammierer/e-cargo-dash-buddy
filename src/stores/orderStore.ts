@@ -107,5 +107,9 @@ export function useOrderStore() {
     setOrders((prev) => prev.filter((o) => o.id !== id));
   };
 
-  return { orders, addOrder, addOrders, updateStatus, deleteOrder };
+  const updateOrder = (id: string, updates: Partial<Order>) => {
+    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...updates } : o)));
+  };
+
+  return { orders, addOrder, addOrders, updateStatus, deleteOrder, updateOrder };
 }

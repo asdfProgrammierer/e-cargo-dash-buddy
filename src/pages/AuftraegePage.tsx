@@ -1,16 +1,19 @@
 import { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { OrderTable } from "@/components/dashboard/OrderTable";
+import { OrderDetailSheet } from "@/components/dashboard/OrderDetailSheet";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import { StatusFilter } from "@/components/dashboard/StatusFilter";
 import { OrderSearch } from "@/components/dashboard/OrderSearch";
 import { useOrders } from "@/context/OrderContext";
-import { OrderStatus } from "@/types/order";
+import { Order, OrderStatus } from "@/types/order";
 
 const AuftraegePage = () => {
-  const { orders, addOrder, updateStatus, deleteOrder } = useOrders();
+  const { orders, addOrder, updateStatus, deleteOrder, updateOrder } = useOrders();
   const [filter, setFilter] = useState<OrderStatus | "alle">("alle");
   const [search, setSearch] = useState("");
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const filtered = useMemo(() => {
     let result = orders;
@@ -28,6 +31,16 @@ const AuftraegePage = () => {
     return result;
   }, [orders, filter, search]);
 
+  // Keep selected order in sync with store
+  const currentOrder = selectedOrder
+    ? orders.find((o) => o.id === selectedOrder.id) ?? null
+    : null;
+
+  const handleSelect = (order: Order) => {
+    setSelectedOrder(order);
+    setSheetOpen(true);
+  };
+
   return (
     <DashboardLayout title="Aufträge">
       <div className="space-y-6">
@@ -38,8 +51,21 @@ const AuftraegePage = () => {
           </div>
           <CreateOrderDialog onSubmit={addOrder} />
         </div>
-        <OrderTable orders={filtered} onUpdateStatus={updateStatus} onDelete={deleteOrder} />
+        <OrderTable
+          orders={filtered}
+          onUpdateStatus={updateStatus}
+          onDelete={deleteOrder}
+          onSelect={handleSelect}
+        />
       </div>
+
+      <OrderDetailSheet
+        order={currentOrder}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onUpdateStatus={updateStatus}
+        onUpdateOrder={updateOrder}
+      />
     </DashboardLayout>
   );
 };

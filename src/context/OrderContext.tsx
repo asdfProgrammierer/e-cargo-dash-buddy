@@ -8,6 +8,7 @@ interface OrderContextType {
   addOrders: (orders: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">[]) => Order[];
   updateStatus: (id: string, status: OrderStatus) => void;
   deleteOrder: (id: string) => void;
+  updateOrder: (id: string, updates: Partial<Order>) => void;
 }
 
 const OrderContext = createContext<OrderContextType | null>(null);
