@@ -21,6 +21,7 @@ interface OrderTableProps {
   orders: Order[];
   onUpdateStatus: (id: string, status: OrderStatus) => void;
   onDelete: (id: string) => void;
+  onSelect: (order: Order) => void;
 }
 
 const ALL_STATUSES: OrderStatus[] = ["neu", "in_bearbeitung", "unterwegs", "zugestellt", "storniert"];
