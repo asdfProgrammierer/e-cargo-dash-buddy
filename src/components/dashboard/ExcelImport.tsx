@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Upload, FileSpreadsheet, CheckCircle2, X } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2, X, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Order } from "@/types/order";
 
@@ -46,6 +46,8 @@ const COLUMN_MAP: Record<string, keyof PreviewRow> = {
   "empfänger adresse": "empfaengerAdresse",
   empfängeradresse: "empfaengerAdresse",
   empfaengeradresse: "empfaengerAdresse",
+  straße: "empfaengerAdresse",
+  strasse: "empfaengerAdresse",
   stadt: "empfaengerStadt",
   ort: "empfaengerStadt",
   plz: "empfaengerPlz",
@@ -61,6 +63,45 @@ const COLUMN_MAP: Record<string, keyof PreviewRow> = {
   notizen: "notizen",
   bemerkung: "notizen",
 };
+
+const TEMPLATE_HEADERS = [
+  "Absender Name",
+  "Absender Adresse",
+  "Empfänger Name",
+  "Straße",
+  "PLZ",
+  "Stadt",
+  "E-Mail",
+  "Telefon",
+  "Pakete",
+  "Gewicht (kg)",
+  "Notizen",
+];
+
+const TEMPLATE_EXAMPLE = [
+  "Meine Firma GmbH",
+  "Hauptstr. 1, 45127 Essen",
+  "Max Mustermann",
+  "Bahnhofstr. 5",
+  "44137",
+  "Dortmund",
+  "max@beispiel.de",
+  "0231 1234567",
+  "2",
+  "5.5",
+  "Zerbrechlich",
+];
+
+function downloadTemplate() {
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS, TEMPLATE_EXAMPLE]);
+
+  // Set column widths
+  ws["!cols"] = TEMPLATE_HEADERS.map((h) => ({ wch: Math.max(h.length + 4, 16) }));
+
+  XLSX.utils.book_append_sheet(wb, ws, "Aufträge");
+  XLSX.writeFile(wb, "Auftraege_Vorlage.xlsx");
+}
 
 export function ExcelImport({ onImport }: ExcelImportProps) {
   const [preview, setPreview] = useState<PreviewRow[]>([]);
@@ -121,9 +162,9 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
   );
 
   const handleImport = () => {
-    const valid = preview.filter((r) => r.absenderName && r.empfaengerName && r.empfaengerStadt);
+    const valid = preview.filter((r) => r.empfaengerName && r.empfaengerStadt);
     if (valid.length === 0) {
-      toast.error("Keine gültigen Zeilen gefunden");
+      toast.error("Keine gültigen Zeilen gefunden (Empfänger Name und Stadt sind Pflicht)");
       return;
     }
     onImport(valid);
@@ -171,14 +212,20 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
         </CardContent>
       </Card>
 
-      {/* Column info */}
+      {/* Template download + column info */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Erwartete Spalten</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Erwartete Spalten</CardTitle>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={downloadTemplate}>
+              <Download className="h-3.5 w-3.5" />
+              Vorlage herunterladen
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2 text-xs">
-            {["Absender Name", "Absender Adresse", "Empfänger Name", "Empfänger Adresse", "Stadt", "Pakete", "Gewicht", "Notizen"].map((col) => (
+            {TEMPLATE_HEADERS.map((col) => (
               <span key={col} className="rounded-md bg-muted px-2.5 py-1 text-muted-foreground">
                 {col}
               </span>
@@ -213,9 +260,12 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead>Absender</TableHead>
                     <TableHead>Empfänger</TableHead>
+                    <TableHead>Straße</TableHead>
+                    <TableHead>PLZ</TableHead>
                     <TableHead>Stadt</TableHead>
+                    <TableHead>E-Mail</TableHead>
+                    <TableHead>Telefon</TableHead>
                     <TableHead className="text-center">Pakete</TableHead>
                     <TableHead className="text-right">Gewicht</TableHead>
                   </TableRow>
@@ -223,9 +273,12 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
                 <TableBody>
                   {preview.slice(0, 10).map((row, i) => (
                     <TableRow key={i}>
-                      <TableCell>{row.absenderName}</TableCell>
-                      <TableCell>{row.empfaengerName}</TableCell>
+                      <TableCell className="font-medium">{row.empfaengerName}</TableCell>
+                      <TableCell>{row.empfaengerAdresse}</TableCell>
+                      <TableCell>{row.empfaengerPlz}</TableCell>
                       <TableCell>{row.empfaengerStadt}</TableCell>
+                      <TableCell className="text-muted-foreground">{row.empfaengerEmail || "–"}</TableCell>
+                      <TableCell className="text-muted-foreground">{row.empfaengerTelefon || "–"}</TableCell>
                       <TableCell className="text-center">{row.pakete}</TableCell>
                       <TableCell className="text-right">{row.gewicht} kg</TableCell>
                     </TableRow>
