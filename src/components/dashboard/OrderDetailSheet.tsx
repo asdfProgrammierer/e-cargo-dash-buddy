@@ -84,7 +84,8 @@ function generateLabelHTML(order: Order) {
         <div class="section">
           <div class="section-title">Empfänger</div>
           <div class="recipient">${order.empfaengerName}</div>
-          <div class="section-content">${order.empfaengerAdresse}<br/>${order.empfaengerStadt}</div>
+          <div class="section-content">${order.empfaengerAdresse}<br/>${order.empfaengerPlz ? order.empfaengerPlz + " " : ""}${order.empfaengerStadt}</div>
+          ${order.empfaengerTelefon ? `<div class="section-content" style="font-size:11px;color:#666">Tel: ${order.empfaengerTelefon}</div>` : ""}
         </div>
         <div class="barcode">${order.auftragsNr.replace(/-/g, " ")}</div>
         <div class="meta">
