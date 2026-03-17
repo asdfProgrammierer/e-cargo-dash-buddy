@@ -40,6 +40,7 @@ const DEMO_ORDERS: Order[] = [
     absenderAdresse: "Ringstr. 44, 46045 Oberhausen",
     empfaengerName: "Klein Bürobedarf",
     empfaengerAdresse: "Schillerstr. 10",
+    empfaengerPlz: "47051",
     empfaengerStadt: "Duisburg",
     pakete: 5,
     gewicht: 28.0,
