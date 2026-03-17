@@ -119,7 +119,10 @@ export function OrderDetailSheet({
     setForm({
       empfaengerName: order.empfaengerName,
       empfaengerAdresse: order.empfaengerAdresse,
+      empfaengerPlz: order.empfaengerPlz,
       empfaengerStadt: order.empfaengerStadt,
+      empfaengerEmail: order.empfaengerEmail,
+      empfaengerTelefon: order.empfaengerTelefon,
       pakete: order.pakete,
       gewicht: order.gewicht,
       notizen: order.notizen,
