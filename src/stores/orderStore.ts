@@ -68,6 +68,7 @@ const DEMO_ORDERS: Order[] = [
     absenderAdresse: "Breite Str. 19, 44623 Herne",
     empfaengerName: "Wagner Mode",
     empfaengerAdresse: "Am Markt 3",
+    empfaengerPlz: "45127",
     empfaengerStadt: "Essen",
     pakete: 8,
     gewicht: 15.0,
