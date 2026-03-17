@@ -12,6 +12,7 @@ const DEMO_ORDERS: Order[] = [
     absenderAdresse: "Hauptstr. 12, 45127 Essen",
     empfaengerName: "Schmidt & Co.",
     empfaengerAdresse: "Bahnhofstr. 5",
+    empfaengerPlz: "44137",
     empfaengerStadt: "Dortmund",
     pakete: 3,
     gewicht: 12.5,
