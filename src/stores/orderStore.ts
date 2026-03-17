@@ -26,6 +26,7 @@ const DEMO_ORDERS: Order[] = [
     absenderAdresse: "Marktplatz 8, 44135 Dortmund",
     empfaengerName: "Becker Logistik",
     empfaengerAdresse: "Industriestr. 22",
+    empfaengerPlz: "44787",
     empfaengerStadt: "Bochum",
     pakete: 1,
     gewicht: 3.2,
