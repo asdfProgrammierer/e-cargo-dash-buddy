@@ -273,12 +273,38 @@ export function OrderDetailSheet({
                     onChange={(e) => update("empfaengerAdresse", e.target.value)}
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Stadt</Label>
-                  <Input
-                    value={form.empfaengerStadt ?? ""}
-                    onChange={(e) => update("empfaengerStadt", e.target.value)}
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">PLZ</Label>
+                    <Input
+                      value={form.empfaengerPlz ?? ""}
+                      onChange={(e) => update("empfaengerPlz", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Stadt</Label>
+                    <Input
+                      value={form.empfaengerStadt ?? ""}
+                      onChange={(e) => update("empfaengerStadt", e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">E-Mail</Label>
+                    <Input
+                      type="email"
+                      value={form.empfaengerEmail ?? ""}
+                      onChange={(e) => update("empfaengerEmail", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Telefon</Label>
+                    <Input
+                      value={form.empfaengerTelefon ?? ""}
+                      onChange={(e) => update("empfaengerTelefon", e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
             ) : (
