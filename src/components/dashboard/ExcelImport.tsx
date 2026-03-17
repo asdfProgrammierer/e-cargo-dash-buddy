@@ -23,7 +23,10 @@ interface PreviewRow {
   absenderAdresse: string;
   empfaengerName: string;
   empfaengerAdresse: string;
+  empfaengerPlz: string;
   empfaengerStadt: string;
+  empfaengerEmail?: string;
+  empfaengerTelefon?: string;
   pakete: number;
   gewicht: number;
   notizen?: string;

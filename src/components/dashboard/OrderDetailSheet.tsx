@@ -311,8 +311,13 @@ export function OrderDetailSheet({
               <>
                 <p className="font-medium">{order.empfaengerName}</p>
                 <p className="text-sm text-muted-foreground">
-                  {order.empfaengerAdresse}, {order.empfaengerStadt}
+                  {order.empfaengerAdresse}{order.empfaengerAdresse ? ", " : ""}{order.empfaengerPlz ? order.empfaengerPlz + " " : ""}{order.empfaengerStadt}
                 </p>
+                {(order.empfaengerEmail || order.empfaengerTelefon) && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {[order.empfaengerEmail, order.empfaengerTelefon].filter(Boolean).join(" · ")}
+                  </p>
+                )}
               </>
             )}
           </div>
