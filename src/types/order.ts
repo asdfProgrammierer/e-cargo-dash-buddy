@@ -7,7 +7,10 @@ export interface Order {
   absenderAdresse: string;
   empfaengerName: string;
   empfaengerAdresse: string;
+  empfaengerPlz: string;
   empfaengerStadt: string;
+  empfaengerEmail?: string;
+  empfaengerTelefon?: string;
   pakete: number;
   gewicht: number;
   status: OrderStatus;

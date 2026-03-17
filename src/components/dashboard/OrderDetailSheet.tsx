@@ -84,7 +84,8 @@ function generateLabelHTML(order: Order) {
         <div class="section">
           <div class="section-title">Empfänger</div>
           <div class="recipient">${order.empfaengerName}</div>
-          <div class="section-content">${order.empfaengerAdresse}<br/>${order.empfaengerStadt}</div>
+          <div class="section-content">${order.empfaengerAdresse}<br/>${order.empfaengerPlz ? order.empfaengerPlz + " " : ""}${order.empfaengerStadt}</div>
+          ${order.empfaengerTelefon ? `<div class="section-content" style="font-size:11px;color:#666">Tel: ${order.empfaengerTelefon}</div>` : ""}
         </div>
         <div class="barcode">${order.auftragsNr.replace(/-/g, " ")}</div>
         <div class="meta">
@@ -118,7 +119,10 @@ export function OrderDetailSheet({
     setForm({
       empfaengerName: order.empfaengerName,
       empfaengerAdresse: order.empfaengerAdresse,
+      empfaengerPlz: order.empfaengerPlz,
       empfaengerStadt: order.empfaengerStadt,
+      empfaengerEmail: order.empfaengerEmail,
+      empfaengerTelefon: order.empfaengerTelefon,
       pakete: order.pakete,
       gewicht: order.gewicht,
       notizen: order.notizen,
@@ -269,20 +273,51 @@ export function OrderDetailSheet({
                     onChange={(e) => update("empfaengerAdresse", e.target.value)}
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Stadt</Label>
-                  <Input
-                    value={form.empfaengerStadt ?? ""}
-                    onChange={(e) => update("empfaengerStadt", e.target.value)}
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">PLZ</Label>
+                    <Input
+                      value={form.empfaengerPlz ?? ""}
+                      onChange={(e) => update("empfaengerPlz", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Stadt</Label>
+                    <Input
+                      value={form.empfaengerStadt ?? ""}
+                      onChange={(e) => update("empfaengerStadt", e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">E-Mail</Label>
+                    <Input
+                      type="email"
+                      value={form.empfaengerEmail ?? ""}
+                      onChange={(e) => update("empfaengerEmail", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Telefon</Label>
+                    <Input
+                      value={form.empfaengerTelefon ?? ""}
+                      onChange={(e) => update("empfaengerTelefon", e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
             ) : (
               <>
                 <p className="font-medium">{order.empfaengerName}</p>
                 <p className="text-sm text-muted-foreground">
-                  {order.empfaengerAdresse}, {order.empfaengerStadt}
+                  {order.empfaengerAdresse}{order.empfaengerAdresse ? ", " : ""}{order.empfaengerPlz ? order.empfaengerPlz + " " : ""}{order.empfaengerStadt}
                 </p>
+                {(order.empfaengerEmail || order.empfaengerTelefon) && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {[order.empfaengerEmail, order.empfaengerTelefon].filter(Boolean).join(" · ")}
+                  </p>
+                )}
               </>
             )}
           </div>

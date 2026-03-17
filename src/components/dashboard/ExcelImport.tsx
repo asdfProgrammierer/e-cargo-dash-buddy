@@ -23,7 +23,10 @@ interface PreviewRow {
   absenderAdresse: string;
   empfaengerName: string;
   empfaengerAdresse: string;
+  empfaengerPlz: string;
   empfaengerStadt: string;
+  empfaengerEmail?: string;
+  empfaengerTelefon?: string;
   pakete: number;
   gewicht: number;
   notizen?: string;
@@ -45,6 +48,12 @@ const COLUMN_MAP: Record<string, keyof PreviewRow> = {
   empfaengeradresse: "empfaengerAdresse",
   stadt: "empfaengerStadt",
   ort: "empfaengerStadt",
+  plz: "empfaengerPlz",
+  postleitzahl: "empfaengerPlz",
+  email: "empfaengerEmail",
+  "e-mail": "empfaengerEmail",
+  telefon: "empfaengerTelefon",
+  tel: "empfaengerTelefon",
   pakete: "pakete",
   anzahl: "pakete",
   gewicht: "gewicht",
@@ -83,7 +92,10 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
             absenderAdresse: mapped.absenderAdresse || "",
             empfaengerName: mapped.empfaengerName || "",
             empfaengerAdresse: mapped.empfaengerAdresse || "",
+            empfaengerPlz: mapped.empfaengerPlz || "",
             empfaengerStadt: mapped.empfaengerStadt || "",
+            empfaengerEmail: mapped.empfaengerEmail,
+            empfaengerTelefon: mapped.empfaengerTelefon,
             pakete: mapped.pakete || 1,
             gewicht: mapped.gewicht || 0,
             notizen: mapped.notizen,

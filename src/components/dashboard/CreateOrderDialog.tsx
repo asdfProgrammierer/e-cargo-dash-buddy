@@ -10,14 +10,39 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Building2 } from "lucide-react";
+import { Plus, Building2, BookUser, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Order } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 interface CreateOrderDialogProps {
   onSubmit: (order: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">) => void;
+}
+
+interface Contact {
+  id: string;
+  firma_name: string | null;
+  ansprechpartner: string;
+  email: string | null;
+  telefon: string | null;
+  strasse: string | null;
+  plz: string | null;
+  stadt: string | null;
 }
 
 const emptyForm = {
@@ -25,7 +50,10 @@ const emptyForm = {
   absenderAdresse: "",
   empfaengerName: "",
   empfaengerAdresse: "",
+  empfaengerPlz: "",
   empfaengerStadt: "",
+  empfaengerEmail: "",
+  empfaengerTelefon: "",
   pakete: 1,
   gewicht: 0,
   notizen: "",
@@ -37,6 +65,8 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
   const [form, setForm] = useState(emptyForm);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [senderDefaults, setSenderDefaults] = useState({ absenderName: "", absenderAdresse: "" });
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactPopoverOpen, setContactPopoverOpen] = useState(false);
 
   // Load profile data once
   useEffect(() => {
@@ -50,7 +80,7 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
 
       if (data) {
         const name = data.firma_name || data.ansprechpartner || "";
-        const parts = [(data as any).strasse, (data as any).plz, (data as any).stadt].filter(Boolean);
+        const parts = [data.strasse, data.plz, data.stadt].filter(Boolean);
         const adresse = parts.join(", ");
         setSenderDefaults({ absenderName: name, absenderAdresse: adresse });
       }
@@ -58,6 +88,21 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
     };
     load();
   }, [user, profileLoaded]);
+
+  // Load address book contacts
+  useEffect(() => {
+    if (!user) return;
+    const load = async () => {
+      const { data } = await supabase
+        .from("address_book")
+        .select("id, firma_name, ansprechpartner, email, telefon, strasse, plz, stadt")
+        .eq("user_id", user.id)
+        .order("is_favorite", { ascending: false })
+        .order("ansprechpartner", { ascending: true });
+      if (data) setContacts(data);
+    };
+    load();
+  }, [user]);
 
   // Pre-fill sender when dialog opens
   useEffect(() => {
@@ -69,6 +114,21 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
       }));
     }
   }, [open, profileLoaded, senderDefaults]);
+
+  const selectContact = (contact: Contact) => {
+    setForm((prev) => ({
+      ...prev,
+      empfaengerName: contact.firma_name
+        ? `${contact.firma_name} – ${contact.ansprechpartner}`
+        : contact.ansprechpartner,
+      empfaengerAdresse: contact.strasse || "",
+      empfaengerPlz: contact.plz || "",
+      empfaengerStadt: contact.stadt || "",
+      empfaengerEmail: contact.email || "",
+      empfaengerTelefon: contact.telefon || "",
+    }));
+    setContactPopoverOpen(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,7 +153,7 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
           Neuer Auftrag
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Neuen Auftrag anlegen</DialogTitle>
         </DialogHeader>
@@ -117,21 +177,78 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
           </div>
 
           {/* Recipient */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Empfänger Name *</Label>
-              <Input value={form.empfaengerName} onChange={(e) => update("empfaengerName", e.target.value)} />
+          <div className="rounded-lg border border-border p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Empfänger</p>
+              {contacts.length > 0 && (
+                <Popover open={contactPopoverOpen} onOpenChange={setContactPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                      <BookUser className="h-3.5 w-3.5" />
+                      Aus Adressbuch
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-0" align="end">
+                    <Command>
+                      <CommandInput placeholder="Kontakt suchen…" />
+                      <CommandList>
+                        <CommandEmpty>Kein Kontakt gefunden</CommandEmpty>
+                        <CommandGroup>
+                          {contacts.map((c) => (
+                            <CommandItem
+                              key={c.id}
+                              onSelect={() => selectContact(c)}
+                              className="flex flex-col items-start gap-0.5"
+                            >
+                              <span className="font-medium text-sm">{c.ansprechpartner}</span>
+                              {c.firma_name && (
+                                <span className="text-xs text-muted-foreground">{c.firma_name}</span>
+                              )}
+                              {c.stadt && (
+                                <span className="text-xs text-muted-foreground">
+                                  {[c.plz, c.stadt].filter(Boolean).join(" ")}
+                                </span>
+                              )}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              )}
             </div>
-            <div className="space-y-2">
-              <Label>Empfänger Adresse</Label>
-              <Input value={form.empfaengerAdresse} onChange={(e) => update("empfaengerAdresse", e.target.value)} />
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label className="text-xs">Name *</Label>
+                <Input value={form.empfaengerName} onChange={(e) => update("empfaengerName", e.target.value)} />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label className="text-xs">Straße</Label>
+                <Input value={form.empfaengerAdresse} onChange={(e) => update("empfaengerAdresse", e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">PLZ</Label>
+                <Input value={form.empfaengerPlz} onChange={(e) => update("empfaengerPlz", e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Stadt *</Label>
+                <Input value={form.empfaengerStadt} onChange={(e) => update("empfaengerStadt", e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">E-Mail</Label>
+                <Input type="email" value={form.empfaengerEmail} onChange={(e) => update("empfaengerEmail", e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Telefon</Label>
+                <Input value={form.empfaengerTelefon} onChange={(e) => update("empfaengerTelefon", e.target.value)} />
+              </div>
             </div>
           </div>
+
+          {/* Package details */}
           <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label>Stadt *</Label>
-              <Input value={form.empfaengerStadt} onChange={(e) => update("empfaengerStadt", e.target.value)} />
-            </div>
             <div className="space-y-2">
               <Label>Pakete</Label>
               <Input type="number" min={1} value={form.pakete} onChange={(e) => update("pakete", parseInt(e.target.value) || 1)} />
