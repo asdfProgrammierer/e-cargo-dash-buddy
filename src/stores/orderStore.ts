@@ -54,6 +54,7 @@ const DEMO_ORDERS: Order[] = [
     absenderAdresse: "Königstr. 3, 47051 Duisburg",
     empfaengerName: "Mayer Elektronik",
     empfaengerAdresse: "Poststr. 17",
+    empfaengerPlz: "45879",
     empfaengerStadt: "Gelsenkirchen",
     pakete: 2,
     gewicht: 7.8,
