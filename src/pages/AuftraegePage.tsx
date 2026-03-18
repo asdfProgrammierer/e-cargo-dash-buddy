@@ -10,6 +10,7 @@ import { Order, OrderStatus } from "@/types/order";
 
 const AuftraegePage = () => {
   const { orders, addOrder, updateStatus, deleteOrder, updateOrder } = useOrders();
+  // Note: updateStatus is only used by OrderDetailSheet, not exposed in OrderTable
   const [filter, setFilter] = useState<OrderStatus | "alle">("alle");
   const [search, setSearch] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -53,7 +54,6 @@ const AuftraegePage = () => {
         </div>
         <OrderTable
           orders={filtered}
-          onUpdateStatus={updateStatus}
           onDelete={deleteOrder}
           onSelect={handleSelect}
         />
