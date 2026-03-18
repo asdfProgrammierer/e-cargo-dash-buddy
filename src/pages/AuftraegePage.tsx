@@ -54,7 +54,6 @@ const AuftraegePage = () => {
         </div>
         <OrderTable
           orders={filtered}
-          onUpdateStatus={updateStatus}
           onDelete={deleteOrder}
           onSelect={handleSelect}
         />
