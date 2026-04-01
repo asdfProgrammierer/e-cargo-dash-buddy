@@ -245,8 +245,19 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
                   </PopoverContent>
                 </Popover>
               )}
-            </div>
+          </div>
 
+          {/* Save to address book */}
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="saveToAddressBook"
+              checked={form.saveToAddressBook}
+              onCheckedChange={(checked) => update("saveToAddressBook", !!checked)}
+            />
+            <Label htmlFor="saveToAddressBook" className="text-sm cursor-pointer">
+              Empfänger im Adressbuch speichern
+            </Label>
+          </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5 sm:col-span-2">
                 <Label className="text-xs">Name *</Label>
