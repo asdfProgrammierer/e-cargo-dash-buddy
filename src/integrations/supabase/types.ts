@@ -62,6 +62,66 @@ export type Database = {
         }
         Relationships: []
       }
+      orders: {
+        Row: {
+          absender_adresse: string | null
+          absender_name: string
+          auftrags_nr: string
+          created_at: string
+          empfaenger_adresse: string | null
+          empfaenger_email: string | null
+          empfaenger_name: string
+          empfaenger_plz: string | null
+          empfaenger_stadt: string
+          empfaenger_telefon: string | null
+          gewicht: number
+          id: string
+          notizen: string | null
+          pakete: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          absender_adresse?: string | null
+          absender_name: string
+          auftrags_nr: string
+          created_at?: string
+          empfaenger_adresse?: string | null
+          empfaenger_email?: string | null
+          empfaenger_name: string
+          empfaenger_plz?: string | null
+          empfaenger_stadt: string
+          empfaenger_telefon?: string | null
+          gewicht?: number
+          id?: string
+          notizen?: string | null
+          pakete?: number
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          absender_adresse?: string | null
+          absender_name?: string
+          auftrags_nr?: string
+          created_at?: string
+          empfaenger_adresse?: string | null
+          empfaenger_email?: string | null
+          empfaenger_name?: string
+          empfaenger_plz?: string | null
+          empfaenger_stadt?: string
+          empfaenger_telefon?: string | null
+          gewicht?: number
+          id?: string
+          notizen?: string | null
+          pakete?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           ansprechpartner: string | null
