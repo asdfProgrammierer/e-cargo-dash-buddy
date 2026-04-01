@@ -170,7 +170,7 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
     toast.success("Auftrag erfolgreich angelegt");
   };
 
-  const update = (field: string, value: string | number) =>
+  const update = (field: string, value: string | number | boolean) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
   return (
