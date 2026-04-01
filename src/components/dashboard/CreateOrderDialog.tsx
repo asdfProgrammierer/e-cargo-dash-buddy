@@ -132,13 +132,39 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
     setContactPopoverOpen(false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.absenderName || !form.empfaengerName || !form.empfaengerStadt) {
       toast.error("Bitte alle Pflichtfelder ausfüllen");
       return;
     }
-    onSubmit(form);
+
+    if (form.saveToAddressBook && user) {
+      const { error } = await supabase.from("address_book").insert({
+        user_id: user.id,
+        ansprechpartner: form.empfaengerName,
+        strasse: form.empfaengerAdresse || null,
+        plz: form.empfaengerPlz || null,
+        stadt: form.empfaengerStadt || null,
+        email: form.empfaengerEmail || null,
+        telefon: form.empfaengerTelefon || null,
+      });
+      if (error) {
+        toast.error("Kontakt konnte nicht gespeichert werden");
+      } else {
+        // Refresh contacts list
+        const { data } = await supabase
+          .from("address_book")
+          .select("id, firma_name, ansprechpartner, email, telefon, strasse, plz, stadt")
+          .eq("user_id", user.id)
+          .order("is_favorite", { ascending: false })
+          .order("ansprechpartner", { ascending: true });
+        if (data) setContacts(data);
+      }
+    }
+
+    const { saveToAddressBook, ...orderData } = form;
+    onSubmit(orderData);
     setForm(emptyForm);
     setOpen(false);
     toast.success("Auftrag erfolgreich angelegt");
