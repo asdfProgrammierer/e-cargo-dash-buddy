@@ -58,6 +58,7 @@ const emptyForm = {
   pakete: 1,
   gewicht: 0,
   notizen: "",
+  saveToAddressBook: false,
 };
 
 export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
