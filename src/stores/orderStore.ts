@@ -1,120 +1,159 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Order, OrderStatus } from "@/types/order";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
-const generateId = () => Math.random().toString(36).substring(2, 9);
-const generateAuftragsNr = () => `EC-${Date.now().toString(36).toUpperCase()}`;
+interface DbOrder {
+  id: string;
+  user_id: string;
+  auftrags_nr: string;
+  absender_name: string;
+  absender_adresse: string;
+  empfaenger_name: string;
+  empfaenger_adresse: string;
+  empfaenger_plz: string;
+  empfaenger_stadt: string;
+  empfaenger_email: string | null;
+  empfaenger_telefon: string | null;
+  pakete: number;
+  gewicht: number;
+  status: string;
+  notizen: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
-const DEMO_ORDERS: Order[] = [
-  {
-    id: generateId(),
-    auftragsNr: "EC-2024001",
-    absenderName: "Müller GmbH",
-    absenderAdresse: "Hauptstr. 12, 45127 Essen",
-    empfaengerName: "Schmidt & Co.",
-    empfaengerAdresse: "Bahnhofstr. 5",
-    empfaengerPlz: "44137",
-    empfaengerStadt: "Dortmund",
-    pakete: 3,
-    gewicht: 12.5,
-    status: "unterwegs",
-    erstelltAm: "2026-03-12",
-  },
-  {
-    id: generateId(),
-    auftragsNr: "EC-2024002",
-    absenderName: "Weber Handel",
-    absenderAdresse: "Marktplatz 8, 44135 Dortmund",
-    empfaengerName: "Becker Logistik",
-    empfaengerAdresse: "Industriestr. 22",
-    empfaengerPlz: "44787",
-    empfaengerStadt: "Bochum",
-    pakete: 1,
-    gewicht: 3.2,
-    status: "neu",
-    erstelltAm: "2026-03-12",
-  },
-  {
-    id: generateId(),
-    auftragsNr: "EC-2024003",
-    absenderName: "Fischer Versand",
-    absenderAdresse: "Ringstr. 44, 46045 Oberhausen",
-    empfaengerName: "Klein Bürobedarf",
-    empfaengerAdresse: "Schillerstr. 10",
-    empfaengerPlz: "47051",
-    empfaengerStadt: "Duisburg",
-    pakete: 5,
-    gewicht: 28.0,
-    status: "zugestellt",
-    erstelltAm: "2026-03-11",
-  },
-  {
-    id: generateId(),
-    auftragsNr: "EC-2024004",
-    absenderName: "Hoffmann AG",
-    absenderAdresse: "Königstr. 3, 47051 Duisburg",
-    empfaengerName: "Mayer Elektronik",
-    empfaengerAdresse: "Poststr. 17",
-    empfaengerPlz: "45879",
-    empfaengerStadt: "Gelsenkirchen",
-    pakete: 2,
-    gewicht: 7.8,
-    status: "in_bearbeitung",
-    erstelltAm: "2026-03-12",
-  },
-  {
-    id: generateId(),
-    auftragsNr: "EC-2024005",
-    absenderName: "Schulz Textilien",
-    absenderAdresse: "Breite Str. 19, 44623 Herne",
-    empfaengerName: "Wagner Mode",
-    empfaengerAdresse: "Am Markt 3",
-    empfaengerPlz: "45127",
-    empfaengerStadt: "Essen",
-    pakete: 8,
-    gewicht: 15.0,
-    status: "storniert",
-    erstelltAm: "2026-03-10",
-  },
-];
+function dbToOrder(row: DbOrder): Order {
+  return {
+    id: row.id,
+    auftragsNr: row.auftrags_nr,
+    absenderName: row.absender_name,
+    absenderAdresse: row.absender_adresse,
+    empfaengerName: row.empfaenger_name,
+    empfaengerAdresse: row.empfaenger_adresse,
+    empfaengerPlz: row.empfaenger_plz,
+    empfaengerStadt: row.empfaenger_stadt,
+    empfaengerEmail: row.empfaenger_email ?? undefined,
+    empfaengerTelefon: row.empfaenger_telefon ?? undefined,
+    pakete: row.pakete,
+    gewicht: Number(row.gewicht),
+    status: row.status as OrderStatus,
+    erstelltAm: row.created_at.split("T")[0],
+    notizen: row.notizen ?? undefined,
+  };
+}
 
 export function useOrderStore() {
-  const [orders, setOrders] = useState<Order[]>(DEMO_ORDERS);
+  const { user } = useAuth();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const addOrder = (order: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">) => {
-    const newOrder: Order = {
-      ...order,
-      id: generateId(),
-      auftragsNr: generateAuftragsNr(),
-      erstelltAm: new Date().toISOString().split("T")[0],
-      status: "neu",
-    };
+  const fetchOrders = useCallback(async () => {
+    if (!user) { setOrders([]); setLoading(false); return; }
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    if (error) {
+      toast.error("Aufträge konnten nicht geladen werden");
+      console.error(error);
+    } else {
+      setOrders((data as unknown as DbOrder[]).map(dbToOrder));
+    }
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  const addOrder = async (order: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">) => {
+    if (!user) return null;
+    const { data, error } = await supabase
+      .from("orders")
+      .insert({
+        user_id: user.id,
+        auftrags_nr: "",
+        absender_name: order.absenderName,
+        absender_adresse: order.absenderAdresse,
+        empfaenger_name: order.empfaengerName,
+        empfaenger_adresse: order.empfaengerAdresse,
+        empfaenger_plz: order.empfaengerPlz,
+        empfaenger_stadt: order.empfaengerStadt,
+        empfaenger_email: order.empfaengerEmail || null,
+        empfaenger_telefon: order.empfaengerTelefon || null,
+        pakete: order.pakete,
+        gewicht: order.gewicht,
+        notizen: order.notizen || null,
+      })
+      .select()
+      .single();
+    if (error) {
+      toast.error("Auftrag konnte nicht gespeichert werden");
+      console.error(error);
+      return null;
+    }
+    const newOrder = dbToOrder(data as unknown as DbOrder);
     setOrders((prev) => [newOrder, ...prev]);
     return newOrder;
   };
 
-  const addOrders = (newOrders: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">[]) => {
-    const created = newOrders.map((o) => ({
-      ...o,
-      id: generateId(),
-      auftragsNr: generateAuftragsNr(),
-      erstelltAm: new Date().toISOString().split("T")[0],
-      status: "neu" as OrderStatus,
+  const addOrders = async (newOrders: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">[]) => {
+    if (!user) return [];
+    const rows = newOrders.map((o) => ({
+      user_id: user.id,
+      auftrags_nr: "",
+      absender_name: o.absenderName,
+      absender_adresse: o.absenderAdresse,
+      empfaenger_name: o.empfaengerName,
+      empfaenger_adresse: o.empfaengerAdresse,
+      empfaenger_plz: o.empfaengerPlz,
+      empfaenger_stadt: o.empfaengerStadt,
+      empfaenger_email: o.empfaengerEmail || null,
+      empfaenger_telefon: o.empfaengerTelefon || null,
+      pakete: o.pakete,
+      gewicht: o.gewicht,
+      notizen: o.notizen || null,
     }));
+    const { data, error } = await supabase.from("orders").insert(rows).select();
+    if (error) {
+      toast.error("Import fehlgeschlagen");
+      console.error(error);
+      return [];
+    }
+    const created = (data as unknown as DbOrder[]).map(dbToOrder);
     setOrders((prev) => [...created, ...prev]);
     return created;
   };
 
-  const updateStatus = (id: string, status: OrderStatus) => {
+  const updateStatus = async (id: string, status: OrderStatus) => {
+    const { error } = await supabase.from("orders").update({ status }).eq("id", id);
+    if (error) { toast.error("Status konnte nicht aktualisiert werden"); return; }
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
   };
 
-  const deleteOrder = (id: string) => {
+  const deleteOrder = async (id: string) => {
+    const { error } = await supabase.from("orders").delete().eq("id", id);
+    if (error) { toast.error("Auftrag konnte nicht gelöscht werden"); return; }
     setOrders((prev) => prev.filter((o) => o.id !== id));
   };
 
-  const updateOrder = (id: string, updates: Partial<Order>) => {
+  const updateOrder = async (id: string, updates: Partial<Order>) => {
+    const dbUpdates: Record<string, unknown> = {};
+    if (updates.empfaengerName !== undefined) dbUpdates.empfaenger_name = updates.empfaengerName;
+    if (updates.empfaengerAdresse !== undefined) dbUpdates.empfaenger_adresse = updates.empfaengerAdresse;
+    if (updates.empfaengerPlz !== undefined) dbUpdates.empfaenger_plz = updates.empfaengerPlz;
+    if (updates.empfaengerStadt !== undefined) dbUpdates.empfaenger_stadt = updates.empfaengerStadt;
+    if (updates.empfaengerEmail !== undefined) dbUpdates.empfaenger_email = updates.empfaengerEmail || null;
+    if (updates.empfaengerTelefon !== undefined) dbUpdates.empfaenger_telefon = updates.empfaengerTelefon || null;
+    if (updates.pakete !== undefined) dbUpdates.pakete = updates.pakete;
+    if (updates.gewicht !== undefined) dbUpdates.gewicht = updates.gewicht;
+    if (updates.notizen !== undefined) dbUpdates.notizen = updates.notizen || null;
+    
+    const { error } = await supabase.from("orders").update(dbUpdates).eq("id", id);
+    if (error) { toast.error("Änderungen konnten nicht gespeichert werden"); return; }
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...updates } : o)));
   };
 
-  return { orders, addOrder, addOrders, updateStatus, deleteOrder, updateOrder };
+  return { orders, loading, addOrder, addOrders, updateStatus, deleteOrder, updateOrder };
 }
