@@ -2,6 +2,7 @@ import { LayoutDashboard, Package, Upload, Leaf, LogOut, UserCircle, BookUser, S
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
 import {
   Sidebar,
   SidebarContent,
@@ -71,12 +72,13 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 space-y-3">
+      <SidebarFooter className="p-4 space-y-2">
         {!collapsed && user && (
           <p className="text-xs text-sidebar-foreground/60 truncate">
             {user.email}
           </p>
         )}
+        <ThemeToggle collapsed={collapsed} />
         <Button
           variant="ghost"
           size={collapsed ? "icon" : "sm"}

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import { StatsCards } from "@/components/dashboard/StatsCards";
+import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { OrderTable } from "@/components/dashboard/OrderTable";
 import { OrderDetailSheet } from "@/components/dashboard/OrderDetailSheet";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
@@ -28,7 +28,7 @@ const DashboardPage = () => {
   return (
     <DashboardLayout title="Dashboard">
       <div className="space-y-6">
-        <StatsCards orders={orders} />
+        <DashboardStats orders={orders} />
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <StatusFilter activeFilter={filter} onFilter={setFilter} />
           <CreateOrderDialog onSubmit={addOrder} />

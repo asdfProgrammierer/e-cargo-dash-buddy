@@ -54,8 +54,53 @@ All colors MUST be HSL.
     --info: 210 80% 52%;
     --info-foreground: 0 0% 100%;
   }
-}
+  }
 
+  .dark {
+    --background: 160 30% 6%;
+    --foreground: 140 15% 90%;
+
+    --card: 160 25% 9%;
+    --card-foreground: 140 15% 90%;
+
+    --popover: 160 25% 9%;
+    --popover-foreground: 140 15% 90%;
+
+    --primary: 152 55% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 160 20% 14%;
+    --secondary-foreground: 140 15% 85%;
+
+    --muted: 160 15% 14%;
+    --muted-foreground: 140 10% 55%;
+
+    --accent: 160 20% 16%;
+    --accent-foreground: 152 55% 55%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 160 15% 18%;
+    --input: 160 15% 18%;
+    --ring: 152 55% 45%;
+
+    --sidebar-background: 160 30% 5%;
+    --sidebar-foreground: 140 15% 85%;
+    --sidebar-primary: 152 55% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 160 25% 12%;
+    --sidebar-accent-foreground: 140 15% 90%;
+    --sidebar-border: 160 20% 14%;
+    --sidebar-ring: 152 55% 50%;
+
+    --success: 152 60% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --info: 210 80% 60%;
+    --info-foreground: 0 0% 100%;
+  }
 @layer base {
   * {
     @apply border-border;

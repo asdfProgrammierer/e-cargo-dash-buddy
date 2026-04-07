@@ -139,7 +139,17 @@ export function useOrderStore() {
   };
 
   const updateOrder = async (id: string, updates: Partial<Order>) => {
-    const dbUpdates: Record<string, unknown> = {};
+    const dbUpdates: {
+      empfaenger_name?: string;
+      empfaenger_adresse?: string;
+      empfaenger_plz?: string;
+      empfaenger_stadt?: string;
+      empfaenger_email?: string | null;
+      empfaenger_telefon?: string | null;
+      pakete?: number;
+      gewicht?: number;
+      notizen?: string | null;
+    } = {};
     if (updates.empfaengerName !== undefined) dbUpdates.empfaenger_name = updates.empfaengerName;
     if (updates.empfaengerAdresse !== undefined) dbUpdates.empfaenger_adresse = updates.empfaengerAdresse;
     if (updates.empfaengerPlz !== undefined) dbUpdates.empfaenger_plz = updates.empfaengerPlz;
@@ -154,6 +164,40 @@ export function useOrderStore() {
     if (error) { toast.error("Änderungen konnten nicht gespeichert werden"); return; }
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...updates } : o)));
   };
+
+  // Realtime subscription for order updates
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('orders-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newOrder = dbToOrder(payload.new as unknown as DbOrder);
+            setOrders((prev) => {
+              if (prev.some((o) => o.id === newOrder.id)) return prev;
+              return [newOrder, ...prev];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            const updated = dbToOrder(payload.new as unknown as DbOrder);
+            setOrders((prev) => {
+              const old = prev.find((o) => o.id === updated.id);
+              if (old && old.status !== updated.status) {
+                toast.info(`Auftrag ${updated.auftragsNr}: Status → ${updated.status === 'unterwegs' ? 'Unterwegs' : updated.status === 'zugestellt' ? 'Zugestellt' : updated.status === 'in_bearbeitung' ? 'In Bearbeitung' : updated.status === 'storniert' ? 'Storniert' : 'Neu'}`);
+              }
+              return prev.map((o) => (o.id === updated.id ? updated : o));
+            });
+          } else if (payload.eventType === 'DELETE') {
+            const oldId = (payload.old as { id: string }).id;
+            setOrders((prev) => prev.filter((o) => o.id !== oldId));
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
 
   return { orders, loading, addOrder, addOrders, updateStatus, deleteOrder, updateOrder };
 }
