@@ -13,13 +13,14 @@ import OnlineShopPage from "./pages/OnlineShopPage";
 import ProfilPage from "./pages/ProfilPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import PendingApprovalPage from "./pages/PendingApprovalPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { session, loading } = useAuth();
-  if (loading) {
+  const { session, loading, approved } = useAuth();
+  if (loading || (session && approved === null)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -27,19 +28,30 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
   if (!session) return <Navigate to="/login" replace />;
+  if (approved === false) return <Navigate to="/pending" replace />;
   return <>{children}</>;
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { session, loading } = useAuth();
+  const { session, loading, approved } = useAuth();
   if (loading) return null;
-  if (session) return <Navigate to="/" replace />;
+  if (session && approved) return <Navigate to="/" replace />;
+  if (session && approved === false) return <Navigate to="/pending" replace />;
+  return <>{children}</>;
+}
+
+function PendingRoute({ children }: { children: React.ReactNode }) {
+  const { session, loading, approved } = useAuth();
+  if (loading || (session && approved === null)) return null;
+  if (!session) return <Navigate to="/login" replace />;
+  if (approved) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+    <Route path="/pending" element={<PendingRoute><PendingApprovalPage /></PendingRoute>} />
     <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
     <Route path="/auftraege" element={<ProtectedRoute><AuftraegePage /></ProtectedRoute>} />
     <Route path="/adressbuch" element={<ProtectedRoute><AdressbuchPage /></ProtectedRoute>} />
