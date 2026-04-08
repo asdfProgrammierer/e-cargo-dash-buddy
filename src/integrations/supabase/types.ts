@@ -125,6 +125,7 @@ export type Database = {
       profiles: {
         Row: {
           ansprechpartner: string | null
+          approved: boolean
           avatar_url: string | null
           created_at: string
           firma_name: string | null
@@ -142,6 +143,7 @@ export type Database = {
         }
         Insert: {
           ansprechpartner?: string | null
+          approved?: boolean
           avatar_url?: string | null
           created_at?: string
           firma_name?: string | null
@@ -159,6 +161,7 @@ export type Database = {
         }
         Update: {
           ansprechpartner?: string | null
+          approved?: boolean
           avatar_url?: string | null
           created_at?: string
           firma_name?: string | null
