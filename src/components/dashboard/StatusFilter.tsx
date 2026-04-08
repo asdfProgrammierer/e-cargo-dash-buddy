@@ -15,7 +15,7 @@ const FILTER_LABELS: Record<string, string> = {
 
 export function StatusFilter({ activeFilter, onFilter }: StatusFilterProps) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-nowrap gap-1.5">
       {filters.map((f) => (
         <Button
           key={f}
