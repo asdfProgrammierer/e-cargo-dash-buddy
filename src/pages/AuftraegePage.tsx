@@ -5,19 +5,45 @@ import { OrderDetailSheet } from "@/components/dashboard/OrderDetailSheet";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import { StatusFilter } from "@/components/dashboard/StatusFilter";
 import { OrderSearch } from "@/components/dashboard/OrderSearch";
+import { Button } from "@/components/ui/button";
 import { useOrders } from "@/context/OrderContext";
 import { Order, OrderStatus } from "@/types/order";
+import { Calendar } from "lucide-react";
+
+type TimeFilter = "heute" | "7tage" | "30tage" | "alle";
+
+const TIME_FILTERS: { value: TimeFilter; label: string }[] = [
+  { value: "heute", label: "Heute" },
+  { value: "7tage", label: "7 Tage" },
+  { value: "30tage", label: "30 Tage" },
+  { value: "alle", label: "Alle" },
+];
 
 const AuftraegePage = () => {
   const { orders, addOrder, updateStatus, deleteOrder, updateOrder } = useOrders();
-  // Note: updateStatus is only used by OrderDetailSheet, not exposed in OrderTable
   const [filter, setFilter] = useState<OrderStatus | "alle">("alle");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("alle");
   const [search, setSearch] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const filtered = useMemo(() => {
     let result = orders;
+
+    // Time filter
+    if (timeFilter !== "alle") {
+      const now = new Date();
+      let cutoff: Date;
+      if (timeFilter === "heute") {
+        cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      } else if (timeFilter === "7tage") {
+        cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      } else {
+        cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      }
+      result = result.filter((o) => new Date(o.erstelltAm) >= cutoff);
+    }
+
     if (filter !== "alle") result = result.filter((o) => o.status === filter);
     if (search.trim()) {
       const s = search.toLowerCase();
@@ -30,9 +56,8 @@ const AuftraegePage = () => {
       );
     }
     return result;
-  }, [orders, filter, search]);
+  }, [orders, filter, timeFilter, search]);
 
-  // Keep selected order in sync with store
   const currentOrder = selectedOrder
     ? orders.find((o) => o.id === selectedOrder.id) ?? null
     : null;
@@ -50,7 +75,23 @@ const AuftraegePage = () => {
             <OrderSearch value={search} onChange={setSearch} />
             <StatusFilter activeFilter={filter} onFilter={setFilter} />
           </div>
-          <CreateOrderDialog onSubmit={addOrder} />
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-0.5">
+              <Calendar className="h-3.5 w-3.5 ml-2 text-muted-foreground" />
+              {TIME_FILTERS.map((tf) => (
+                <Button
+                  key={tf.value}
+                  variant={timeFilter === tf.value ? "default" : "ghost"}
+                  size="sm"
+                  className="h-7 text-xs px-2.5"
+                  onClick={() => setTimeFilter(tf.value)}
+                >
+                  {tf.label}
+                </Button>
+              ))}
+            </div>
+            <CreateOrderDialog onSubmit={addOrder} />
+          </div>
         </div>
         <OrderTable
           orders={filtered}
