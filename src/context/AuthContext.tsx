@@ -6,6 +6,7 @@ interface AuthContextType {
   session: Session | null;
   user: User | null;
   loading: boolean;
+  approved: boolean | null;
   signOut: () => Promise<void>;
 }
 
@@ -14,17 +15,35 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [approved, setApproved] = useState<boolean | null>(null);
+
+  const fetchApproval = async (userId: string) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("approved")
+      .eq("user_id", userId)
+      .single();
+    setApproved(data?.approved ?? false);
+  };
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);
+        if (session?.user) {
+          fetchApproval(session.user.id);
+        } else {
+          setApproved(null);
+        }
         setLoading(false);
       }
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (session?.user) {
+        fetchApproval(session.user.id);
+      }
       setLoading(false);
     });
 
@@ -36,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user: session?.user ?? null, loading, signOut }}>
+    <AuthContext.Provider value={{ session, user: session?.user ?? null, loading, approved, signOut }}>
       {children}
     </AuthContext.Provider>
   );
