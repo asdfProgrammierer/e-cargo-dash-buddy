@@ -16,6 +16,9 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import PendingApprovalPage from "./pages/PendingApprovalPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import HaendlerVerwaltungPage from "./pages/admin/HaendlerVerwaltungPage";
+import FahrerPage from "./pages/admin/FahrerPage";
+import FahrzeugePage from "./pages/admin/FahrzeugePage";
+import RoutenplanungPage from "./pages/admin/RoutenplanungPage";
 import NotFound from "./pages/NotFound";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 
@@ -79,6 +82,9 @@ const AppRoutes = () => (
     <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
     <Route path="/admin/haendler" element={<AdminRoute><HaendlerVerwaltungPage /></AdminRoute>} />
+    <Route path="/admin/fahrer" element={<AdminRoute><FahrerPage /></AdminRoute>} />
+    <Route path="/admin/fahrzeuge" element={<AdminRoute><FahrzeugePage /></AdminRoute>} />
+    <Route path="/admin/routen" element={<AdminRoute><RoutenplanungPage /></AdminRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
