@@ -14,7 +14,10 @@ import ProfilPage from "./pages/ProfilPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import PendingApprovalPage from "./pages/PendingApprovalPage";
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import HaendlerVerwaltungPage from "./pages/admin/HaendlerVerwaltungPage";
 import NotFound from "./pages/NotFound";
+import { useAdminCheck } from "@/hooks/useAdminCheck";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +51,21 @@ function PendingRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { session, loading } = useAuth();
+  const isAdmin = useAdminCheck();
+  if (loading || isAdmin === null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+  if (!session) return <Navigate to="/login" replace />;
+  if (!isAdmin) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
@@ -59,6 +77,8 @@ const AppRoutes = () => (
     <Route path="/online-shop" element={<ProtectedRoute><OnlineShopPage /></ProtectedRoute>} />
     <Route path="/profil" element={<ProtectedRoute><ProfilPage /></ProtectedRoute>} />
     <Route path="/reset-password" element={<ResetPasswordPage />} />
+    <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
+    <Route path="/admin/haendler" element={<AdminRoute><HaendlerVerwaltungPage /></AdminRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
