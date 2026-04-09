@@ -82,6 +82,9 @@ const AppRoutes = () => (
     <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
     <Route path="/admin/haendler" element={<AdminRoute><HaendlerVerwaltungPage /></AdminRoute>} />
+    <Route path="/admin/fahrer" element={<AdminRoute><FahrerPage /></AdminRoute>} />
+    <Route path="/admin/fahrzeuge" element={<AdminRoute><FahrzeugePage /></AdminRoute>} />
+    <Route path="/admin/routen" element={<AdminRoute><RoutenplanungPage /></AdminRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
