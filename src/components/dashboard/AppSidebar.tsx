@@ -1,8 +1,9 @@
-import { LayoutDashboard, Package, Upload, Leaf, LogOut, UserCircle, BookUser, ShoppingBag } from "lucide-react";
+import { LayoutDashboard, Package, Upload, Leaf, LogOut, UserCircle, BookUser, ShoppingBag, Shield } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
+import { useAdminCheck } from "@/hooks/useAdminCheck";
 import {
   Sidebar,
   SidebarContent,
@@ -30,6 +31,7 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { signOut, user } = useAuth();
+  const isAdmin = useAdminCheck();
 
   return (
     <Sidebar collapsible="icon">
@@ -70,6 +72,28 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Administration</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/admin"
+                      className="hover:bg-sidebar-accent/50"
+                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                    >
+                      <Shield className="mr-2 h-4 w-4" />
+                      {!collapsed && <span>Admin-Dashboard</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="p-4 space-y-2">
