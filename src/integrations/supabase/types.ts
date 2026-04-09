@@ -62,6 +62,42 @@ export type Database = {
         }
         Relationships: []
       }
+      drivers: {
+        Row: {
+          created_at: string
+          email: string | null
+          fuehrerscheinklasse: string | null
+          id: string
+          name: string
+          notizen: string | null
+          status: Database["public"]["Enums"]["driver_status"]
+          telefon: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          fuehrerscheinklasse?: string | null
+          id?: string
+          name: string
+          notizen?: string | null
+          status?: Database["public"]["Enums"]["driver_status"]
+          telefon?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          fuehrerscheinklasse?: string | null
+          id?: string
+          name?: string
+          notizen?: string | null
+          status?: Database["public"]["Enums"]["driver_status"]
+          telefon?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           absender_adresse: string | null
@@ -179,6 +215,57 @@ export type Database = {
         }
         Relationships: []
       }
+      routes: {
+        Row: {
+          created_at: string
+          datum: string
+          driver_id: string | null
+          id: string
+          name: string
+          notizen: string | null
+          status: Database["public"]["Enums"]["route_status"]
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          datum?: string
+          driver_id?: string | null
+          id?: string
+          name: string
+          notizen?: string | null
+          status?: Database["public"]["Enums"]["route_status"]
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          datum?: string
+          driver_id?: string | null
+          id?: string
+          name?: string
+          notizen?: string | null
+          status?: Database["public"]["Enums"]["route_status"]
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routes_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "routes_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -200,6 +287,39 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicles: {
+        Row: {
+          created_at: string
+          id: string
+          kapazitaet_kg: number
+          kennzeichen: string
+          notizen: string | null
+          status: Database["public"]["Enums"]["vehicle_status"]
+          typ: Database["public"]["Enums"]["vehicle_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kapazitaet_kg?: number
+          kennzeichen: string
+          notizen?: string | null
+          status?: Database["public"]["Enums"]["vehicle_status"]
+          typ?: Database["public"]["Enums"]["vehicle_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kapazitaet_kg?: number
+          kennzeichen?: string
+          notizen?: string | null
+          status?: Database["public"]["Enums"]["vehicle_status"]
+          typ?: Database["public"]["Enums"]["vehicle_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -215,6 +335,10 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      driver_status: "aktiv" | "inaktiv"
+      route_status: "geplant" | "aktiv" | "abgeschlossen"
+      vehicle_status: "verfuegbar" | "unterwegs" | "in_wartung"
+      vehicle_type: "lastenrad" | "e_van" | "transporter" | "sonstige"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -343,6 +467,10 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      driver_status: ["aktiv", "inaktiv"],
+      route_status: ["geplant", "aktiv", "abgeschlossen"],
+      vehicle_status: ["verfuegbar", "unterwegs", "in_wartung"],
+      vehicle_type: ["lastenrad", "e_van", "transporter", "sonstige"],
     },
   },
 } as const
