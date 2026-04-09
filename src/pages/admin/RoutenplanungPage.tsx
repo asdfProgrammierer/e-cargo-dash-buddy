@@ -28,7 +28,7 @@ interface Route {
 const statusLabels: Record<string, string> = { geplant: "Geplant", aktiv: "Aktiv", abgeschlossen: "Abgeschlossen" };
 const statusVariant: Record<string, "default" | "secondary" | "outline"> = { geplant: "secondary", aktiv: "default", abgeschlossen: "outline" };
 
-const emptyForm = { name: "", driver_id: "", vehicle_id: "", datum: new Date().toISOString().slice(0, 10), status: "geplant" as const, notizen: "" };
+const emptyForm = { name: "", driver_id: "", vehicle_id: "", datum: new Date().toISOString().slice(0, 10), status: "geplant" as Route["status"], notizen: "" };
 
 const RoutenplanungPage = () => {
   const [routes, setRoutes] = useState<Route[]>([]);

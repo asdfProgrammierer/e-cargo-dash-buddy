@@ -24,7 +24,7 @@ const typLabels: Record<string, string> = { lastenrad: "Lastenrad", e_van: "E-Va
 const statusLabels: Record<string, string> = { verfuegbar: "Verfügbar", unterwegs: "Unterwegs", in_wartung: "In Wartung" };
 const statusVariant: Record<string, "default" | "secondary" | "destructive"> = { verfuegbar: "default", unterwegs: "secondary", in_wartung: "destructive" };
 
-const emptyForm = { kennzeichen: "", typ: "lastenrad" as const, kapazitaet_kg: "0", status: "verfuegbar" as const, notizen: "" };
+const emptyForm = { kennzeichen: "", typ: "lastenrad" as Vehicle["typ"], kapazitaet_kg: "0", status: "verfuegbar" as Vehicle["status"], notizen: "" };
 
 const FahrzeugePage = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);

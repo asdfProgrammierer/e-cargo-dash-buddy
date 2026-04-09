@@ -21,7 +21,7 @@ interface Driver {
   notizen: string | null;
 }
 
-const emptyForm = { name: "", telefon: "", email: "", fuehrerscheinklasse: "", status: "aktiv" as const, notizen: "" };
+const emptyForm = { name: "", telefon: "", email: "", fuehrerscheinklasse: "", status: "aktiv" as "aktiv" | "inaktiv", notizen: "" };
 
 const FahrerPage = () => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
