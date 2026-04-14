@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -27,6 +28,7 @@ const statusVariant: Record<string, "default" | "secondary" | "destructive"> = {
 const emptyForm = { kennzeichen: "", typ: "lastenrad" as Vehicle["typ"], kapazitaet_kg: "0", status: "verfuegbar" as Vehicle["status"], notizen: "" };
 
 const FahrzeugePage = () => {
+  const navigate = useNavigate();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -132,12 +134,12 @@ const FahrzeugePage = () => {
               ) : vehicles.length === 0 ? (
                 <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Keine Fahrzeuge vorhanden</TableCell></TableRow>
               ) : vehicles.map((v) => (
-                <TableRow key={v.id}>
+                <TableRow key={v.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/admin/fahrzeuge/${v.id}`)}>
                   <TableCell className="font-medium"><div className="flex items-center gap-2"><Truck className="h-4 w-4 text-muted-foreground" />{v.kennzeichen}</div></TableCell>
                   <TableCell>{typLabels[v.typ]}</TableCell>
                   <TableCell>{v.kapazitaet_kg} kg</TableCell>
                   <TableCell><Badge variant={statusVariant[v.status]}>{statusLabels[v.status]}</Badge></TableCell>
-                  <TableCell className="text-right space-x-1">
+                  <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
                     <Button variant="ghost" size="icon" onClick={() => openEdit(v)}><Pencil className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => handleDelete(v.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </TableCell>

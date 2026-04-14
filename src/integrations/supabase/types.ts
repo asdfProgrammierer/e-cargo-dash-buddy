@@ -98,6 +98,56 @@ export type Database = {
         }
         Relationships: []
       }
+      maintenance_schedule: {
+        Row: {
+          bezeichnung: string
+          created_at: string
+          erledigt_am: string | null
+          faellig_am: string
+          id: string
+          kosten: number | null
+          notizen: string | null
+          status: Database["public"]["Enums"]["maintenance_status"]
+          typ: Database["public"]["Enums"]["maintenance_type"]
+          updated_at: string
+          vehicle_id: string
+        }
+        Insert: {
+          bezeichnung: string
+          created_at?: string
+          erledigt_am?: string | null
+          faellig_am: string
+          id?: string
+          kosten?: number | null
+          notizen?: string | null
+          status?: Database["public"]["Enums"]["maintenance_status"]
+          typ: Database["public"]["Enums"]["maintenance_type"]
+          updated_at?: string
+          vehicle_id: string
+        }
+        Update: {
+          bezeichnung?: string
+          created_at?: string
+          erledigt_am?: string | null
+          faellig_am?: string
+          id?: string
+          kosten?: number | null
+          notizen?: string | null
+          status?: Database["public"]["Enums"]["maintenance_status"]
+          typ?: Database["public"]["Enums"]["maintenance_type"]
+          updated_at?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_schedule_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           absender_adresse: string | null
@@ -287,6 +337,77 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_inspections: {
+        Row: {
+          allgemein_notiz: string | null
+          ausstattung_notiz: string | null
+          ausstattung_ok: boolean
+          bremsen_notiz: string | null
+          bremsen_ok: boolean
+          created_at: string
+          id: string
+          inspected_by: string
+          inspection_date: string
+          lichter_notiz: string | null
+          lichter_ok: boolean
+          reifen_notiz: string | null
+          reifen_ok: boolean
+          sauberkeit_notiz: string | null
+          sauberkeit_ok: boolean
+          spiegel_notiz: string | null
+          spiegel_ok: boolean
+          vehicle_id: string
+        }
+        Insert: {
+          allgemein_notiz?: string | null
+          ausstattung_notiz?: string | null
+          ausstattung_ok?: boolean
+          bremsen_notiz?: string | null
+          bremsen_ok?: boolean
+          created_at?: string
+          id?: string
+          inspected_by: string
+          inspection_date?: string
+          lichter_notiz?: string | null
+          lichter_ok?: boolean
+          reifen_notiz?: string | null
+          reifen_ok?: boolean
+          sauberkeit_notiz?: string | null
+          sauberkeit_ok?: boolean
+          spiegel_notiz?: string | null
+          spiegel_ok?: boolean
+          vehicle_id: string
+        }
+        Update: {
+          allgemein_notiz?: string | null
+          ausstattung_notiz?: string | null
+          ausstattung_ok?: boolean
+          bremsen_notiz?: string | null
+          bremsen_ok?: boolean
+          created_at?: string
+          id?: string
+          inspected_by?: string
+          inspection_date?: string
+          lichter_notiz?: string | null
+          lichter_ok?: boolean
+          reifen_notiz?: string | null
+          reifen_ok?: boolean
+          sauberkeit_notiz?: string | null
+          sauberkeit_ok?: boolean
+          spiegel_notiz?: string | null
+          spiegel_ok?: boolean
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_inspections_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
           created_at: string
@@ -336,6 +457,15 @@ export type Database = {
     Enums: {
       app_role: "admin" | "moderator" | "user"
       driver_status: "aktiv" | "inaktiv"
+      maintenance_status: "geplant" | "faellig" | "ueberfaellig" | "erledigt"
+      maintenance_type:
+        | "tuev"
+        | "inspektion"
+        | "reifenwechsel"
+        | "oelwechsel"
+        | "bremsen"
+        | "batterie"
+        | "sonstige"
       route_status: "geplant" | "aktiv" | "abgeschlossen"
       vehicle_status: "verfuegbar" | "unterwegs" | "in_wartung"
       vehicle_type: "lastenrad" | "e_van" | "transporter" | "sonstige"
@@ -468,6 +598,16 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "moderator", "user"],
       driver_status: ["aktiv", "inaktiv"],
+      maintenance_status: ["geplant", "faellig", "ueberfaellig", "erledigt"],
+      maintenance_type: [
+        "tuev",
+        "inspektion",
+        "reifenwechsel",
+        "oelwechsel",
+        "bremsen",
+        "batterie",
+        "sonstige",
+      ],
       route_status: ["geplant", "aktiv", "abgeschlossen"],
       vehicle_status: ["verfuegbar", "unterwegs", "in_wartung"],
       vehicle_type: ["lastenrad", "e_van", "transporter", "sonstige"],
