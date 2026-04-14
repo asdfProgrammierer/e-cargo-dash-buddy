@@ -28,6 +28,7 @@ const statusVariant: Record<string, "default" | "secondary" | "destructive"> = {
 const emptyForm = { kennzeichen: "", typ: "lastenrad" as Vehicle["typ"], kapazitaet_kg: "0", status: "verfuegbar" as Vehicle["status"], notizen: "" };
 
 const FahrzeugePage = () => {
+  const navigate = useNavigate();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
