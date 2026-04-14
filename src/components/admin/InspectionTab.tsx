@@ -76,7 +76,7 @@ export function InspectionTab({ vehicleId }: { vehicleId: string }) {
 
   const handleSave = async () => {
     if (!inspectedBy.trim()) { toast.error("Prüfer ist erforderlich"); return; }
-    const payload: Record<string, unknown> = {
+    const payload: any = {
       vehicle_id: vehicleId,
       inspected_by: inspectedBy,
       inspection_date: inspectionDate,
