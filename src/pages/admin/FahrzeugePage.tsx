@@ -139,7 +139,7 @@ const FahrzeugePage = () => {
                   <TableCell>{typLabels[v.typ]}</TableCell>
                   <TableCell>{v.kapazitaet_kg} kg</TableCell>
                   <TableCell><Badge variant={statusVariant[v.status]}>{statusLabels[v.status]}</Badge></TableCell>
-                  <TableCell className="text-right space-x-1">
+                  <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
                     <Button variant="ghost" size="icon" onClick={() => openEdit(v)}><Pencil className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => handleDelete(v.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </TableCell>
