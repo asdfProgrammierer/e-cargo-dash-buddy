@@ -18,6 +18,7 @@ import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import HaendlerVerwaltungPage from "./pages/admin/HaendlerVerwaltungPage";
 import FahrerPage from "./pages/admin/FahrerPage";
 import FahrzeugePage from "./pages/admin/FahrzeugePage";
+import FahrzeugDetailPage from "./pages/admin/FahrzeugDetailPage";
 import RoutenplanungPage from "./pages/admin/RoutenplanungPage";
 import NotFound from "./pages/NotFound";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
@@ -84,6 +85,7 @@ const AppRoutes = () => (
     <Route path="/admin/haendler" element={<AdminRoute><HaendlerVerwaltungPage /></AdminRoute>} />
     <Route path="/admin/fahrer" element={<AdminRoute><FahrerPage /></AdminRoute>} />
     <Route path="/admin/fahrzeuge" element={<AdminRoute><FahrzeugePage /></AdminRoute>} />
+    <Route path="/admin/fahrzeuge/:id" element={<AdminRoute><FahrzeugDetailPage /></AdminRoute>} />
     <Route path="/admin/routen" element={<AdminRoute><RoutenplanungPage /></AdminRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
