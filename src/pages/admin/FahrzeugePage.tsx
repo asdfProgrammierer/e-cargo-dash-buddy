@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Truck, Pencil, Trash2 } from "lucide-react";
+import { Plus, Truck, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 
 interface Vehicle {
   id: string;
@@ -30,6 +30,7 @@ const emptyForm = { kennzeichen: "", typ: "lastenrad" as Vehicle["typ"], kapazit
 const FahrzeugePage = () => {
   const navigate = useNavigate();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [lastInspections, setLastInspections] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -38,6 +39,20 @@ const FahrzeugePage = () => {
   const load = async () => {
     const { data } = await supabase.from("vehicles").select("*").order("created_at", { ascending: false });
     setVehicles((data as Vehicle[]) ?? []);
+
+    // Fetch latest inspection date per vehicle
+    const { data: inspections } = await supabase
+      .from("vehicle_inspections")
+      .select("vehicle_id, inspection_date")
+      .order("inspection_date", { ascending: false });
+
+    const map: Record<string, string> = {};
+    if (inspections) {
+      for (const i of inspections as any[]) {
+        if (!map[i.vehicle_id]) map[i.vehicle_id] = i.inspection_date;
+      }
+    }
+    setLastInspections(map);
     setLoading(false);
   };
 
@@ -125,26 +140,64 @@ const FahrzeugePage = () => {
                 <TableHead>Typ</TableHead>
                 <TableHead>Kapazität</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Nächste Kontrolle</TableHead>
                 <TableHead className="text-right">Aktionen</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Lade...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Lade...</TableCell></TableRow>
               ) : vehicles.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Keine Fahrzeuge vorhanden</TableCell></TableRow>
-              ) : vehicles.map((v) => (
-                <TableRow key={v.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/admin/fahrzeuge/${v.id}`)}>
-                  <TableCell className="font-medium"><div className="flex items-center gap-2"><Truck className="h-4 w-4 text-muted-foreground" />{v.kennzeichen}</div></TableCell>
-                  <TableCell>{typLabels[v.typ]}</TableCell>
-                  <TableCell>{v.kapazitaet_kg} kg</TableCell>
-                  <TableCell><Badge variant={statusVariant[v.status]}>{statusLabels[v.status]}</Badge></TableCell>
-                  <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(v)}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(v.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Keine Fahrzeuge vorhanden</TableCell></TableRow>
+              ) : vehicles.map((v) => {
+                const lastDate = lastInspections[v.id];
+                let daysUntil: number | null = null;
+                let nextDateStr = "";
+                if (lastDate) {
+                  const next = new Date(lastDate);
+                  next.setDate(next.getDate() + 14);
+                  daysUntil = Math.ceil((next.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                  nextDateStr = next.toLocaleDateString("de-DE");
+                }
+                const isOverdue = daysUntil !== null && daysUntil < 0;
+                const isDueSoon = daysUntil !== null && daysUntil >= 0 && daysUntil <= 3;
+
+                return (
+                  <TableRow key={v.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/admin/fahrzeuge/${v.id}`)}>
+                    <TableCell className="font-medium"><div className="flex items-center gap-2"><Truck className="h-4 w-4 text-muted-foreground" />{v.kennzeichen}</div></TableCell>
+                    <TableCell>{typLabels[v.typ]}</TableCell>
+                    <TableCell>{v.kapazitaet_kg} kg</TableCell>
+                    <TableCell><Badge variant={statusVariant[v.status]}>{statusLabels[v.status]}</Badge></TableCell>
+                    <TableCell>
+                      {!lastDate ? (
+                        <div className="flex items-center gap-1.5 text-destructive text-sm">
+                          <AlertTriangle className="h-4 w-4" />
+                          <span>Keine Kontrolle</span>
+                        </div>
+                      ) : isOverdue ? (
+                        <div className="flex items-center gap-1.5 text-destructive text-sm font-medium">
+                          <AlertTriangle className="h-4 w-4" />
+                          <span>Überfällig ({Math.abs(daysUntil!)} Tage)</span>
+                        </div>
+                      ) : isDueSoon ? (
+                        <div className="flex items-center gap-1.5 text-warning text-sm font-medium">
+                          <Clock className="h-4 w-4" />
+                          <span>In {daysUntil} {daysUntil === 1 ? "Tag" : "Tagen"} · {nextDateStr}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-success text-sm">
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span>In {daysUntil} Tagen · {nextDateStr}</span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(v)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(v.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
