@@ -94,6 +94,7 @@ const HaendlerVerwaltungPage = () => {
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Freigabe</TableHead>
                 <TableHead className="w-8" />
+              </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
