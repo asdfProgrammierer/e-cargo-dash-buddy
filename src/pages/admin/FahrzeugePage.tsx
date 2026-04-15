@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Truck, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
+import { Plus, Truck, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, Shield } from "lucide-react";
 
 interface Vehicle {
   id: string;
@@ -161,14 +161,15 @@ const FahrzeugePage = () => {
                 <TableHead>Kapazität</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Nächste Kontrolle</TableHead>
+                <TableHead>Nächster TÜV</TableHead>
                 <TableHead className="text-right">Aktionen</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Lade...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Lade...</TableCell></TableRow>
               ) : vehicles.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Keine Fahrzeuge vorhanden</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Keine Fahrzeuge vorhanden</TableCell></TableRow>
               ) : vehicles.map((v) => {
                 const lastDate = lastInspections[v.id];
                 let daysUntil: number | null = null;
@@ -210,6 +211,44 @@ const FahrzeugePage = () => {
                           <span>In {daysUntil} Tagen · {nextDateStr}</span>
                         </div>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const tuevDate = nextTuev[v.id];
+                        if (!tuevDate) {
+                          return (
+                            <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
+                              <Shield className="h-4 w-4" />
+                              <span>Kein TÜV geplant</span>
+                            </div>
+                          );
+                        }
+                        const tuevDay = new Date(tuevDate);
+                        const tuevDaysUntil = Math.ceil((tuevDay.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                        const tuevStr = tuevDay.toLocaleDateString("de-DE");
+                        if (tuevDaysUntil < 0) {
+                          return (
+                            <div className="flex items-center gap-1.5 text-destructive text-sm font-medium">
+                              <AlertTriangle className="h-4 w-4" />
+                              <span>Überfällig · {tuevStr}</span>
+                            </div>
+                          );
+                        }
+                        if (tuevDaysUntil <= 30) {
+                          return (
+                            <div className="flex items-center gap-1.5 text-warning text-sm font-medium">
+                              <Clock className="h-4 w-4" />
+                              <span>In {tuevDaysUntil} Tagen · {tuevStr}</span>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="flex items-center gap-1.5 text-success text-sm">
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span>{tuevStr}</span>
+                          </div>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
                       <Button variant="ghost" size="icon" onClick={() => openEdit(v)}><Pencil className="h-4 w-4" /></Button>
