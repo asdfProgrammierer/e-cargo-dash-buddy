@@ -316,6 +316,45 @@ export type Database = {
           },
         ]
       }
+      shop_connections: {
+        Row: {
+          active: boolean
+          api_key: string
+          api_url: string
+          created_at: string
+          id: string
+          notizen: string | null
+          platform: string
+          updated_at: string
+          user_id: string
+          webhook_secret: string | null
+        }
+        Insert: {
+          active?: boolean
+          api_key?: string
+          api_url?: string
+          created_at?: string
+          id?: string
+          notizen?: string | null
+          platform?: string
+          updated_at?: string
+          user_id: string
+          webhook_secret?: string | null
+        }
+        Update: {
+          active?: boolean
+          api_key?: string
+          api_url?: string
+          created_at?: string
+          id?: string
+          notizen?: string | null
+          platform?: string
+          updated_at?: string
+          user_id?: string
+          webhook_secret?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

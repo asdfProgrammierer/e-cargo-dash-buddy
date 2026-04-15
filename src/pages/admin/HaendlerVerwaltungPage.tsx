@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -6,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Search, Building2 } from "lucide-react";
+import { Search, Building2, ChevronRight } from "lucide-react";
 
 interface MerchantProfile {
   id: string;
@@ -20,6 +21,7 @@ interface MerchantProfile {
 }
 
 const HaendlerVerwaltungPage = () => {
+  const navigate = useNavigate();
   const [merchants, setMerchants] = useState<MerchantProfile[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -91,24 +93,25 @@ const HaendlerVerwaltungPage = () => {
                 <TableHead>Registriert am</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Freigabe</TableHead>
+                <TableHead className="w-8" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     Lade Händler...
                   </TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     Keine Händler gefunden
                   </TableCell>
                 </TableRow>
               ) : (
                 filtered.map((m) => (
-                  <TableRow key={m.id}>
+                  <TableRow key={m.id} className="cursor-pointer" onClick={() => navigate(`/admin/haendler/${m.id}`)}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -126,11 +129,14 @@ const HaendlerVerwaltungPage = () => {
                         {m.approved ? "Aktiv" : "Ausstehend"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <Switch
                         checked={m.approved}
                         onCheckedChange={() => toggleApproval(m)}
                       />
+                    </TableCell>
+                    <TableCell className="w-8">
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </TableCell>
                   </TableRow>
                 ))
