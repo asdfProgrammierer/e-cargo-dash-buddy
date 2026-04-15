@@ -31,6 +31,7 @@ const FahrzeugePage = () => {
   const navigate = useNavigate();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [lastInspections, setLastInspections] = useState<Record<string, string>>({});
+  const [nextTuev, setNextTuev] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -53,6 +54,25 @@ const FahrzeugePage = () => {
       }
     }
     setLastInspections(map);
+
+    // Fetch next TÜV date per vehicle (nearest future or latest tuev entry)
+    const { data: tuevData } = await supabase
+      .from("maintenance_schedule")
+      .select("vehicle_id, faellig_am, status")
+      .eq("typ", "tuev")
+      .order("faellig_am", { ascending: true });
+
+    const tuevMap: Record<string, string> = {};
+    if (tuevData) {
+      for (const t of tuevData as any[]) {
+        if (!tuevMap[t.vehicle_id] || (t.status !== "erledigt" && !tuevMap[t.vehicle_id])) {
+          // Prefer the next non-erledigt entry
+          if (t.status !== "erledigt") tuevMap[t.vehicle_id] = t.faellig_am;
+          else if (!tuevMap[t.vehicle_id]) tuevMap[t.vehicle_id] = t.faellig_am;
+        }
+      }
+    }
+    setNextTuev(tuevMap);
     setLoading(false);
   };
 
