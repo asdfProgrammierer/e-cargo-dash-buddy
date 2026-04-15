@@ -93,18 +93,18 @@ const HaendlerVerwaltungPage = () => {
                 <TableHead>Registriert am</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Freigabe</TableHead>
-              </TableRow>
+                <TableHead className="w-8" />
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     Lade Händler...
                   </TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     Keine Händler gefunden
                   </TableCell>
                 </TableRow>

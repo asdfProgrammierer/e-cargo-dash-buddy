@@ -16,6 +16,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import PendingApprovalPage from "./pages/PendingApprovalPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import HaendlerVerwaltungPage from "./pages/admin/HaendlerVerwaltungPage";
+import HaendlerDetailPage from "./pages/admin/HaendlerDetailPage";
 import FahrerPage from "./pages/admin/FahrerPage";
 import FahrzeugePage from "./pages/admin/FahrzeugePage";
 import FahrzeugDetailPage from "./pages/admin/FahrzeugDetailPage";
@@ -83,6 +84,7 @@ const AppRoutes = () => (
     <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
     <Route path="/admin/haendler" element={<AdminRoute><HaendlerVerwaltungPage /></AdminRoute>} />
+    <Route path="/admin/haendler/:id" element={<AdminRoute><HaendlerDetailPage /></AdminRoute>} />
     <Route path="/admin/fahrer" element={<AdminRoute><FahrerPage /></AdminRoute>} />
     <Route path="/admin/fahrzeuge" element={<AdminRoute><FahrzeugePage /></AdminRoute>} />
     <Route path="/admin/fahrzeuge/:id" element={<AdminRoute><FahrzeugDetailPage /></AdminRoute>} />
