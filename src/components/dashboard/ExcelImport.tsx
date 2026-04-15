@@ -36,11 +36,6 @@ interface PreviewRow {
 }
 
 const COLUMN_MAP: Record<string, keyof PreviewRow> = {
-  absender: "absenderName",
-  "absender name": "absenderName",
-  absendername: "absenderName",
-  "absender adresse": "absenderAdresse",
-  absenderadresse: "absenderAdresse",
   empfänger: "empfaengerName",
   "empfänger name": "empfaengerName",
   empfängername: "empfaengerName",
@@ -68,8 +63,6 @@ const COLUMN_MAP: Record<string, keyof PreviewRow> = {
 };
 
 const TEMPLATE_HEADERS = [
-  "Absender Name",
-  "Absender Adresse",
   "Empfänger Name",
   "Straße",
   "PLZ",
@@ -82,8 +75,6 @@ const TEMPLATE_HEADERS = [
 ];
 
 const TEMPLATE_EXAMPLE = [
-  "Meine Firma GmbH",
-  "Hauptstr. 1, 45127 Essen",
   "Max Mustermann",
   "Bahnhofstr. 5",
   "44137",
@@ -150,8 +141,8 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
             }
           });
           return {
-            absenderName: mapped.absenderName || senderDefaults.name,
-            absenderAdresse: mapped.absenderAdresse || senderDefaults.adresse,
+            absenderName: senderDefaults.name,
+            absenderAdresse: senderDefaults.adresse,
             empfaengerName: mapped.empfaengerName || "",
             empfaengerAdresse: mapped.empfaengerAdresse || "",
             empfaengerPlz: mapped.empfaengerPlz || "",
