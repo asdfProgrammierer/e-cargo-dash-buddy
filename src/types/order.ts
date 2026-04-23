@@ -1,4 +1,4 @@
-export type OrderStatus = "neu" | "in_bearbeitung" | "unterwegs" | "zugestellt" | "storniert";
+export type OrderStatus = "neu" | "in_bearbeitung" | "unterwegs" | "zugestellt" | "nicht_zugestellt" | "storniert";
 
 export interface Order {
   id: string;
@@ -26,6 +26,7 @@ export const STATUS_LABELS: Record<OrderStatus, string> = {
   in_bearbeitung: "In Bearbeitung",
   unterwegs: "Unterwegs",
   zugestellt: "Zugestellt",
+  nicht_zugestellt: "Nicht Zugestellt",
   storniert: "Storniert",
 };
 
@@ -34,5 +35,6 @@ export const STATUS_COLORS: Record<OrderStatus, string> = {
   in_bearbeitung: "bg-warning/10 text-warning",
   unterwegs: "bg-primary/10 text-primary",
   zugestellt: "bg-success/10 text-success",
+  nicht_zugestellt: "bg-warning/10 text-warning",
   storniert: "bg-destructive/10 text-destructive",
 };

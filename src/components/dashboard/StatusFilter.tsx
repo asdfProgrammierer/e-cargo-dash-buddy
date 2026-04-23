@@ -6,7 +6,7 @@ interface StatusFilterProps {
   onFilter: (status: OrderStatus | "alle") => void;
 }
 
-const filters: (OrderStatus | "alle")[] = ["alle", "neu", "in_bearbeitung", "unterwegs", "zugestellt", "storniert"];
+const filters: (OrderStatus | "alle")[] = ["alle", "neu", "in_bearbeitung", "unterwegs", "zugestellt", "nicht_zugestellt", "storniert"];
 
 const FILTER_LABELS: Record<string, string> = {
   alle: "Alle",
