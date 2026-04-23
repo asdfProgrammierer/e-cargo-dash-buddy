@@ -30,6 +30,7 @@ interface OrderDetailSheetProps {
   onOpenChange: (open: boolean) => void;
   onUpdateStatus: (id: string, status: OrderStatus) => void;
   onUpdateOrder: (id: string, updates: Partial<Order>) => void;
+  canUpdateStatus?: boolean;
 }
 
 const TIMELINE_STEPS: { status: OrderStatus; label: string; icon: React.ElementType }[] = [
@@ -105,6 +106,7 @@ export function OrderDetailSheet({
   onOpenChange,
   onUpdateStatus,
   onUpdateOrder,
+  canUpdateStatus = false,
 }: OrderDetailSheetProps) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Partial<Order>>({});
@@ -381,7 +383,7 @@ export function OrderDetailSheet({
             Versandetikett drucken
           </Button>
 
-          {!isCancelled && currentStep < 3 && (
+          {canUpdateStatus && !isCancelled && currentStep < 3 && (
             <Button
               className="w-full"
               onClick={() => {
