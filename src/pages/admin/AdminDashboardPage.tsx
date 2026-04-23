@@ -47,6 +47,14 @@ type RecentOrder = {
   created_at: string;
 };
 
+type OrderHistoryEntry = {
+  id: string;
+  order_id: string;
+  status: OrderStatus;
+  reason: string | null;
+  created_at: string;
+};
+
 const dateTimeFormatter = new Intl.DateTimeFormat("de-DE", {
   dateStyle: "short",
   timeStyle: "short",
@@ -59,6 +67,7 @@ const AdminDashboardPage = () => {
   const [filter, setFilter] = useState<OrderStatus | "alle">("alle");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [statusHistory, setStatusHistory] = useState<OrderHistoryEntry[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -153,15 +162,68 @@ const AdminDashboardPage = () => {
     setSheetOpen(true);
   };
 
-  const handleUpdateStatus = async (id: string, status: OrderStatus) => {
-    const { error } = await supabase.from("orders").update({ status }).eq("id", id);
+  useEffect(() => {
+    const loadStatusHistory = async () => {
+      if (!selectedOrderId || !sheetOpen) {
+        setStatusHistory([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("order_status_history")
+        .select("id, order_id, status, reason, created_at")
+        .eq("order_id", selectedOrderId)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Order history could not be loaded", error);
+        setStatusHistory([]);
+        return;
+      }
+
+      setStatusHistory((data as OrderHistoryEntry[] | null) ?? []);
+    };
+
+    loadStatusHistory();
+  }, [selectedOrderId, sheetOpen]);
+
+  const handleUpdateStatus = async (id: string, status: OrderStatus, reason?: string) => {
+    const { data, error } = await supabase.rpc("admin_update_order_status", {
+      _order_id: id,
+      _status: status,
+      _reason: reason ?? null,
+    });
 
     if (error) {
       console.error("Order status could not be updated", error);
       return;
     }
 
-    setOrders((prev) => prev.map((order) => (order.id === id ? { ...order, status } : order)));
+    if (data?.id === id) {
+      const updatedOrder = data as { status: OrderStatus };
+      setOrders((prev) => prev.map((order) => (order.id === id ? { ...order, status: updatedOrder.status } : order)));
+    }
+
+    if (status === "nicht_zugestellt" && selectedOrderId === id && reason?.trim()) {
+      setStatusHistory((prev) => [
+        {
+          id: `${id}-${Date.now()}`,
+          order_id: id,
+          status,
+          reason: reason.trim(),
+          created_at: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
+    } else if (status !== "nicht_zugestellt" && selectedOrderId === id) {
+      const { data: refreshedHistory } = await supabase
+        .from("order_status_history")
+        .select("id, order_id, status, reason, created_at")
+        .eq("order_id", id)
+        .order("created_at", { ascending: false });
+
+      setStatusHistory((refreshedHistory as OrderHistoryEntry[] | null) ?? []);
+    }
   };
 
   const handleUpdateOrder = async (id: string, updates: Partial<{
@@ -310,6 +372,12 @@ const AdminDashboardPage = () => {
         onUpdateStatus={handleUpdateStatus}
         onUpdateOrder={handleUpdateOrder}
         canUpdateStatus
+        statusHistory={statusHistory.map((entry) => ({
+          id: entry.id,
+          status: entry.status,
+          reason: entry.reason ?? undefined,
+          createdAt: dateTimeFormatter.format(new Date(entry.created_at)),
+        }))}
       />
     </AdminLayout>
   );
