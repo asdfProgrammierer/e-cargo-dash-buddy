@@ -46,6 +46,7 @@ const DashboardPage = () => {
         onOpenChange={setSheetOpen}
         onUpdateStatus={updateStatus}
         onUpdateOrder={updateOrder}
+        canUpdateStatus={false}
       />
     </DashboardLayout>
   );
