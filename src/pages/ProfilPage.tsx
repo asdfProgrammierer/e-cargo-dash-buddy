@@ -14,6 +14,7 @@ import {
   OpeningHoursEditor,
   type OpeningHoursState,
   normalizeOpeningHours,
+  serializeOpeningHours,
 } from "@/components/profile/OpeningHoursEditor";
 
 const ProfilPage = () => {
@@ -109,6 +110,8 @@ const ProfilPage = () => {
     e.preventDefault();
     if (!user) return;
     setSaving(true);
+    const normalizedOpeningHours = serializeOpeningHours(openingHours);
+
     const { error } = await supabase
       .from("profiles")
       .update({
@@ -121,13 +124,14 @@ const ProfilPage = () => {
         land,
         ustid,
         website,
-        opening_hours: openingHours,
+        opening_hours: normalizedOpeningHours,
       } as any)
       .eq("user_id", user.id);
 
     if (error) {
       toast.error("Fehler beim Speichern");
     } else {
+      setOpeningHours(normalizedOpeningHours);
       toast.success("Profil gespeichert");
     }
     setSaving(false);

@@ -109,6 +109,23 @@ export function normalizeOpeningHours(value: unknown): OpeningHoursState {
   }, {} as OpeningHoursState);
 }
 
+export function serializeOpeningHours(value: unknown): OpeningHoursState {
+  const normalized = normalizeOpeningHours(value);
+
+  return OPENING_HOURS_DAYS.reduce((acc, day) => {
+    const currentDay = normalized[day.key];
+
+    acc[day.key] = currentDay.closed
+      ? { closed: true, ranges: [] }
+      : {
+          closed: false,
+          ranges: currentDay.ranges.filter((range) => range.start && range.end),
+        };
+
+    return acc;
+  }, {} as OpeningHoursState);
+}
+
 type OpeningHoursEditorProps = {
   value: OpeningHoursState;
   onChange: (value: OpeningHoursState) => void;
