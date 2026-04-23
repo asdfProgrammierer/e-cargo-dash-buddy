@@ -99,7 +99,9 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
     const doc = new jsPDF();
     const merchantName = merchant.firma_name || merchant.ansprechpartner || "Händler";
     const createdAt = new Date().toLocaleDateString("de-DE");
-    const invoiceNumber = `RE-${merchant.id.slice(0, 8).toUpperCase()}-${startDate.replaceAll("-", "")}-${endDate.replaceAll("-", "")}`;
+    const compactStartDate = startDate.replace(/-/g, "");
+    const compactEndDate = endDate.replace(/-/g, "");
+    const invoiceNumber = `RE-${merchant.id.slice(0, 8).toUpperCase()}-${compactStartDate}-${compactEndDate}`;
 
     doc.setFontSize(18);
     doc.text("Rechnung", 14, 18);
