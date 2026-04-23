@@ -65,13 +65,11 @@ function renderSingleLabel(order: Order, zone: ZoneMeta | null, qrCodeDataUrl: s
         <div class="header">
           <div class="brand-block">
             <div class="brand-row">
-              <div class="logo-mark"></div>
               <div>
                 <div class="logo">e-cargo</div>
                 <div class="eco-line">Wir liefern 100% elektrisch.</div>
               </div>
             </div>
-            <div class="brand-subline">Lokalkurier · Versandetikett</div>
           </div>
           <div class="header-meta">
             ${zone?.label ? `<div class="zone-badge">${escapeHtml(zone.label)}</div>` : ""}
@@ -92,10 +90,6 @@ function renderSingleLabel(order: Order, zone: ZoneMeta | null, qrCodeDataUrl: s
             <div class="section-content">${escapeHtml(order.absenderName)}<br/>${escapeHtml(order.absenderAdresse)}</div>
           </div>
           <div class="section service-section">
-            <div>
-              <div class="section-title">Service</div>
-              <div class="section-content">Direktzustellung<br/>lokales Liefergebiet</div>
-            </div>
             <div class="qr-wrap">
               <img src="${qrCodeDataUrl}" alt="QR Code ${escapeHtml(order.auftragsNr)}" class="qr-code" />
             </div>
@@ -159,12 +153,11 @@ function renderDocument(labels: string, title: string) {
             background: #fff;
           }
           .accent-bar {
-            height: 3.5mm;
-            background: #000;
+            display: none;
           }
           .content {
             padding: 5mm;
-            height: calc(100% - 3.5mm);
+            height: 100%;
             display: flex;
             flex-direction: column;
             gap: 3mm;
@@ -183,16 +176,7 @@ function renderDocument(labels: string, title: string) {
           .brand-row {
             display: flex;
             align-items: flex-start;
-            gap: 2mm;
-          }
-          .logo-mark {
-            width: 7mm;
-            height: 7mm;
-            border: 0.5mm solid #000;
-            border-radius: 2mm;
-            background: #000;
-            flex: 0 0 auto;
-            margin-top: 0.2mm;
+            gap: 0;
           }
           .logo {
             font-size: 18px;
@@ -204,12 +188,6 @@ function renderDocument(labels: string, title: string) {
             font-size: 9px;
             font-weight: 700;
             margin-top: 0.8mm;
-          }
-          .brand-subline {
-            font-size: 8px;
-            color: var(--muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
           }
           .header-meta {
             display: flex;
@@ -282,22 +260,19 @@ function renderDocument(labels: string, title: string) {
           }
           .service-section {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: stretch;
-            gap: 2mm;
+            padding: 3.5mm;
           }
           .qr-wrap {
-            width: 19mm;
-            min-width: 19mm;
-            border-left: 0.35mm solid var(--line);
-            padding-left: 2mm;
+            width: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
           }
           .qr-code {
-            width: 17mm;
-            height: 17mm;
+            width: 23mm;
+            height: 23mm;
             display: block;
             image-rendering: pixelated;
           }
