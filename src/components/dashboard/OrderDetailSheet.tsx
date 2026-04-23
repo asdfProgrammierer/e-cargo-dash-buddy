@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -23,6 +23,8 @@ import {
   X,
 } from "lucide-react";
 import { Order, OrderStatus, STATUS_LABELS, STATUS_COLORS } from "@/types/order";
+import { supabase } from "@/integrations/supabase/client";
+import { getZoneBadgeStyle } from "@/lib/deliveryZones";
 
 interface OrderDetailSheetProps {
   order: Order | null;
@@ -52,7 +54,20 @@ function isEditable(status: OrderStatus) {
   return status === "neu" || status === "in_bearbeitung";
 }
 
-function generateLabelHTML(order: Order) {
+function escapeHtml(value?: string) {
+  return (value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function generateLabelHTML(order: Order, zone?: { label: string; color?: string | null } | null) {
+  const zoneStyles = zone?.color
+    ? `background:${zone.color}22;border-color:${zone.color}66;color:${zone.color};`
+    : "background:#f4f4f5;border-color:#d4d4d8;color:#111827;";
+
   return `
     <html>
     <head><title>Versandetikett – ${order.auftragsNr}</title>
@@ -61,8 +76,10 @@ function generateLabelHTML(order: Order) {
       body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 0; margin: 0; }
       .label { width: 100mm; height: 150mm; padding: 6mm; box-sizing: border-box; border: 2px solid #000; display: flex; flex-direction: column; gap: 3mm; }
       .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 3mm; }
+      .header-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2mm; }
       .logo { font-size: 18px; font-weight: 900; letter-spacing: 1px; }
       .order-nr { font-size: 13px; font-weight: 600; font-family: monospace; }
+      .zone-badge { min-width: 24mm; padding: 2mm 3mm; border: 2px solid #000; border-radius: 4mm; font-size: 15px; font-weight: 900; letter-spacing: 1px; text-align: center; }
       .section { margin: 2mm 0; }
       .section-title { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 1mm; }
       .section-content { font-size: 13px; font-weight: 500; line-height: 1.4; }
@@ -76,25 +93,28 @@ function generateLabelHTML(order: Order) {
       <div class="label">
         <div class="header">
           <div class="logo">eCargo</div>
-          <div class="order-nr">${order.auftragsNr}</div>
+          <div class="header-meta">
+            ${zone?.label ? `<div class="zone-badge" style="${zoneStyles}">${escapeHtml(zone.label)}</div>` : ""}
+            <div class="order-nr">${escapeHtml(order.auftragsNr)}</div>
+          </div>
         </div>
         <div class="section">
           <div class="section-title">Absender</div>
-          <div class="section-content">${order.absenderName}<br/>${order.absenderAdresse}</div>
+          <div class="section-content">${escapeHtml(order.absenderName)}<br/>${escapeHtml(order.absenderAdresse)}</div>
         </div>
         <div class="section">
           <div class="section-title">Empfänger</div>
-          <div class="recipient">${order.empfaengerName}</div>
-          <div class="section-content">${order.empfaengerAdresse}<br/>${order.empfaengerPlz ? order.empfaengerPlz + " " : ""}${order.empfaengerStadt}</div>
-          ${order.empfaengerTelefon ? `<div class="section-content" style="font-size:11px;color:#666">Tel: ${order.empfaengerTelefon}</div>` : ""}
+          <div class="recipient">${escapeHtml(order.empfaengerName)}</div>
+          <div class="section-content">${escapeHtml(order.empfaengerAdresse)}<br/>${escapeHtml(order.empfaengerPlz ? order.empfaengerPlz + " " : "")}${escapeHtml(order.empfaengerStadt)}</div>
+          ${order.empfaengerTelefon ? `<div class="section-content" style="font-size:11px;color:#666">Tel: ${escapeHtml(order.empfaengerTelefon)}</div>` : ""}
         </div>
-        <div class="barcode">${order.auftragsNr.replace(/-/g, " ")}</div>
+        <div class="barcode">${escapeHtml(order.auftragsNr.replace(/-/g, " "))}</div>
         <div class="meta">
           <div class="meta-item"><div class="section-title">Pakete</div><div class="meta-value">${order.pakete}</div></div>
           <div class="meta-item"><div class="section-title">Gewicht</div><div class="meta-value">${order.gewicht} kg</div></div>
-          <div class="meta-item"><div class="section-title">Datum</div><div class="meta-value">${order.erstelltAm}</div></div>
+          <div class="meta-item"><div class="section-title">Datum</div><div class="meta-value">${escapeHtml(order.erstelltAm)}</div></div>
         </div>
-        ${order.notizen ? `<div class="section"><div class="section-title">Hinweise</div><div class="section-content">${order.notizen}</div></div>` : ""}
+        ${order.notizen ? `<div class="section"><div class="section-title">Hinweise</div><div class="section-content">${escapeHtml(order.notizen)}</div></div>` : ""}
       </div>
     </body></html>
   `;
@@ -110,12 +130,49 @@ export function OrderDetailSheet({
 }: OrderDetailSheetProps) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Partial<Order>>({});
+  const [zoneMeta, setZoneMeta] = useState<{ label: string; color?: string | null } | null>(null);
 
   if (!order) return null;
 
   const currentStep = STATUS_ORDER[order.status];
   const canEdit = isEditable(order.status);
   const isCancelled = order.status === "storniert";
+  const zoneBadgeStyle = useMemo(() => getZoneBadgeStyle(zoneMeta?.color), [zoneMeta?.color]);
+
+  useEffect(() => {
+    const postcode = order.empfaengerPlz?.trim();
+
+    if (!postcode || !/^\d{5}$/.test(postcode)) {
+      setZoneMeta(null);
+      return;
+    }
+
+    let active = true;
+
+    const loadZone = async () => {
+      const { data, error } = await supabase
+        .from("delivery_zone_postcodes")
+        .select("delivery_zones(label, color)")
+        .eq("postcode", postcode)
+        .maybeSingle();
+
+      if (!active) return;
+
+      if (error || !data?.delivery_zones) {
+        setZoneMeta(null);
+        return;
+      }
+
+      const zone = Array.isArray(data.delivery_zones) ? data.delivery_zones[0] : data.delivery_zones;
+      setZoneMeta(zone ? { label: zone.label, color: zone.color } : null);
+    };
+
+    loadZone();
+
+    return () => {
+      active = false;
+    };
+  }, [order.empfaengerPlz]);
 
   const startEditing = () => {
     setForm({
@@ -145,7 +202,7 @@ export function OrderDetailSheet({
   const printLabel = () => {
     const win = window.open("", "_blank", "width=420,height=640");
     if (win) {
-      win.document.write(generateLabelHTML(order));
+      win.document.write(generateLabelHTML(order, zoneMeta));
       win.document.close();
       setTimeout(() => win.print(), 300);
     }
@@ -259,6 +316,11 @@ export function OrderDetailSheet({
           {/* Recipient */}
           <div className="rounded-lg bg-muted/50 p-4 space-y-3">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Empfänger</p>
+            {zoneMeta?.label && !editing && (
+              <Badge variant="outline" className="w-fit border-border font-semibold" style={zoneBadgeStyle}>
+                Zone {zoneMeta.label}
+              </Badge>
+            )}
             {editing ? (
               <div className="space-y-3">
                 <div className="space-y-1.5">
