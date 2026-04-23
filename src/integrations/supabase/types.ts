@@ -213,6 +213,44 @@ export type Database = {
           },
         ]
       }
+      order_status_history: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          id: string
+          order_id: string
+          reason: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          order_id: string
+          reason?: string | null
+          status: string
+          user_id: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          order_id?: string
+          reason?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           absender_adresse: string | null
@@ -574,6 +612,38 @@ export type Database = {
       admin_set_merchant_code: {
         Args: { _merchant_code: string; _profile_id: string }
         Returns: string
+      }
+      admin_update_order_status: {
+        Args: { _order_id: string; _reason?: string; _status: string }
+        Returns: {
+          absender_adresse: string | null
+          absender_name: string
+          auftrags_nr: string
+          created_at: string
+          delivered_at: string | null
+          empfaenger_adresse: string | null
+          empfaenger_email: string | null
+          empfaenger_name: string
+          empfaenger_plz: string | null
+          empfaenger_stadt: string
+          empfaenger_telefon: string | null
+          gewicht: number
+          id: string
+          notizen: string | null
+          package_height_cm: number | null
+          package_length_cm: number | null
+          package_width_cm: number | null
+          pakete: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       has_role: {
         Args: {

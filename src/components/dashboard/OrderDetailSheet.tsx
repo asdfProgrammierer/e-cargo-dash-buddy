@@ -32,9 +32,10 @@ interface OrderDetailSheetProps {
   order: Order | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUpdateStatus: (id: string, status: OrderStatus) => void;
+  onUpdateStatus: (id: string, status: OrderStatus, reason?: string) => void | Promise<void>;
   onUpdateOrder: (id: string, updates: Partial<Order>) => void;
   canUpdateStatus?: boolean;
+  statusHistory?: { id: string; status: OrderStatus; reason?: string; createdAt: string }[];
 }
 
 const TIMELINE_STEPS: { status: OrderStatus; label: string; icon: React.ElementType }[] = [
@@ -64,15 +65,25 @@ export function OrderDetailSheet({
   onUpdateStatus,
   onUpdateOrder,
   canUpdateStatus = false,
+  statusHistory,
 }: OrderDetailSheetProps) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Partial<Order>>({});
+  const [pendingStatus, setPendingStatus] = useState<OrderStatus | null>(null);
+  const [statusReason, setStatusReason] = useState("");
   const [zoneMeta, setZoneMeta] = useState<{ label: string; color?: string | null } | null>(null);
   const currentStep = order ? STATUS_ORDER[order.status] : 0;
   const canEdit = order ? isEditable(order.status) : false;
   const isCancelled = order?.status === "storniert";
   const isUndelivered = order?.status === "nicht_zugestellt";
   const zoneBadgeStyle = useMemo(() => getZoneBadgeStyle(zoneMeta?.color), [zoneMeta?.color]);
+
+  useEffect(() => {
+    if (!open) {
+      setPendingStatus(null);
+      setStatusReason("");
+    }
+  }, [open]);
 
   useEffect(() => {
     const postcode = order?.empfaengerPlz?.trim();
@@ -130,6 +141,26 @@ export function OrderDetailSheet({
 
   const printLabel = async () => {
     await printShippingLabels([order]);
+  };
+
+  const requestStatusUpdate = async (status: OrderStatus) => {
+    if (status === "nicht_zugestellt") {
+      setPendingStatus(status);
+      return;
+    }
+
+    setPendingStatus(null);
+    setStatusReason("");
+    await onUpdateStatus(order.id, status);
+  };
+
+  const confirmUndelivered = async () => {
+    const trimmedReason = statusReason.trim();
+    if (!trimmedReason) return;
+
+    await onUpdateStatus(order.id, "nicht_zugestellt", trimmedReason);
+    setPendingStatus(null);
+    setStatusReason("");
   };
 
   const update = (field: string, value: string | number) =>
@@ -393,6 +424,31 @@ export function OrderDetailSheet({
 
         <Separator />
 
+        {!!statusHistory?.length && (
+          <>
+            <div className="py-4 space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Auftragshistorie
+              </h3>
+              <div className="space-y-3">
+                {statusHistory.map((entry) => (
+                  <div key={entry.id} className="rounded-lg bg-muted/50 p-4 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="secondary" className={`${STATUS_COLORS[entry.status]} border-0 text-xs`}>
+                        {STATUS_LABELS[entry.status]}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{entry.createdAt}</span>
+                    </div>
+                    {entry.reason && <p className="text-sm text-foreground">{entry.reason}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Separator />
+          </>
+        )}
+
         {/* Actions */}
         <div className="py-4 space-y-3">
           <Button variant="outline" className="w-full" onClick={printLabel}>
@@ -410,13 +466,35 @@ export function OrderDetailSheet({
                     type="button"
                     variant={order.status === status ? "default" : "outline"}
                     className="justify-start"
-                    onClick={() => onUpdateStatus(order.id, status)}
+                    onClick={() => requestStatusUpdate(status)}
                     disabled={order.status === status}
                   >
                     {STATUS_LABELS[status]}
                   </Button>
                 ))}
               </div>
+
+              {pendingStatus === "nicht_zugestellt" && (
+                <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Grund für nicht erfolgreiche Zustellung</Label>
+                    <Textarea
+                      value={statusReason}
+                      onChange={(e) => setStatusReason(e.target.value)}
+                      rows={3}
+                      placeholder="z. B. Kunde nicht angetroffen oder Adresse unklar"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => setPendingStatus(null)}>
+                      Abbrechen
+                    </Button>
+                    <Button type="button" size="sm" onClick={confirmUndelivered} disabled={!statusReason.trim()}>
+                      Historie speichern
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -425,7 +503,7 @@ export function OrderDetailSheet({
               className="w-full"
               onClick={() => {
                 const nextStatus = TIMELINE_STEPS[currentStep + 1]?.status;
-                if (nextStatus) onUpdateStatus(order.id, nextStatus);
+                if (nextStatus) requestStatusUpdate(nextStatus);
               }}
             >
               → {STATUS_LABELS[TIMELINE_STEPS[currentStep + 1]?.status]}

@@ -7,7 +7,7 @@ interface OrderContextType {
   loading: boolean;
   addOrder: (order: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">) => Promise<Order | null>;
   addOrders: (orders: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">[]) => Promise<Order[]>;
-  updateStatus: (id: string, status: OrderStatus) => Promise<void>;
+  updateStatus: (id: string, status: OrderStatus, reason?: string) => Promise<void>;
   deleteOrder: (id: string) => Promise<void>;
   updateOrder: (id: string, updates: Partial<Order>) => Promise<void>;
 }

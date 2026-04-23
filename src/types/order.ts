@@ -35,6 +35,6 @@ export const STATUS_COLORS: Record<OrderStatus, string> = {
   in_bearbeitung: "bg-warning/10 text-warning",
   unterwegs: "bg-primary/10 text-primary",
   zugestellt: "bg-success/10 text-success",
-  nicht_zugestellt: "bg-warning/10 text-warning",
+  nicht_zugestellt: "bg-destructive/10 text-destructive",
   storniert: "bg-destructive/10 text-destructive",
 };
