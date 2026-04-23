@@ -60,6 +60,9 @@ const emptyForm = {
   empfaengerTelefon: "",
   pakete: 1,
   gewicht: 0,
+  packageLengthCm: 0,
+  packageWidthCm: 0,
+  packageHeightCm: 0,
   notizen: "",
   saveToAddressBook: false,
 };
@@ -317,7 +320,7 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
           </div>
 
           {/* Package details */}
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Pakete</Label>
               <Input type="number" min={1} value={form.pakete} onChange={(e) => update("pakete", parseInt(e.target.value) || 1)} />
@@ -325,6 +328,14 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
             <div className="space-y-2">
               <Label>Gewicht (kg)</Label>
               <Input type="number" min={0} step={0.1} value={form.gewicht} onChange={(e) => update("gewicht", parseFloat(e.target.value) || 0)} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Paketmaße (cm)</Label>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Input type="number" min={0} step={0.1} value={form.packageLengthCm} onChange={(e) => update("packageLengthCm", parseFloat(e.target.value) || 0)} placeholder="Länge" />
+              <Input type="number" min={0} step={0.1} value={form.packageWidthCm} onChange={(e) => update("packageWidthCm", parseFloat(e.target.value) || 0)} placeholder="Breite" />
+              <Input type="number" min={0} step={0.1} value={form.packageHeightCm} onChange={(e) => update("packageHeightCm", parseFloat(e.target.value) || 0)} placeholder="Höhe" />
             </div>
           </div>
           <div className="space-y-2">

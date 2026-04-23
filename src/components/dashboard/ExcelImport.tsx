@@ -35,6 +35,9 @@ interface PreviewRow {
   empfaengerTelefon?: string;
   pakete: number;
   gewicht: number;
+  packageLengthCm?: number;
+  packageWidthCm?: number;
+  packageHeightCm?: number;
   notizen?: string;
 }
 
@@ -61,6 +64,16 @@ const COLUMN_MAP: Record<string, keyof PreviewRow> = {
   anzahl: "pakete",
   gewicht: "gewicht",
   "gewicht (kg)": "gewicht",
+  länge: "packageLengthCm",
+  laenge: "packageLengthCm",
+  "länge (cm)": "packageLengthCm",
+  "laenge (cm)": "packageLengthCm",
+  breite: "packageWidthCm",
+  "breite (cm)": "packageWidthCm",
+  höhe: "packageHeightCm",
+  hoehe: "packageHeightCm",
+  "höhe (cm)": "packageHeightCm",
+  "hoehe (cm)": "packageHeightCm",
   notizen: "notizen",
   bemerkung: "notizen",
 };
@@ -74,6 +87,9 @@ const TEMPLATE_HEADERS = [
   "Telefon",
   "Pakete",
   "Gewicht (kg)",
+  "Länge (cm)",
+  "Breite (cm)",
+  "Höhe (cm)",
   "Notizen",
 ];
 
@@ -86,6 +102,9 @@ const TEMPLATE_EXAMPLE = [
   "0231 1234567",
   "2",
   "5.5",
+  "40",
+  "30",
+  "20",
   "Zerbrechlich",
 ];
 
@@ -155,7 +174,7 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
             const field = COLUMN_MAP[normalized];
             if (field) {
               if (field === "pakete") mapped[field] = Number(val) || 1;
-              else if (field === "gewicht") mapped[field] = Number(val) || 0;
+              else if (field === "gewicht" || field === "packageLengthCm" || field === "packageWidthCm" || field === "packageHeightCm") mapped[field] = Number(val) || 0;
               else mapped[field] = String(val || "");
             }
           });
@@ -170,6 +189,9 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
             empfaengerTelefon: mapped.empfaengerTelefon,
             pakete: mapped.pakete || 1,
             gewicht: mapped.gewicht || 0,
+            packageLengthCm: mapped.packageLengthCm || 0,
+            packageWidthCm: mapped.packageWidthCm || 0,
+            packageHeightCm: mapped.packageHeightCm || 0,
             notizen: mapped.notizen,
           };
         });
@@ -341,6 +363,7 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
                     <TableHead>Telefon</TableHead>
                     <TableHead className="text-center">Pakete</TableHead>
                     <TableHead className="text-right">Gewicht</TableHead>
+                    <TableHead className="text-right">Maße</TableHead>
                     <TableHead className="w-20" />
                   </TableRow>
                 </TableHeader>
@@ -377,6 +400,13 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
                           <TableCell>
                             <Input className="h-7 text-sm w-20 text-right" type="number" min={0} step={0.1} value={row.gewicht} onChange={(e) => updateRow(i, "gewicht", parseFloat(e.target.value) || 0)} />
                           </TableCell>
+                           <TableCell>
+                             <div className="grid grid-cols-3 gap-1">
+                               <Input className="h-7 text-sm text-right" type="number" min={0} step={0.1} value={row.packageLengthCm || 0} onChange={(e) => updateRow(i, "packageLengthCm", parseFloat(e.target.value) || 0)} />
+                               <Input className="h-7 text-sm text-right" type="number" min={0} step={0.1} value={row.packageWidthCm || 0} onChange={(e) => updateRow(i, "packageWidthCm", parseFloat(e.target.value) || 0)} />
+                               <Input className="h-7 text-sm text-right" type="number" min={0} step={0.1} value={row.packageHeightCm || 0} onChange={(e) => updateRow(i, "packageHeightCm", parseFloat(e.target.value) || 0)} />
+                             </div>
+                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1">
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingRow(null)}>
@@ -407,6 +437,7 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
                           <TableCell className="text-muted-foreground">{row.empfaengerTelefon || "–"}</TableCell>
                           <TableCell className="text-center">{row.pakete}</TableCell>
                           <TableCell className="text-right">{row.gewicht} kg</TableCell>
+                           <TableCell className="text-right">{`${row.packageLengthCm || 0} × ${row.packageWidthCm || 0} × ${row.packageHeightCm || 0} cm`}</TableCell>
                           <TableCell>
                             <div className="flex gap-1">
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingRow(i)}>
