@@ -26,6 +26,8 @@ import { Order, OrderStatus, STATUS_LABELS, STATUS_COLORS } from "@/types/order"
 import { getZoneBadgeStyle } from "@/lib/deliveryZones";
 import { getOrderZoneMeta, printShippingLabels } from "@/lib/shippingLabels";
 
+const STATUS_OPTIONS: OrderStatus[] = ["neu", "in_bearbeitung", "unterwegs", "zugestellt", "storniert"];
+
 interface OrderDetailSheetProps {
   order: Order | null;
   open: boolean;
@@ -390,6 +392,26 @@ export function OrderDetailSheet({
             <Printer className="mr-2 h-4 w-4" />
             Versandetikett drucken
           </Button>
+
+          {canUpdateStatus && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status ändern</p>
+              <div className="grid grid-cols-2 gap-2">
+                {STATUS_OPTIONS.map((status) => (
+                  <Button
+                    key={status}
+                    type="button"
+                    variant={order.status === status ? "default" : "outline"}
+                    className="justify-start"
+                    onClick={() => onUpdateStatus(order.id, status)}
+                    disabled={order.status === status}
+                  >
+                    {STATUS_LABELS[status]}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {canUpdateStatus && !isCancelled && currentStep < 3 && (
             <Button

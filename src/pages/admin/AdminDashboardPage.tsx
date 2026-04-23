@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { OrderDetailSheet } from "@/components/dashboard/OrderDetailSheet";
+import { StatusFilter } from "@/components/dashboard/StatusFilter";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, UserCheck, UserX, Package, MapPinned } from "lucide-react";
+import { Users, UserCheck, UserX, Package } from "lucide-react";
 import { STATUS_COLORS, STATUS_LABELS, type OrderStatus } from "@/types/order";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 
 type DashboardStats = {
   total: number;
@@ -28,10 +29,21 @@ type RecentOrder = {
   id: string;
   user_id: string;
   auftrags_nr: string;
+  absender_name: string;
+  absender_adresse: string | null;
   empfaenger_name: string;
+  empfaenger_adresse: string | null;
+  empfaenger_plz: string | null;
   empfaenger_stadt: string;
+  empfaenger_email: string | null;
+  empfaenger_telefon: string | null;
   pakete: number;
+  gewicht: number;
+  package_length_cm: number | null;
+  package_width_cm: number | null;
+  package_height_cm: number | null;
   status: OrderStatus;
+  notizen: string | null;
   created_at: string;
 };
 
@@ -42,33 +54,34 @@ const dateTimeFormatter = new Intl.DateTimeFormat("de-DE", {
 
 const AdminDashboardPage = () => {
   const [stats, setStats] = useState<DashboardStats>({ total: 0, approved: 0, pending: 0, orders: 0 });
-  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+  const [orders, setOrders] = useState<RecentOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<OrderStatus | "alle">("alle");
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
 
-      const [{ data: profiles, error: profilesError }, { count: orderCount, error: ordersCountError }, { data: newOrders, error: newOrdersError }] = await Promise.all([
+      const [{ data: profiles, error: profilesError }, { count: orderCount, error: ordersCountError }, { data: allOrders, error: allOrdersError }] = await Promise.all([
         supabase.from("profiles").select("user_id, approved, firma_name, ansprechpartner"),
         supabase.from("orders").select("*", { count: "exact", head: true }),
         supabase
           .from("orders")
-          .select("id, user_id, auftrags_nr, empfaenger_name, empfaenger_stadt, pakete, status, created_at")
-          .eq("status", "neu")
-          .order("created_at", { ascending: false })
-          .limit(8),
+          .select("id, user_id, auftrags_nr, absender_name, absender_adresse, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_email, empfaenger_telefon, pakete, gewicht, package_length_cm, package_width_cm, package_height_cm, status, notizen, created_at")
+          .order("created_at", { ascending: false }),
       ]);
 
-      if (profilesError || ordersCountError || newOrdersError) {
-        console.error("Admin dashboard data could not be loaded", { profilesError, ordersCountError, newOrdersError });
+      if (profilesError || ordersCountError || allOrdersError) {
+        console.error("Admin dashboard data could not be loaded", { profilesError, ordersCountError, allOrdersError });
       }
 
       const total = profiles?.length ?? 0;
       const approved = profiles?.filter((p) => p.approved).length ?? 0;
 
       setStats({ total, approved, pending: total - approved, orders: orderCount ?? 0 });
-      setRecentOrders((newOrders as RecentOrder[] | null) ?? []);
+      setOrders((allOrders as RecentOrder[] | null) ?? []);
       setLoading(false);
     };
 
@@ -103,6 +116,109 @@ const AdminDashboardPage = () => {
     [profilesForNames],
   );
 
+  const filteredOrders = useMemo(
+    () => (filter === "alle" ? orders : orders.filter((order) => order.status === filter)),
+    [filter, orders],
+  );
+
+  const selectedOrder = useMemo(() => {
+    if (!selectedOrderId) return null;
+    const order = orders.find((item) => item.id === selectedOrderId);
+    if (!order) return null;
+
+    return {
+      id: order.id,
+      auftragsNr: order.auftrags_nr,
+      absenderName: order.absender_name,
+      absenderAdresse: order.absender_adresse ?? "",
+      empfaengerName: order.empfaenger_name,
+      empfaengerAdresse: order.empfaenger_adresse ?? "",
+      empfaengerPlz: order.empfaenger_plz ?? "",
+      empfaengerStadt: order.empfaenger_stadt,
+      empfaengerEmail: order.empfaenger_email ?? undefined,
+      empfaengerTelefon: order.empfaenger_telefon ?? undefined,
+      pakete: order.pakete,
+      gewicht: Number(order.gewicht),
+      packageLengthCm: order.package_length_cm === null ? undefined : Number(order.package_length_cm),
+      packageWidthCm: order.package_width_cm === null ? undefined : Number(order.package_width_cm),
+      packageHeightCm: order.package_height_cm === null ? undefined : Number(order.package_height_cm),
+      status: order.status,
+      erstelltAm: new Date(order.created_at).toLocaleDateString("de-DE"),
+      notizen: order.notizen ?? undefined,
+    };
+  }, [orders, selectedOrderId]);
+
+  const handleSelectOrder = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    setSheetOpen(true);
+  };
+
+  const handleUpdateStatus = async (id: string, status: OrderStatus) => {
+    const { error } = await supabase.from("orders").update({ status }).eq("id", id);
+
+    if (error) {
+      console.error("Order status could not be updated", error);
+      return;
+    }
+
+    setOrders((prev) => prev.map((order) => (order.id === id ? { ...order, status } : order)));
+  };
+
+  const handleUpdateOrder = async (id: string, updates: Partial<{
+    empfaengerName: string;
+    empfaengerAdresse: string;
+    empfaengerPlz: string;
+    empfaengerStadt: string;
+    empfaengerEmail?: string;
+    empfaengerTelefon?: string;
+    pakete: number;
+    gewicht: number;
+    packageLengthCm?: number;
+    packageWidthCm?: number;
+    packageHeightCm?: number;
+    notizen?: string;
+  }>) => {
+    const dbUpdates: TablesUpdate<"orders"> = {};
+    if (updates.empfaengerName !== undefined) dbUpdates.empfaenger_name = updates.empfaengerName;
+    if (updates.empfaengerAdresse !== undefined) dbUpdates.empfaenger_adresse = updates.empfaengerAdresse;
+    if (updates.empfaengerPlz !== undefined) dbUpdates.empfaenger_plz = updates.empfaengerPlz;
+    if (updates.empfaengerStadt !== undefined) dbUpdates.empfaenger_stadt = updates.empfaengerStadt;
+    if (updates.empfaengerEmail !== undefined) dbUpdates.empfaenger_email = updates.empfaengerEmail || null;
+    if (updates.empfaengerTelefon !== undefined) dbUpdates.empfaenger_telefon = updates.empfaengerTelefon || null;
+    if (updates.pakete !== undefined) dbUpdates.pakete = updates.pakete;
+    if (updates.gewicht !== undefined) dbUpdates.gewicht = updates.gewicht;
+    if (updates.packageLengthCm !== undefined) dbUpdates.package_length_cm = updates.packageLengthCm ?? null;
+    if (updates.packageWidthCm !== undefined) dbUpdates.package_width_cm = updates.packageWidthCm ?? null;
+    if (updates.packageHeightCm !== undefined) dbUpdates.package_height_cm = updates.packageHeightCm ?? null;
+    if (updates.notizen !== undefined) dbUpdates.notizen = updates.notizen || null;
+
+    const { error } = await supabase.from("orders").update(dbUpdates).eq("id", id);
+    if (error) {
+      console.error("Order could not be updated", error);
+      return;
+    }
+
+    setOrders((prev) => prev.map((order) => (
+      order.id === id
+        ? {
+            ...order,
+            empfaenger_name: updates.empfaengerName ?? order.empfaenger_name,
+            empfaenger_adresse: updates.empfaengerAdresse ?? order.empfaenger_adresse,
+            empfaenger_plz: updates.empfaengerPlz ?? order.empfaenger_plz,
+            empfaenger_stadt: updates.empfaengerStadt ?? order.empfaenger_stadt,
+            empfaenger_email: updates.empfaengerEmail === undefined ? order.empfaenger_email : updates.empfaengerEmail || null,
+            empfaenger_telefon: updates.empfaengerTelefon === undefined ? order.empfaenger_telefon : updates.empfaengerTelefon || null,
+            pakete: updates.pakete ?? order.pakete,
+            gewicht: updates.gewicht ?? order.gewicht,
+            package_length_cm: updates.packageLengthCm === undefined ? order.package_length_cm : updates.packageLengthCm ?? null,
+            package_width_cm: updates.packageWidthCm === undefined ? order.package_width_cm : updates.packageWidthCm ?? null,
+            package_height_cm: updates.packageHeightCm === undefined ? order.package_height_cm : updates.packageHeightCm ?? null,
+            notizen: updates.notizen === undefined ? order.notizen : updates.notizen || null,
+          }
+        : order
+    )));
+  };
+
   const cards = [
     { label: "Händler gesamt", value: stats.total, icon: Users, color: "text-primary" },
     { label: "Freigeschaltet", value: stats.approved, icon: UserCheck, color: "text-green-500" },
@@ -129,12 +245,15 @@ const AdminDashboardPage = () => {
       <Card className="mt-6">
         <CardHeader className="gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
-            <CardTitle className="text-xl">Neue Bestellungen</CardTitle>
-            <CardDescription>Die zuletzt eingegangenen Aufträge aller Händler mit direkter Händlerzuordnung.</CardDescription>
+            <CardTitle className="text-xl">Bestellungen</CardTitle>
+            <CardDescription>Alle Aufträge aller Händler mit Filter nach Status und direktem Zugriff auf die Detailansicht.</CardDescription>
           </div>
-          <Badge variant="secondary" className="w-fit">
-            {recentOrders.length} neu
-          </Badge>
+          <div className="flex flex-col items-start gap-3 sm:items-end">
+            <Badge variant="secondary" className="w-fit">
+              {filteredOrders.length} sichtbar
+            </Badge>
+            <StatusFilter activeFilter={filter} onFilter={setFilter} />
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -143,9 +262,9 @@ const AdminDashboardPage = () => {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : recentOrders.length === 0 ? (
+          ) : filteredOrders.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-10 text-center text-sm text-muted-foreground">
-              Aktuell sind keine neuen Bestellungen vorhanden.
+              Für diesen Status sind aktuell keine Bestellungen vorhanden.
             </div>
           ) : (
             <Table>
@@ -161,8 +280,8 @@ const AdminDashboardPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recentOrders.map((order) => (
-                  <TableRow key={order.id}>
+                {filteredOrders.map((order) => (
+                  <TableRow key={order.id} className="cursor-pointer hover:bg-muted/30" onClick={() => handleSelectOrder(order.id)}>
                     <TableCell className="font-medium">{order.auftrags_nr}</TableCell>
                     <TableCell>{merchantNameMap.get(order.user_id) ?? "Unbekannter Händler"}</TableCell>
                     <TableCell>{order.empfaenger_name}</TableCell>
@@ -184,20 +303,14 @@ const AdminDashboardPage = () => {
         </CardContent>
       </Card>
 
-      <Card className="mt-6">
-        <CardHeader className="gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <CardTitle className="text-xl">Liefergebiet</CardTitle>
-            <CardDescription>Pflege belieferte Postleitzahlen, Zonen und das sichtbare Zonenkürzel für die Etiketten-Sortierung.</CardDescription>
-          </div>
-          <Button asChild>
-            <Link to="/admin/liefergebiet">
-              <MapPinned className="h-4 w-4" />
-              Liefergebiet verwalten
-            </Link>
-          </Button>
-        </CardHeader>
-      </Card>
+      <OrderDetailSheet
+        order={selectedOrder}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onUpdateStatus={handleUpdateStatus}
+        onUpdateOrder={handleUpdateOrder}
+        canUpdateStatus
+      />
     </AdminLayout>
   );
 };
