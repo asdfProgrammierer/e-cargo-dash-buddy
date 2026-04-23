@@ -62,6 +62,71 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_zone_postcodes: {
+        Row: {
+          created_at: string
+          id: string
+          postcode: string
+          zone_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          postcode: string
+          zone_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          postcode?: string
+          zone_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_zone_postcodes_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_zones: {
+        Row: {
+          active: boolean
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          label: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          label: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          label?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       drivers: {
         Row: {
           created_at: string

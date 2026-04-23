@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, UserCheck, UserX, Package } from "lucide-react";
+import { Users, UserCheck, UserX, Package, MapPinned } from "lucide-react";
 import { STATUS_COLORS, STATUS_LABELS, type OrderStatus } from "@/types/order";
 
 type DashboardStats = {
@@ -180,6 +182,21 @@ const AdminDashboardPage = () => {
             </Table>
           )}
         </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader className="gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <CardTitle className="text-xl">Liefergebiet</CardTitle>
+            <CardDescription>Pflege belieferte Postleitzahlen, Zonen und das sichtbare Zonenkürzel für die Etiketten-Sortierung.</CardDescription>
+          </div>
+          <Button asChild>
+            <Link to="/admin/liefergebiet">
+              <MapPinned className="h-4 w-4" />
+              Liefergebiet verwalten
+            </Link>
+          </Button>
+        </CardHeader>
       </Card>
     </AdminLayout>
   );
