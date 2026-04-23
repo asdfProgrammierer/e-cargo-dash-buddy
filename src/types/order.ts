@@ -13,6 +13,9 @@ export interface Order {
   empfaengerTelefon?: string;
   pakete: number;
   gewicht: number;
+  packageLengthCm?: number;
+  packageWidthCm?: number;
+  packageHeightCm?: number;
   status: OrderStatus;
   erstelltAm: string;
   notizen?: string;
