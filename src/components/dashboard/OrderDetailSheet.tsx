@@ -106,6 +106,9 @@ export function OrderDetailSheet({
       empfaengerTelefon: order.empfaengerTelefon,
       pakete: order.pakete,
       gewicht: order.gewicht,
+        packageLengthCm: order.packageLengthCm,
+        packageWidthCm: order.packageWidthCm,
+        packageHeightCm: order.packageHeightCm,
       notizen: order.notizen,
     });
     setEditing(true);
@@ -334,6 +337,32 @@ export function OrderDetailSheet({
                 <p className="text-2xl font-bold mt-1">{order.gewicht} kg</p>
               )}
             </div>
+          </div>
+
+          <div className="rounded-lg bg-muted/50 p-4">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Paketmaße</p>
+            {editing ? (
+              <div className="mt-1.5 grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Länge</Label>
+                  <Input type="number" min={0} step={0.1} value={form.packageLengthCm ?? 0} onChange={(e) => update("packageLengthCm", parseFloat(e.target.value) || 0)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Breite</Label>
+                  <Input type="number" min={0} step={0.1} value={form.packageWidthCm ?? 0} onChange={(e) => update("packageWidthCm", parseFloat(e.target.value) || 0)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Höhe</Label>
+                  <Input type="number" min={0} step={0.1} value={form.packageHeightCm ?? 0} onChange={(e) => update("packageHeightCm", parseFloat(e.target.value) || 0)} />
+                </div>
+              </div>
+            ) : (
+              <p className="text-lg font-bold mt-1">
+                {order.packageLengthCm || order.packageWidthCm || order.packageHeightCm
+                  ? `${order.packageLengthCm || 0} × ${order.packageWidthCm || 0} × ${order.packageHeightCm || 0} cm`
+                  : "Keine Maße hinterlegt"}
+              </p>
+            )}
           </div>
 
           {/* Notes */}

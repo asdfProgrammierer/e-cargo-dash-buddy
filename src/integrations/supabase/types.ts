@@ -229,6 +229,9 @@ export type Database = {
           gewicht: number
           id: string
           notizen: string | null
+          package_height_cm: number | null
+          package_length_cm: number | null
+          package_width_cm: number | null
           pakete: number
           status: string
           updated_at: string
@@ -249,6 +252,9 @@ export type Database = {
           gewicht?: number
           id?: string
           notizen?: string | null
+          package_height_cm?: number | null
+          package_length_cm?: number | null
+          package_width_cm?: number | null
           pakete?: number
           status?: string
           updated_at?: string
@@ -269,6 +275,9 @@ export type Database = {
           gewicht?: number
           id?: string
           notizen?: string | null
+          package_height_cm?: number | null
+          package_length_cm?: number | null
+          package_width_cm?: number | null
           pakete?: number
           status?: string
           updated_at?: string
@@ -286,6 +295,7 @@ export type Database = {
           id: string
           land: string | null
           logo_url: string | null
+          opening_hours: Json
           paketpreis: number | null
           plz: string | null
           stadt: string | null
@@ -305,6 +315,7 @@ export type Database = {
           id?: string
           land?: string | null
           logo_url?: string | null
+          opening_hours?: Json
           paketpreis?: number | null
           plz?: string | null
           stadt?: string | null
@@ -324,6 +335,7 @@ export type Database = {
           id?: string
           land?: string | null
           logo_url?: string | null
+          opening_hours?: Json
           paketpreis?: number | null
           plz?: string | null
           stadt?: string | null

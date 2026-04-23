@@ -18,6 +18,9 @@ interface DbOrder {
   empfaenger_telefon: string | null;
   pakete: number;
   gewicht: number;
+  package_length_cm: number | null;
+  package_width_cm: number | null;
+  package_height_cm: number | null;
   status: string;
   notizen: string | null;
   created_at: string;
@@ -38,6 +41,9 @@ function dbToOrder(row: DbOrder): Order {
     empfaengerTelefon: row.empfaenger_telefon ?? undefined,
     pakete: row.pakete,
     gewicht: Number(row.gewicht),
+    packageLengthCm: row.package_length_cm === null ? undefined : Number(row.package_length_cm),
+    packageWidthCm: row.package_width_cm === null ? undefined : Number(row.package_width_cm),
+    packageHeightCm: row.package_height_cm === null ? undefined : Number(row.package_height_cm),
     status: row.status as OrderStatus,
     erstelltAm: row.created_at.split("T")[0],
     notizen: row.notizen ?? undefined,
@@ -84,6 +90,9 @@ export function useOrderStore() {
         empfaenger_telefon: order.empfaengerTelefon || null,
         pakete: order.pakete,
         gewicht: order.gewicht,
+        package_length_cm: order.packageLengthCm ?? null,
+        package_width_cm: order.packageWidthCm ?? null,
+        package_height_cm: order.packageHeightCm ?? null,
         notizen: order.notizen || null,
       })
       .select()
@@ -113,6 +122,9 @@ export function useOrderStore() {
       empfaenger_telefon: o.empfaengerTelefon || null,
       pakete: o.pakete,
       gewicht: o.gewicht,
+      package_length_cm: o.packageLengthCm ?? null,
+      package_width_cm: o.packageWidthCm ?? null,
+      package_height_cm: o.packageHeightCm ?? null,
       notizen: o.notizen || null,
     }));
     const { data, error } = await supabase.from("orders").insert(rows).select();
@@ -148,6 +160,9 @@ export function useOrderStore() {
       empfaenger_telefon?: string | null;
       pakete?: number;
       gewicht?: number;
+      package_length_cm?: number | null;
+      package_width_cm?: number | null;
+      package_height_cm?: number | null;
       notizen?: string | null;
     } = {};
     if (updates.empfaengerName !== undefined) dbUpdates.empfaenger_name = updates.empfaengerName;
@@ -158,6 +173,9 @@ export function useOrderStore() {
     if (updates.empfaengerTelefon !== undefined) dbUpdates.empfaenger_telefon = updates.empfaengerTelefon || null;
     if (updates.pakete !== undefined) dbUpdates.pakete = updates.pakete;
     if (updates.gewicht !== undefined) dbUpdates.gewicht = updates.gewicht;
+    if (updates.packageLengthCm !== undefined) dbUpdates.package_length_cm = updates.packageLengthCm ?? null;
+    if (updates.packageWidthCm !== undefined) dbUpdates.package_width_cm = updates.packageWidthCm ?? null;
+    if (updates.packageHeightCm !== undefined) dbUpdates.package_height_cm = updates.packageHeightCm ?? null;
     if (updates.notizen !== undefined) dbUpdates.notizen = updates.notizen || null;
     
     const { error } = await supabase.from("orders").update(dbUpdates).eq("id", id);

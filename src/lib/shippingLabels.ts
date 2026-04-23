@@ -99,6 +99,7 @@ function renderSingleLabel(order: Order, zone: ZoneMeta | null, qrCodeDataUrl: s
         <div class="meta">
           <div class="meta-item"><div class="section-title">Pakete</div><div class="meta-value">${order.pakete}</div></div>
           <div class="meta-item"><div class="section-title">Gewicht</div><div class="meta-value">${order.gewicht} kg</div></div>
+          <div class="meta-item"><div class="section-title">Maße</div><div class="meta-value">${escapeHtml(order.packageLengthCm ? `${order.packageLengthCm} × ${order.packageWidthCm ?? 0} × ${order.packageHeightCm ?? 0} cm` : "–")}</div></div>
           <div class="meta-item"><div class="section-title">Datum</div><div class="meta-value">${escapeHtml(order.erstelltAm)}</div></div>
         </div>
 
