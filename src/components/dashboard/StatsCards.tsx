@@ -30,6 +30,13 @@ export function StatsCards({ orders }: StatsCardsProps) {
       bg: "bg-success/10",
     },
     {
+      label: "Nicht zugestellt",
+      value: orders.filter((o) => o.status === "nicht_zugestellt").length,
+      icon: AlertCircle,
+      color: "text-warning",
+      bg: "bg-warning/10",
+    },
+    {
       label: "Offen",
       value: orders.filter((o) => o.status === "neu" || o.status === "in_bearbeitung").length,
       icon: AlertCircle,
@@ -39,7 +46,7 @@ export function StatsCards({ orders }: StatsCardsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
       {stats.map((stat) => (
         <Card key={stat.label} className="border-border/50">
           <CardContent className="flex items-center gap-4 p-5">
