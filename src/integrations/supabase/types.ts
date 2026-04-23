@@ -295,6 +295,7 @@ export type Database = {
           id: string
           land: string | null
           logo_url: string | null
+          merchant_code: string | null
           opening_hours: Json
           paketpreis: number | null
           plz: string | null
@@ -315,6 +316,7 @@ export type Database = {
           id?: string
           land?: string | null
           logo_url?: string | null
+          merchant_code?: string | null
           opening_hours?: Json
           paketpreis?: number | null
           plz?: string | null
@@ -335,6 +337,7 @@ export type Database = {
           id?: string
           land?: string | null
           logo_url?: string | null
+          merchant_code?: string | null
           opening_hours?: Json
           paketpreis?: number | null
           plz?: string | null
@@ -568,6 +571,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_set_merchant_code: {
+        Args: { _merchant_code: string; _profile_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
