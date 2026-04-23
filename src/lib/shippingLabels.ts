@@ -171,7 +171,8 @@ function renderDocument(labels: string, title: string) {
           .brand-block {
             display: flex;
             flex-direction: column;
-            gap: 1.1mm;
+            gap: 1.4mm;
+            max-width: 48mm;
           }
           .brand-row {
             display: flex;
@@ -179,15 +180,16 @@ function renderDocument(labels: string, title: string) {
             gap: 0;
           }
           .logo {
-            font-size: 18px;
+            font-size: 24px;
             font-weight: 900;
             line-height: 1;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.2px;
           }
           .eco-line {
-            font-size: 9px;
-            font-weight: 700;
-            margin-top: 0.8mm;
+            font-size: 11px;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-top: 1.2mm;
           }
           .header-meta {
             display: flex;
