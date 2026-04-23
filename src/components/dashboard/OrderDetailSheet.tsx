@@ -131,16 +131,13 @@ export function OrderDetailSheet({
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Partial<Order>>({});
   const [zoneMeta, setZoneMeta] = useState<{ label: string; color?: string | null } | null>(null);
-
-  if (!order) return null;
-
-  const currentStep = STATUS_ORDER[order.status];
-  const canEdit = isEditable(order.status);
-  const isCancelled = order.status === "storniert";
+  const currentStep = order ? STATUS_ORDER[order.status] : 0;
+  const canEdit = order ? isEditable(order.status) : false;
+  const isCancelled = order?.status === "storniert";
   const zoneBadgeStyle = useMemo(() => getZoneBadgeStyle(zoneMeta?.color), [zoneMeta?.color]);
 
   useEffect(() => {
-    const postcode = order.empfaengerPlz?.trim();
+    const postcode = order?.empfaengerPlz?.trim();
 
     if (!postcode || !/^\d{5}$/.test(postcode)) {
       setZoneMeta(null);
@@ -172,7 +169,9 @@ export function OrderDetailSheet({
     return () => {
       active = false;
     };
-  }, [order.empfaengerPlz]);
+  }, [order?.empfaengerPlz]);
+
+  if (!order) return null;
 
   const startEditing = () => {
     setForm({
