@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { MerchantInvoiceDialog } from "@/components/admin/MerchantInvoiceDialog";
 import { toast } from "sonner";
 import { Search, Building2, ChevronRight } from "lucide-react";
 
@@ -16,6 +17,7 @@ interface MerchantProfile {
   ansprechpartner: string | null;
   stadt: string | null;
   telefon: string | null;
+  paketpreis: number | null;
   approved: boolean;
   created_at: string;
 }
@@ -29,7 +31,7 @@ const HaendlerVerwaltungPage = () => {
   const fetchMerchants = async () => {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, user_id, firma_name, ansprechpartner, stadt, telefon, approved, created_at")
+      .select("id, user_id, firma_name, ansprechpartner, stadt, telefon, paketpreis, approved, created_at")
       .order("created_at", { ascending: false });
     if (error) {
       toast.error("Fehler beim Laden der Händler");
@@ -90,8 +92,10 @@ const HaendlerVerwaltungPage = () => {
                 <TableHead>Ansprechpartner</TableHead>
                 <TableHead>Stadt</TableHead>
                 <TableHead>Telefon</TableHead>
+                <TableHead>Paketpreis</TableHead>
                 <TableHead>Registriert am</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Rechnung</TableHead>
                 <TableHead className="text-right">Freigabe</TableHead>
                 <TableHead className="w-8" />
               </TableRow>
@@ -99,13 +103,13 @@ const HaendlerVerwaltungPage = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     Lade Händler...
                   </TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     Keine Händler gefunden
                   </TableCell>
                 </TableRow>
@@ -121,6 +125,11 @@ const HaendlerVerwaltungPage = () => {
                     <TableCell>{m.ansprechpartner || "–"}</TableCell>
                     <TableCell>{m.stadt || "–"}</TableCell>
                     <TableCell>{m.telefon || "–"}</TableCell>
+                     <TableCell>
+                       {m.paketpreis != null
+                         ? new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(m.paketpreis)
+                         : "–"}
+                     </TableCell>
                     <TableCell>
                       {new Date(m.created_at).toLocaleDateString("de-DE")}
                     </TableCell>
@@ -129,6 +138,9 @@ const HaendlerVerwaltungPage = () => {
                         {m.approved ? "Aktiv" : "Ausstehend"}
                       </Badge>
                     </TableCell>
+                     <TableCell onClick={(e) => e.stopPropagation()}>
+                       <MerchantInvoiceDialog merchant={m} />
+                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <Switch
                         checked={m.approved}
