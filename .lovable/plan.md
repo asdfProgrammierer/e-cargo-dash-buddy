@@ -1,100 +1,85 @@
 
-Ziel: Die Admin-Startseite soll zusätzlich eine zentrale Ansicht für neue Bestellungen aller Händler bekommen, damit du direkt im Dashboard siehst, was frisch reingekommen ist.
+Ziel: Händler sollen beim Erfassen von Aufträgen einen dezenten Hinweis sehen, wenn die Empfänger-PLZ außerhalb des e-cargo-Liefergebiets liegt. Der Auftrag soll trotzdem weiterhin gespeichert bzw. importiert werden können.
 
-## Was ergänzt wird
+## Was umgesetzt wird
 
-### 1. Neue Sektion „Neue Bestellungen“
-Auf der Admin-Startseite wird ein neuer Block eingebaut, z. B. unter den Kennzahlen oder im Bereich „Tagesgeschäft“:
+### 1. Liefergebiets-Prüfung für Händler einbauen
+Die bestehende PLZ-/Zonenlogik wird für die Händlerseite nur noch als Hinweis verwendet, nicht als operative Zonenanzeige.
 
-- zeigt die neuesten Bestellungen aller Händler
-- Fokus auf Status `neu`
-- optional auch `in_bearbeitung`, falls du offene Eingänge breiter sehen willst
-- sortiert nach `created_at` absteigend
-- begrenzt auf eine kompakte Anzahl, z. B. 8–10 Einträge
+- Prüfung anhand der vorhandenen `delivery_zone_postcodes`
+- nur für gültige 5-stellige PLZ
+- Ergebnis:
+  - PLZ liegt im Liefergebiet: kein Hinweis nötig
+  - PLZ liegt nicht im Liefergebiet: Hinweis anzeigen
+  - leere/ungültige PLZ: kein Liefergebietshinweis, nur normales Formularverhalten
 
-### 2. Welche Infos pro Bestellung sichtbar sind
-Jeder Eintrag soll direkt operativ nutzbar sein. Gezeigt werden:
+### 2. Hinweis im Dialog „Neuer Auftrag“
+In `CreateOrderDialog` wird direkt unter dem PLZ-/Empfängerbereich ein kleiner, unaufdringlicher Hinweis ergänzt:
 
-- Auftragsnummer
-- Händlername
-- Empfängername
-- Stadt
-- Paketanzahl
-- Erstellungsdatum/Uhrzeit
-- Status-Badge
+Text:
+„Diese Postleitzahl liegt außerhalb des Liefergebietes von e-cargo.“
 
-Da `orders` nur die `user_id` hat, wird der Händlername aus `profiles` geladen und per `user_id` zugeordnet.
+Wichtig:
+- rein informativ
+- kein Fehlerzustand
+- kein Blockieren des Submit
+- visuell eher als neutrale/warnende Info, nicht als harte Fehlermeldung
 
-### 3. Sinnvolle Admin-Sicht statt Händler-Sicht
-Die bestehende Händler-Auftragsansicht ist auf den eingeloggten Händler beschränkt. Für das Admin-Dashboard wird deshalb eine eigene globale Abfrage verwendet:
+### 3. Verhalten für Sonderaufträge beibehalten
+Die Auftragserstellung bleibt unverändert möglich.
 
-- `orders` für alle neuen Bestellungen
-- `profiles` für Händlernamen/Firmennamen
-- clientseitiges Mapping `user_id -> firma_name / ansprechpartner`
+- Speichern trotz Hinweis weiterhin erlaubt
+- kein Zwang zur Änderung der PLZ
+- keine Admin-Funktionalität auf der Händlerseite sichtbar machen
 
-So bleibt die Händlerlogik unberührt, und der Admin bekommt eine echte Gesamtübersicht.
+### 4. Excel-/CSV-Import ebenfalls berücksichtigen
+Da Händler auch per Datei importieren können, wird derselbe Hinweisgedanke dort ergänzt.
 
-### 4. Darstellung im Dashboard
-Die neue Liste wird als kompakte Tabelle oder Kartenliste im bestehenden Admin-Stil eingebaut:
+Geplantes Verhalten:
+- Zeilen mit PLZ außerhalb des Liefergebiets werden nicht verworfen
+- betroffene Zeilen werden in der Vorschau markiert oder mit kleinem Hinweis versehen
+- Import bleibt weiterhin möglich
 
-- gleiche Table-/Badge-/Card-Komponenten wie im Rest des Admin-Bereichs
-- klarer Leerzustand: „Keine neuen Bestellungen“
-- Ladezustand passend zu den anderen Dashboard-Blöcken
-- responsive, damit es bei 1405px breit gut in das operative Layout passt
+So bleibt das Verhalten konsistent zwischen manueller Erfassung und Sammelimport.
 
-## Erweiterung des bestehenden Dashboard-Plans
+### 5. Zonen auf Händlerseite bewusst ausblenden
+Die Zone ist laut Anforderung intern für euch relevant, nicht für Händler.
 
-Die Admin-Startseite besteht dann aus diesen operativen Blöcken:
+Deshalb:
+- keine Zonenausgabe im Händler-Erfassungsdialog
+- kein Fokus auf Zonenlabels im Händlerfluss
+- interne Zonenlogik bleibt für Admin, Disposition und Etiketten erhalten
 
-1. Kennzahlen
-   - Händler gesamt
-   - Freigeschaltet
-   - Ausstehend
-   - Aufträge gesamt
+## Betroffene Bereiche
 
-2. Warnungen & Fälligkeiten
-   - offene Freigaben
-   - fällige Kontrollen
-   - anstehender TÜV
+- `src/components/dashboard/CreateOrderDialog.tsx`
+- `src/components/dashboard/ExcelImport.tsx`
+- optional kleine gemeinsame Hilfsfunktion in `src/lib/` für Liefergebiets-Check, damit Dialog und Import dieselbe Logik nutzen
 
-3. Neue Bestellungen
-   - neu eingegangene Aufträge aller Händler
-   - mit Händlerbezug
+## Technische Details
 
-4. Tagesgeschäft
-   - heutige Routen
-   - optional aktive Fahrer/Fahrzeuge
+### Datenquelle
+Verwendung der bestehenden Tabellen:
+- `delivery_zones`
+- `delivery_zone_postcodes`
 
-5. Schnellaktionen
-   - Händlerverwaltung
-   - Fahrzeugverwaltung
-   - Routenplanung
+Es ist keine neue Datenbankstruktur nötig.
 
-## Technische Umsetzung
+### UX-Regel
+```text
+Wenn Empfänger-PLZ vorhanden und 5-stellig:
+  prüfen, ob postcode in delivery_zone_postcodes existiert
+  wenn nein:
+    Hinweis anzeigen
+  wenn ja:
+    kein Hinweis
+```
 
-### Betroffene Datei
-- `src/pages/admin/AdminDashboardPage.tsx`
-
-### Geplante Datenlogik
-- bestehende Statistikabfrage erweitern
-- zusätzliche `orders`-Abfrage mit Fokus auf neue Aufträge
-- zusätzliche `profiles`-Abfrage für Händlernamen
-- Mapping von `orders.user_id` zu Profilinformationen
-- optional kleine Hilfsfunktion für Datumsformatierung und Händler-Fallback
-
-### Sicherheit
-Es ist keine neue Datenbankstruktur nötig:
-- Admins dürfen bereits alle `orders` lesen
-- Admins dürfen bereits alle `profiles` lesen
-
-Die vorhandenen Zugriffsregeln reichen daher für diese Erweiterung aus.
-
-## Umsetzungsschritte
-1. `AdminDashboardPage` um globale Bestellabfrage erweitern
-2. Händlernamen aus `profiles` zuordnen
-3. neue Dashboard-Sektion „Neue Bestellungen“ einbauen
-4. Status-Badges und Datumsanzeige im bestehenden Stil ergänzen
-5. Leerzustände und kompakte Darstellung finalisieren
+### Warum so
+- passt zu eurem Geschäftsmodell mit regulärem Liefergebiet plus Sonderaufträgen
+- Händler werden informiert, aber nicht ausgebremst
+- Admin-/Sortierlogik bleibt intern
+- keine unnötige Komplexität in der Händleransicht
 
 ## Ergebnis
-Nach dem Ausbau sieht der Admin nicht nur Kennzahlen und Fälligkeiten, sondern auch sofort die neuesten Bestellungen aller Händler zentral auf der Startseite. Das Dashboard wird dadurch deutlich operativer und eignet sich besser als tägliche Leitstelle.
+Händler sehen künftig sofort, wenn eine Sendung außerhalb des normalen Liefergebiets liegt, können den Auftrag aber trotzdem ohne Umwege anlegen oder importieren. Damit bleibt der Flow einfach, während ihr intern weiterhin sauber mit Lieferzonen arbeiten könnt.
