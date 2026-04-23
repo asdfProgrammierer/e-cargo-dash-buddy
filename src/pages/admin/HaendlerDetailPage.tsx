@@ -31,6 +31,7 @@ interface MerchantProfile {
   ustid: string | null;
   website: string | null;
   logo_url: string | null;
+  paketpreis: number | null;
   approved: boolean;
   created_at: string;
   updated_at: string;
@@ -73,6 +74,8 @@ const HaendlerDetailPage = () => {
   const [shopActive, setShopActive] = useState(false);
   const [shopNotizen, setShopNotizen] = useState("");
   const [savingShop, setSavingShop] = useState(false);
+  const [packagePrice, setPackagePrice] = useState("");
+  const [savingPrice, setSavingPrice] = useState(false);
 
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL || ""}/functions/v1/shop-webhook`;
 
@@ -105,6 +108,7 @@ const HaendlerDetailPage = () => {
           setShopActive(s.active);
           setShopNotizen(s.notizen || "");
         }
+        setPackagePrice(profileRes.data.paketpreis != null ? String(profileRes.data.paketpreis) : "");
         setOrderCount(ordersRes2.count ?? 0);
       } else {
         toast.error("Händler nicht gefunden");
@@ -125,6 +129,34 @@ const HaendlerDetailPage = () => {
       setProfile({ ...profile, approved: newVal });
       toast.success(newVal ? "Händler freigeschaltet" : "Händler gesperrt");
     }
+  };
+
+  const savePackagePrice = async () => {
+    if (!profile) return;
+
+    const trimmed = packagePrice.trim();
+    const numericValue = trimmed === "" ? null : Number(trimmed.replace(",", "."));
+
+    if (trimmed !== "" && (!Number.isFinite(numericValue) || numericValue < 0)) {
+      toast.error("Bitte einen gültigen Paketpreis eingeben");
+      return;
+    }
+
+    setSavingPrice(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ paketpreis: numericValue })
+      .eq("id", profile.id);
+    setSavingPrice(false);
+
+    if (error) {
+      toast.error("Paketpreis konnte nicht gespeichert werden");
+      return;
+    }
+
+    setProfile({ ...profile, paketpreis: numericValue });
+    setPackagePrice(numericValue != null ? String(numericValue) : "");
+    toast.success("Paketpreis gespeichert");
   };
 
   const saveShopConnection = async () => {
@@ -267,6 +299,12 @@ const HaendlerDetailPage = () => {
                   <div className="flex items-center gap-2 text-sm">
                     <FileText className="h-4 w-4 text-muted-foreground" />
                     <span>USt-IdNr.: {profile.ustid || "–"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Key className="h-4 w-4 text-muted-foreground" />
+                    <span>
+                      Paketpreis: {profile.paketpreis != null ? `${profile.paketpreis.toFixed(2)} €` : "Nicht hinterlegt"}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -426,6 +464,26 @@ const HaendlerDetailPage = () => {
                 <CardDescription>Freigabe und Berechtigungen für diesen Händler verwalten.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="rounded-lg border border-border p-4 space-y-3">
+                  <div>
+                    <p className="font-medium text-sm">Paketpreis pro Händler</p>
+                    <p className="text-xs text-muted-foreground">Grundlage für die spätere Rechnungsberechnung aller zugestellten Pakete.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={packagePrice}
+                      onChange={(e) => setPackagePrice(e.target.value)}
+                      placeholder="z. B. 4,90"
+                    />
+                    <Button onClick={savePackagePrice} disabled={savingPrice}>
+                      {savingPrice ? "Speichern..." : "Preis speichern"}
+                    </Button>
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between rounded-lg border border-border p-4">
                   <div>
                     <p className="font-medium text-sm">Account-Freigabe</p>

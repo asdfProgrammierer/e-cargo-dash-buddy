@@ -154,6 +154,7 @@ export type Database = {
           absender_name: string
           auftrags_nr: string
           created_at: string
+          delivered_at: string | null
           empfaenger_adresse: string | null
           empfaenger_email: string | null
           empfaenger_name: string
@@ -173,6 +174,7 @@ export type Database = {
           absender_name: string
           auftrags_nr: string
           created_at?: string
+          delivered_at?: string | null
           empfaenger_adresse?: string | null
           empfaenger_email?: string | null
           empfaenger_name: string
@@ -192,6 +194,7 @@ export type Database = {
           absender_name?: string
           auftrags_nr?: string
           created_at?: string
+          delivered_at?: string | null
           empfaenger_adresse?: string | null
           empfaenger_email?: string | null
           empfaenger_name?: string
@@ -218,6 +221,7 @@ export type Database = {
           id: string
           land: string | null
           logo_url: string | null
+          paketpreis: number | null
           plz: string | null
           stadt: string | null
           strasse: string | null
@@ -236,6 +240,7 @@ export type Database = {
           id?: string
           land?: string | null
           logo_url?: string | null
+          paketpreis?: number | null
           plz?: string | null
           stadt?: string | null
           strasse?: string | null
@@ -254,6 +259,7 @@ export type Database = {
           id?: string
           land?: string | null
           logo_url?: string | null
+          paketpreis?: number | null
           plz?: string | null
           stadt?: string | null
           strasse?: string | null
