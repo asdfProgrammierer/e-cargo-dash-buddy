@@ -23,7 +23,6 @@ import {
   X,
 } from "lucide-react";
 import { Order, OrderStatus, STATUS_LABELS, STATUS_COLORS } from "@/types/order";
-import { supabase } from "@/integrations/supabase/client";
 import { getZoneBadgeStyle } from "@/lib/deliveryZones";
 import { getOrderZoneMeta, printShippingLabels } from "@/lib/shippingLabels";
 
