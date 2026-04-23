@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Users, UserCheck, UserX, Package } from "lucide-react";
 import { STATUS_COLORS, STATUS_LABELS, type OrderStatus } from "@/types/order";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 
 type DashboardStats = {
   total: number;
@@ -177,7 +178,7 @@ const AdminDashboardPage = () => {
     packageHeightCm?: number;
     notizen?: string;
   }>) => {
-    const dbUpdates: Record<string, string | number | null> = {};
+    const dbUpdates: TablesUpdate<"orders"> = {};
     if (updates.empfaengerName !== undefined) dbUpdates.empfaenger_name = updates.empfaengerName;
     if (updates.empfaengerAdresse !== undefined) dbUpdates.empfaenger_adresse = updates.empfaengerAdresse;
     if (updates.empfaengerPlz !== undefined) dbUpdates.empfaenger_plz = updates.empfaengerPlz;
