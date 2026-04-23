@@ -30,6 +30,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Info } from "lucide-react";
+import { fetchCoveredPostcodes, isCheckablePostcode, isCoveredPostcode } from "@/lib/deliveryCoverage";
 
 interface CreateOrderDialogProps {
   onSubmit: (order: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">) => void;
@@ -69,6 +72,7 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
   const [senderDefaults, setSenderDefaults] = useState({ absenderName: "", absenderAdresse: "" });
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactPopoverOpen, setContactPopoverOpen] = useState(false);
+  const [coveredPostcodes, setCoveredPostcodes] = useState<Set<string>>(new Set());
 
   // Load profile data once
   useEffect(() => {
@@ -104,6 +108,21 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
       if (data) setContacts(data);
     };
     load();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const loadCoveredPostcodes = async () => {
+      try {
+        const postcodes = await fetchCoveredPostcodes();
+        setCoveredPostcodes(postcodes);
+      } catch {
+        toast.error("Liefergebiet konnte nicht geladen werden");
+      }
+    };
+
+    loadCoveredPostcodes();
   }, [user]);
 
   // Pre-fill sender when dialog opens
@@ -172,6 +191,9 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
 
   const update = (field: string, value: string | number | boolean) =>
     setForm((prev) => ({ ...prev, [field]: value }));
+
+  const showOutsideDeliveryHint =
+    isCheckablePostcode(form.empfaengerPlz) && !isCoveredPostcode(form.empfaengerPlz, coveredPostcodes);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -284,6 +306,14 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
                 <Input value={form.empfaengerTelefon} onChange={(e) => update("empfaengerTelefon", e.target.value)} />
               </div>
             </div>
+             {showOutsideDeliveryHint && (
+               <Alert className="border-border/60 bg-muted/40 text-foreground">
+                 <Info className="h-4 w-4" />
+                 <AlertDescription>
+                   Diese Postleitzahl liegt außerhalb des Liefergebietes von e-cargo.
+                 </AlertDescription>
+               </Alert>
+             )}
           </div>
 
           {/* Package details */}

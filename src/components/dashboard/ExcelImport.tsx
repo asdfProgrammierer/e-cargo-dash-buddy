@@ -16,6 +16,9 @@ import { toast } from "sonner";
 import { Order } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { fetchCoveredPostcodes, isCheckablePostcode, isCoveredPostcode } from "@/lib/deliveryCoverage";
+import { Info } from "lucide-react";
 
 interface ExcelImportProps {
   onImport: (orders: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">[]) => void;
@@ -100,6 +103,7 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
   const [fileName, setFileName] = useState("");
   const [editingRow, setEditingRow] = useState<number | null>(null);
   const [senderDefaults, setSenderDefaults] = useState({ name: "", adresse: "" });
+  const [coveredPostcodes, setCoveredPostcodes] = useState<Set<string>>(new Set());
 
   // Load profile for sender defaults
   useEffect(() => {
@@ -117,6 +121,21 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
       }
     };
     load();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const loadCoveredPostcodes = async () => {
+      try {
+        const postcodes = await fetchCoveredPostcodes();
+        setCoveredPostcodes(postcodes);
+      } catch {
+        toast.error("Liefergebiet konnte nicht geladen werden");
+      }
+    };
+
+    loadCoveredPostcodes();
   }, [user]);
 
   const handleFile = useCallback((file: File) => {
@@ -202,6 +221,10 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
     setFileName("");
     setEditingRow(null);
   };
+
+  const rowsOutsideDeliveryArea = preview.filter(
+    (row) => isCheckablePostcode(row.empfaengerPlz) && !isCoveredPostcode(row.empfaengerPlz, coveredPostcodes)
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -296,6 +319,16 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
             </div>
           </CardHeader>
           <CardContent className="p-0">
+            {rowsOutsideDeliveryArea > 0 && (
+              <div className="border-b border-border/60 px-6 py-4">
+                <Alert className="border-border/60 bg-muted/40 text-foreground">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    {rowsOutsideDeliveryArea} {rowsOutsideDeliveryArea === 1 ? "Zeile liegt" : "Zeilen liegen"} außerhalb des Liefergebietes von e-cargo. Der Import bleibt trotzdem möglich.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -312,8 +345,12 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {preview.map((row, i) => (
-                    <TableRow key={i}>
+                  {preview.map((row, i) => {
+                    const isOutsideDeliveryArea =
+                      isCheckablePostcode(row.empfaengerPlz) && !isCoveredPostcode(row.empfaengerPlz, coveredPostcodes);
+
+                    return (
+                    <TableRow key={i} className={isOutsideDeliveryArea ? "bg-muted/30" : undefined}>
                       {editingRow === i ? (
                         <>
                           <TableCell>
@@ -355,7 +392,16 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
                         <>
                           <TableCell className="font-medium">{row.empfaengerName}</TableCell>
                           <TableCell>{row.empfaengerAdresse}</TableCell>
-                          <TableCell>{row.empfaengerPlz}</TableCell>
+                           <TableCell>
+                             <div className="space-y-1">
+                               <span>{row.empfaengerPlz}</span>
+                               {isOutsideDeliveryArea && (
+                                 <p className="text-xs text-muted-foreground">
+                                   Außerhalb des Liefergebietes
+                                 </p>
+                               )}
+                             </div>
+                           </TableCell>
                           <TableCell>{row.empfaengerStadt}</TableCell>
                           <TableCell className="text-muted-foreground">{row.empfaengerEmail || "–"}</TableCell>
                           <TableCell className="text-muted-foreground">{row.empfaengerTelefon || "–"}</TableCell>
@@ -374,7 +420,7 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
                         </>
                       )}
                     </TableRow>
-                  ))}
+                  )})}
                 </TableBody>
               </Table>
             </div>
