@@ -7,8 +7,31 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Save, Upload, Building2, User, MapPin, Globe } from "lucide-react";
+import { Loader2, Save, Upload, Building2, User, MapPin, Globe, Clock3 } from "lucide-react";
 import { toast } from "sonner";
+
+const OPENING_HOURS_DAYS = [
+  { key: "monday", label: "Montag" },
+  { key: "tuesday", label: "Dienstag" },
+  { key: "wednesday", label: "Mittwoch" },
+  { key: "thursday", label: "Donnerstag" },
+  { key: "friday", label: "Freitag" },
+  { key: "saturday", label: "Samstag" },
+  { key: "sunday", label: "Sonntag" },
+] as const;
+
+type OpeningHoursKey = (typeof OPENING_HOURS_DAYS)[number]["key"];
+type OpeningHoursState = Record<OpeningHoursKey, string>;
+
+const EMPTY_OPENING_HOURS: OpeningHoursState = {
+  monday: "",
+  tuesday: "",
+  wednesday: "",
+  thursday: "",
+  friday: "",
+  saturday: "",
+  sunday: "",
+};
 
 const ProfilPage = () => {
   const { user } = useAuth();
@@ -27,6 +50,7 @@ const ProfilPage = () => {
   const [ustid, setUstid] = useState("");
   const [website, setWebsite] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
+  const [openingHours, setOpeningHours] = useState<OpeningHoursState>(EMPTY_OPENING_HOURS);
 
   useEffect(() => {
     if (!user) return;
@@ -48,6 +72,16 @@ const ProfilPage = () => {
         setUstid((data as any).ustid ?? "");
         setWebsite((data as any).website ?? "");
         setLogoUrl((data as any).logo_url ?? "");
+        const hours = ((data as any).opening_hours ?? {}) as Partial<OpeningHoursState>;
+        setOpeningHours({
+          monday: hours.monday ?? "",
+          tuesday: hours.tuesday ?? "",
+          wednesday: hours.wednesday ?? "",
+          thursday: hours.thursday ?? "",
+          friday: hours.friday ?? "",
+          saturday: hours.saturday ?? "",
+          sunday: hours.sunday ?? "",
+        });
       }
       if (error && error.code !== "PGRST116") {
         toast.error("Profil konnte nicht geladen werden");
@@ -113,6 +147,7 @@ const ProfilPage = () => {
         land,
         ustid,
         website,
+        opening_hours: openingHours,
       } as any)
       .eq("user_id", user.id);
 
@@ -231,6 +266,27 @@ const ProfilPage = () => {
                         <Input value={land} onChange={(e) => setLand(e.target.value)} />
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                    <Clock3 className="h-4 w-4" />
+                    Öffnungszeiten
+                  </h3>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {OPENING_HOURS_DAYS.map((day) => (
+                      <div key={day.key} className="space-y-2">
+                        <Label>{day.label}</Label>
+                        <Input
+                          value={openingHours[day.key]}
+                          onChange={(e) => setOpeningHours((prev) => ({ ...prev, [day.key]: e.target.value }))}
+                          placeholder="z. B. 09:00–18:00 oder geschlossen"
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
 
