@@ -23,8 +23,8 @@ import {
   X,
 } from "lucide-react";
 import { Order, OrderStatus, STATUS_LABELS, STATUS_COLORS } from "@/types/order";
-import { supabase } from "@/integrations/supabase/client";
 import { getZoneBadgeStyle } from "@/lib/deliveryZones";
+import { getOrderZoneMeta, printShippingLabels } from "@/lib/shippingLabels";
 
 interface OrderDetailSheetProps {
   order: Order | null;
@@ -54,292 +54,6 @@ function isEditable(status: OrderStatus) {
   return status === "neu" || status === "in_bearbeitung";
 }
 
-function escapeHtml(value?: string) {
-  return (value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function generateLabelHTML(order: Order, zone?: { label: string; color?: string | null } | null) {
-  const zoneStyles = zone?.color
-    ? `background:${zone.color}16;border-color:${zone.color}55;color:${zone.color};box-shadow: inset 0 0 0 1px ${zone.color}22;`
-    : "background:hsl(140 12% 94%);border-color:hsl(145 15% 78%);color:hsl(160 30% 12%);box-shadow: inset 0 0 0 1px hsl(145 15% 88%);";
-
-  return `
-    <html>
-    <head><title>Versandetikett – ${order.auftragsNr}</title>
-    <style>
-      @media print { body { margin: 0; } }
-      :root {
-        --bg: hsl(0 0% 100%);
-        --fg: hsl(160 30% 10%);
-        --muted: hsl(160 10% 42%);
-        --line: hsl(145 15% 84%);
-        --soft: hsl(140 12% 96%);
-        --soft-strong: hsl(145 20% 92%);
-        --primary: hsl(152 55% 33%);
-      }
-      body {
-        font-family: Inter, 'Helvetica Neue', Arial, sans-serif;
-        padding: 0;
-        margin: 0;
-        background: var(--bg);
-        color: var(--fg);
-      }
-      .label {
-        width: 100mm;
-        height: 150mm;
-        padding: 0;
-        box-sizing: border-box;
-        border: 1.2mm solid var(--fg);
-        display: flex;
-        flex-direction: column;
-        background: linear-gradient(180deg, hsl(140 18% 98%) 0%, hsl(0 0% 100%) 18%);
-      }
-      .accent-bar {
-        height: 4mm;
-        background: linear-gradient(90deg, var(--primary) 0%, hsl(160 42% 22%) 100%);
-      }
-      .content {
-        padding: 5mm;
-        display: flex;
-        flex-direction: column;
-        gap: 3.2mm;
-        height: calc(100% - 4mm);
-        box-sizing: border-box;
-      }
-      .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 4mm;
-      }
-      .brand-block {
-        display: flex;
-        flex-direction: column;
-        gap: 1.2mm;
-      }
-      .brand-row {
-        display: flex;
-        align-items: center;
-        gap: 2mm;
-      }
-      .logo-mark {
-        width: 7mm;
-        height: 7mm;
-        border-radius: 2.5mm;
-        background: linear-gradient(180deg, var(--primary) 0%, hsl(160 42% 24%) 100%);
-      }
-      .logo {
-        font-size: 18px;
-        font-weight: 900;
-        letter-spacing: 0.4px;
-        line-height: 1;
-      }
-      .brand-subline {
-        font-size: 8.5px;
-        text-transform: uppercase;
-        letter-spacing: 1.2px;
-        color: var(--muted);
-      }
-      .header-meta {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 2mm;
-      }
-      .zone-badge {
-        min-width: 24mm;
-        padding: 2.2mm 3.2mm;
-        border: 0.5mm solid var(--line);
-        border-radius: 999px;
-        font-size: 14px;
-        font-weight: 900;
-        letter-spacing: 0.8px;
-        text-align: center;
-      }
-      .order-pill {
-        background: var(--soft);
-        border: 0.4mm solid var(--line);
-        border-radius: 999px;
-        padding: 1.4mm 3mm;
-      }
-      .order-nr {
-        font-size: 12px;
-        font-weight: 700;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        letter-spacing: 0.4px;
-      }
-      .hero {
-        border: 0.45mm solid var(--line);
-        border-radius: 5mm;
-        padding: 4mm;
-        background: linear-gradient(180deg, hsl(140 25% 97%) 0%, hsl(0 0% 100%) 100%);
-      }
-      .hero-label {
-        font-size: 8.2px;
-        text-transform: uppercase;
-        letter-spacing: 1.1px;
-        color: var(--muted);
-        margin-bottom: 1.2mm;
-      }
-      .recipient {
-        font-size: 18px;
-        font-weight: 800;
-        line-height: 1.15;
-        margin-bottom: 1.8mm;
-      }
-      .recipient-address {
-        font-size: 13px;
-        font-weight: 600;
-        line-height: 1.4;
-      }
-      .phone {
-        margin-top: 2mm;
-        font-size: 10px;
-        color: var(--muted);
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 2.6mm;
-      }
-      .section {
-        border: 0.4mm solid var(--line);
-        border-radius: 4mm;
-        padding: 3mm;
-        background: var(--bg);
-      }
-      .section-title {
-        font-size: 8px;
-        text-transform: uppercase;
-        letter-spacing: 1.1px;
-        color: var(--muted);
-        margin-bottom: 1.2mm;
-      }
-      .section-content {
-        font-size: 12.5px;
-        font-weight: 600;
-        line-height: 1.45;
-        word-break: break-word;
-      }
-      .meta {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 2.4mm;
-      }
-      .meta-item {
-        text-align: center;
-        border: 0.4mm solid var(--line);
-        border-radius: 4mm;
-        padding: 3mm 2mm;
-        background: var(--soft);
-      }
-      .meta-value {
-        font-size: 17px;
-        font-weight: 800;
-        line-height: 1.1;
-      }
-      .barcode-card {
-        border: 0.5mm solid var(--fg);
-        border-radius: 4.5mm;
-        padding: 3.2mm;
-        background: repeating-linear-gradient(
-          90deg,
-          hsl(0 0% 100%) 0,
-          hsl(0 0% 100%) 2.2mm,
-          hsl(140 15% 97%) 2.2mm,
-          hsl(140 15% 97%) 2.6mm
-        );
-      }
-      .barcode-label {
-        font-size: 7.6px;
-        text-transform: uppercase;
-        letter-spacing: 1.3px;
-        color: var(--muted);
-        margin-bottom: 1.4mm;
-        text-align: center;
-      }
-      .barcode {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: 21px;
-        letter-spacing: 3.8px;
-        text-align: center;
-        font-weight: 700;
-      }
-      .notes {
-        min-height: 15mm;
-      }
-      .footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 3mm;
-        margin-top: auto;
-        padding-top: 2mm;
-        border-top: 0.35mm dashed var(--line);
-        font-size: 8.2px;
-        color: var(--muted);
-        text-transform: uppercase;
-        letter-spacing: 1px;
-      }
-    </style></head>
-    <body>
-      <div class="label">
-        <div class="accent-bar"></div>
-        <div class="content">
-          <div class="header">
-            <div class="brand-block">
-              <div class="brand-row">
-                <div class="logo-mark"></div>
-                <div class="logo">e-cargo</div>
-              </div>
-              <div class="brand-subline">Lokalkurier · Versandetikett</div>
-            </div>
-            <div class="header-meta">
-              ${zone?.label ? `<div class="zone-badge" style="${zoneStyles}">${escapeHtml(zone.label)}</div>` : ""}
-              <div class="order-pill"><div class="order-nr">${escapeHtml(order.auftragsNr)}</div></div>
-            </div>
-          </div>
-          <div class="hero">
-            <div class="hero-label">Empfänger</div>
-            <div class="recipient">${escapeHtml(order.empfaengerName)}</div>
-            <div class="recipient-address">${escapeHtml(order.empfaengerAdresse)}<br/>${escapeHtml(order.empfaengerPlz ? order.empfaengerPlz + " " : "")}${escapeHtml(order.empfaengerStadt)}</div>
-            ${order.empfaengerTelefon ? `<div class="phone">Tel. ${escapeHtml(order.empfaengerTelefon)}</div>` : ""}
-          </div>
-          <div class="grid">
-            <div class="section">
-              <div class="section-title">Absender</div>
-              <div class="section-content">${escapeHtml(order.absenderName)}<br/>${escapeHtml(order.absenderAdresse)}</div>
-            </div>
-            <div class="section">
-              <div class="section-title">Service</div>
-              <div class="section-content">Direktzustellung<br/>lokales Liefergebiet</div>
-            </div>
-          </div>
-          <div class="meta">
-            <div class="meta-item"><div class="section-title">Pakete</div><div class="meta-value">${order.pakete}</div></div>
-            <div class="meta-item"><div class="section-title">Gewicht</div><div class="meta-value">${order.gewicht} kg</div></div>
-            <div class="meta-item"><div class="section-title">Datum</div><div class="meta-value">${escapeHtml(order.erstelltAm)}</div></div>
-          </div>
-          <div class="barcode-card">
-            <div class="barcode-label">Sendungsnummer</div>
-            <div class="barcode">${escapeHtml(order.auftragsNr.replace(/-/g, " "))}</div>
-          </div>
-          ${order.notizen ? `<div class="section notes"><div class="section-title">Hinweise</div><div class="section-content">${escapeHtml(order.notizen)}</div></div>` : ""}
-          <div class="footer">
-            <span>Bitte Zone bei der Sortierung beachten</span>
-            <span>e-cargo</span>
-          </div>
-        </div>
-      </div>
-    </body></html>
-  `;
-}
-
 export function OrderDetailSheet({
   order,
   open,
@@ -367,21 +81,10 @@ export function OrderDetailSheet({
     let active = true;
 
     const loadZone = async () => {
-      const { data, error } = await supabase
-        .from("delivery_zone_postcodes")
-        .select("delivery_zones(label, color)")
-        .eq("postcode", postcode)
-        .maybeSingle();
+      const zone = await getOrderZoneMeta(order);
 
       if (!active) return;
-
-      if (error || !data?.delivery_zones) {
-        setZoneMeta(null);
-        return;
-      }
-
-      const zone = Array.isArray(data.delivery_zones) ? data.delivery_zones[0] : data.delivery_zones;
-      setZoneMeta(zone ? { label: zone.label, color: zone.color } : null);
+      setZoneMeta(zone ? { label: zone.label } : null);
     };
 
     loadZone();
@@ -418,13 +121,8 @@ export function OrderDetailSheet({
     setForm({});
   };
 
-  const printLabel = () => {
-    const win = window.open("", "_blank", "width=420,height=640");
-    if (win) {
-      win.document.write(generateLabelHTML(order, zoneMeta));
-      win.document.close();
-      setTimeout(() => win.print(), 300);
-    }
+  const printLabel = async () => {
+    await printShippingLabels([order]);
   };
 
   const update = (field: string, value: string | number) =>
