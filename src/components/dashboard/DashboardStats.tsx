@@ -59,6 +59,7 @@ export function DashboardStats({ orders }: DashboardStatsProps) {
     { label: "Unterwegs", value: filtered.filter((o) => o.status === "unterwegs").length, icon: Truck, color: "text-primary", bg: "bg-primary/10" },
     { label: "Zugestellt", value: filtered.filter((o) => o.status === "zugestellt").length, icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
     { label: "Offen", value: filtered.filter((o) => o.status === "neu" || o.status === "in_bearbeitung").length, icon: AlertCircle, color: "text-warning", bg: "bg-warning/10" },
+    { label: "Nicht zugestellt", value: filtered.filter((o) => o.status === "nicht_zugestellt").length, icon: AlertCircle, color: "text-warning", bg: "bg-warning/10" },
   ];
 
   const ranges: { label: string; value: TimeRange }[] = [
@@ -85,7 +86,7 @@ export function DashboardStats({ orders }: DashboardStatsProps) {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
         {stats.map((stat) => (
           <Card key={stat.label} className="border-border/50">
             <CardContent className="flex items-center gap-4 p-5">

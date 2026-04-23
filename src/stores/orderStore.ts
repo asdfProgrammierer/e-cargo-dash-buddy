@@ -203,7 +203,7 @@ export function useOrderStore() {
             setOrders((prev) => {
               const old = prev.find((o) => o.id === updated.id);
               if (old && old.status !== updated.status) {
-                toast.info(`Auftrag ${updated.auftragsNr}: Status → ${updated.status === 'unterwegs' ? 'Unterwegs' : updated.status === 'zugestellt' ? 'Zugestellt' : updated.status === 'in_bearbeitung' ? 'In Bearbeitung' : updated.status === 'storniert' ? 'Storniert' : 'Neu'}`);
+                toast.info(`Auftrag ${updated.auftragsNr}: Status → ${updated.status === 'unterwegs' ? 'Unterwegs' : updated.status === 'zugestellt' ? 'Zugestellt' : updated.status === 'nicht_zugestellt' ? 'Nicht Zugestellt' : updated.status === 'in_bearbeitung' ? 'In Bearbeitung' : updated.status === 'storniert' ? 'Storniert' : 'Neu'}`);
               }
               return prev.map((o) => (o.id === updated.id ? updated : o));
             });

@@ -26,7 +26,7 @@ import { Order, OrderStatus, STATUS_LABELS, STATUS_COLORS } from "@/types/order"
 import { getZoneBadgeStyle } from "@/lib/deliveryZones";
 import { getOrderZoneMeta, printShippingLabels } from "@/lib/shippingLabels";
 
-const STATUS_OPTIONS: OrderStatus[] = ["neu", "in_bearbeitung", "unterwegs", "zugestellt", "storniert"];
+const STATUS_OPTIONS: OrderStatus[] = ["neu", "in_bearbeitung", "unterwegs", "zugestellt", "nicht_zugestellt", "storniert"];
 
 interface OrderDetailSheetProps {
   order: Order | null;
@@ -49,6 +49,7 @@ const STATUS_ORDER: Record<OrderStatus, number> = {
   in_bearbeitung: 1,
   unterwegs: 2,
   zugestellt: 3,
+  nicht_zugestellt: -1,
   storniert: -1,
 };
 
@@ -70,6 +71,7 @@ export function OrderDetailSheet({
   const currentStep = order ? STATUS_ORDER[order.status] : 0;
   const canEdit = order ? isEditable(order.status) : false;
   const isCancelled = order?.status === "storniert";
+  const isUndelivered = order?.status === "nicht_zugestellt";
   const zoneBadgeStyle = useMemo(() => getZoneBadgeStyle(zoneMeta?.color), [zoneMeta?.color]);
 
   useEffect(() => {
@@ -157,6 +159,11 @@ export function OrderDetailSheet({
             <div className="flex items-center gap-3 rounded-lg bg-destructive/10 p-4">
               <XCircle className="h-5 w-5 text-destructive" />
               <span className="font-medium text-destructive">Auftrag storniert</span>
+            </div>
+          ) : isUndelivered ? (
+            <div className="flex items-center gap-3 rounded-lg bg-warning/10 p-4">
+              <XCircle className="h-5 w-5 text-warning" />
+              <span className="font-medium text-warning">Zustellung fehlgeschlagen</span>
             </div>
           ) : (
             <div className="relative">
@@ -413,7 +420,7 @@ export function OrderDetailSheet({
             </div>
           )}
 
-          {canUpdateStatus && !isCancelled && currentStep < 3 && (
+          {canUpdateStatus && !isCancelled && !isUndelivered && currentStep < 3 && (
             <Button
               className="w-full"
               onClick={() => {
