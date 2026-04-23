@@ -138,7 +138,12 @@ export function useOrderStore() {
     return created;
   };
 
-  const updateStatus = async (id: string, status: OrderStatus) => {
+  const updateStatus = async (id: string, status: OrderStatus, reason?: string) => {
+    if (status === "nicht_zugestellt" && !reason?.trim()) {
+      toast.error("Bitte einen Grund für Nicht Zugestellt angeben");
+      return;
+    }
+
     const { error } = await supabase.from("orders").update({ status }).eq("id", id);
     if (error) { toast.error("Status konnte nicht aktualisiert werden"); return; }
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));

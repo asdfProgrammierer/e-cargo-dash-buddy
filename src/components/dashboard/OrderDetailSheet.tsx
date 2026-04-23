@@ -65,6 +65,7 @@ export function OrderDetailSheet({
   onUpdateStatus,
   onUpdateOrder,
   canUpdateStatus = false,
+  statusHistory,
 }: OrderDetailSheetProps) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Partial<Order>>({});
