@@ -32,6 +32,7 @@ interface MerchantProfile {
   website: string | null;
   logo_url: string | null;
   paketpreis: number | null;
+  merchant_code: string | null;
   approved: boolean;
   created_at: string;
   updated_at: string;
@@ -75,7 +76,9 @@ const HaendlerDetailPage = () => {
   const [shopNotizen, setShopNotizen] = useState("");
   const [savingShop, setSavingShop] = useState(false);
   const [packagePrice, setPackagePrice] = useState("");
+  const [merchantCode, setMerchantCode] = useState("");
   const [savingPrice, setSavingPrice] = useState(false);
+  const [savingMerchantCode, setSavingMerchantCode] = useState(false);
 
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL || ""}/functions/v1/shop-webhook`;
 
@@ -109,6 +112,7 @@ const HaendlerDetailPage = () => {
           setShopNotizen(s.notizen || "");
         }
         setPackagePrice(profileRes.data.paketpreis != null ? String(profileRes.data.paketpreis) : "");
+        setMerchantCode(profileRes.data.merchant_code ?? "");
         setOrderCount(ordersRes2.count ?? 0);
       } else {
         toast.error("Händler nicht gefunden");
@@ -157,6 +161,33 @@ const HaendlerDetailPage = () => {
     setProfile({ ...profile, paketpreis: numericValue });
     setPackagePrice(numericValue != null ? String(numericValue) : "");
     toast.success("Paketpreis gespeichert");
+  };
+
+  const saveMerchantCode = async () => {
+    if (!profile) return;
+
+    const normalizedCode = merchantCode.trim().toUpperCase();
+    if (!/^[A-Z0-9]{3}$/.test(normalizedCode)) {
+      toast.error("Bitte genau 3 Zeichen für den Händlercode eingeben");
+      return;
+    }
+
+    setSavingMerchantCode(true);
+    const { data, error } = await (supabase as any).rpc("admin_set_merchant_code", {
+      _profile_id: profile.id,
+      _merchant_code: normalizedCode,
+    });
+    setSavingMerchantCode(false);
+
+    if (error) {
+      toast.error(error.message?.includes("duplicate") ? "Dieser Händlercode ist bereits vergeben" : "Händlercode konnte nicht gespeichert werden");
+      return;
+    }
+
+    const savedCode = typeof data === "string" ? data : normalizedCode;
+    setMerchantCode(savedCode);
+    setProfile({ ...profile, merchant_code: savedCode });
+    toast.success("Händlercode gespeichert und Aufträge neu nummeriert");
   };
 
   const saveShopConnection = async () => {
@@ -305,6 +336,10 @@ const HaendlerDetailPage = () => {
                     <span>
                       Paketpreis: {profile.paketpreis != null ? `${profile.paketpreis.toFixed(2)} €` : "Nicht hinterlegt"}
                     </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    <span>Händlercode: {profile.merchant_code || "Nicht hinterlegt"}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -480,6 +515,24 @@ const HaendlerDetailPage = () => {
                     />
                     <Button onClick={savePackagePrice} disabled={savingPrice}>
                       {savingPrice ? "Speichern..." : "Preis speichern"}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border p-4 space-y-3">
+                  <div>
+                    <p className="font-medium text-sm">Händlercode für Auftragsnummern</p>
+                    <p className="text-xs text-muted-foreground">Neue und bestehende Aufträge erhalten das Format EC-CODE-0000001.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      value={merchantCode}
+                      onChange={(e) => setMerchantCode(e.target.value.toUpperCase().slice(0, 3))}
+                      placeholder="PMF"
+                      className="uppercase"
+                    />
+                    <Button onClick={saveMerchantCode} disabled={savingMerchantCode}>
+                      {savingMerchantCode ? "Speichern..." : "Code speichern"}
                     </Button>
                   </div>
                 </div>
