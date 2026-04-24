@@ -10,18 +10,31 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Printer, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Printer, Trash2, XCircle, FileDown } from "lucide-react";
 import { Order, STATUS_LABELS, STATUS_COLORS } from "@/types/order";
 import { printShippingLabels } from "@/lib/shippingLabels";
+import { downloadOrderPdf } from "@/lib/orderPdf";
 
 interface OrderTableProps {
   orders: Order[];
   onDelete: (id: string) => void;
   onSelect: (order: Order) => void;
+  onCancel?: (id: string) => void | Promise<void>;
 }
 
-export function OrderTable({ orders, onDelete, onSelect }: OrderTableProps) {
+export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -47,6 +60,11 @@ export function OrderTable({ orders, onDelete, onSelect }: OrderTableProps) {
   const printLabel = async (e: React.MouseEvent, order: Order) => {
     e.stopPropagation();
     await printShippingLabels([order]);
+  };
+
+  const downloadPdf = (e: React.MouseEvent, order: Order) => {
+    e.stopPropagation();
+    downloadOrderPdf(order);
   };
 
   if (orders.length === 0) {
@@ -135,6 +153,31 @@ export function OrderTable({ orders, onDelete, onSelect }: OrderTableProps) {
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     )}
+                    {order.status === "in_bearbeitung" && onCancel && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        title="Stornieren"
+                        onClick={() => setCancelTarget(order)}
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {(order.status === "unterwegs" ||
+                      order.status === "zugestellt" ||
+                      order.status === "nicht_zugestellt" ||
+                      order.status === "storniert") && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title="PDF herunterladen"
+                        onClick={(e) => downloadPdf(e, order)}
+                      >
+                        <FileDown className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -142,6 +185,28 @@ export function OrderTable({ orders, onDelete, onSelect }: OrderTableProps) {
           </TableBody>
         </Table>
       </div>
+
+      <AlertDialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Auftrag stornieren?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Auftrag {cancelTarget?.auftragsNr} wird storniert. Sie können ihn anschließend wieder bearbeiten und neu einreichen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (cancelTarget && onCancel) await onCancel(cancelTarget.id);
+                setCancelTarget(null);
+              }}
+            >
+              Stornieren
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
