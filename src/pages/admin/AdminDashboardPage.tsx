@@ -64,7 +64,7 @@ const AdminDashboardPage = () => {
   const [stats, setStats] = useState<DashboardStats>({ total: 0, approved: 0, pending: 0, orders: 0 });
   const [orders, setOrders] = useState<RecentOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<OrderStatus | "alle">("alle");
+  const [filter, setFilter] = useState<OrderStatus | "alle">("neu");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [statusHistory, setStatusHistory] = useState<OrderHistoryEntry[]>([]);
@@ -308,7 +308,6 @@ const AdminDashboardPage = () => {
         <CardHeader className="gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <CardTitle className="text-xl">Bestellungen</CardTitle>
-            <CardDescription>Alle Aufträge aller Händler mit Filter nach Status und direktem Zugriff auf die Detailansicht.</CardDescription>
           </div>
           <div className="flex flex-col items-start gap-3 sm:items-end">
             <Badge variant="secondary" className="w-fit">
