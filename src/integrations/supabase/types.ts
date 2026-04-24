@@ -574,15 +574,78 @@ export type Database = {
         }
         Relationships: []
       }
+      route_stops: {
+        Row: {
+          created_at: string
+          eta: string | null
+          id: string
+          leg_distance_m: number | null
+          leg_duration_s: number | null
+          notiz: string | null
+          order_id: string
+          position: number
+          route_id: string
+          status: Database["public"]["Enums"]["route_stop_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          eta?: string | null
+          id?: string
+          leg_distance_m?: number | null
+          leg_duration_s?: number | null
+          notiz?: string | null
+          order_id: string
+          position?: number
+          route_id: string
+          status?: Database["public"]["Enums"]["route_stop_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          eta?: string | null
+          id?: string
+          leg_distance_m?: number | null
+          leg_duration_s?: number | null
+          notiz?: string | null
+          order_id?: string
+          position?: number
+          route_id?: string
+          status?: Database["public"]["Enums"]["route_stop_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "route_stops_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "route_stops_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       routes: {
         Row: {
           created_at: string
           datum: string
           driver_id: string | null
+          end_depot_id: string | null
+          geometry: Json | null
           id: string
           name: string
           notizen: string | null
+          optimized_at: string | null
+          start_depot_id: string | null
           status: Database["public"]["Enums"]["route_status"]
+          total_distance_m: number | null
+          total_duration_s: number | null
           updated_at: string
           vehicle_id: string | null
         }
@@ -590,10 +653,16 @@ export type Database = {
           created_at?: string
           datum?: string
           driver_id?: string | null
+          end_depot_id?: string | null
+          geometry?: Json | null
           id?: string
           name: string
           notizen?: string | null
+          optimized_at?: string | null
+          start_depot_id?: string | null
           status?: Database["public"]["Enums"]["route_status"]
+          total_distance_m?: number | null
+          total_duration_s?: number | null
           updated_at?: string
           vehicle_id?: string | null
         }
@@ -601,10 +670,16 @@ export type Database = {
           created_at?: string
           datum?: string
           driver_id?: string | null
+          end_depot_id?: string | null
+          geometry?: Json | null
           id?: string
           name?: string
           notizen?: string | null
+          optimized_at?: string | null
+          start_depot_id?: string | null
           status?: Database["public"]["Enums"]["route_status"]
+          total_distance_m?: number | null
+          total_duration_s?: number | null
           updated_at?: string
           vehicle_id?: string | null
         }
@@ -614,6 +689,20 @@ export type Database = {
             columns: ["driver_id"]
             isOneToOne: false
             referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "routes_end_depot_id_fkey"
+            columns: ["end_depot_id"]
+            isOneToOne: false
+            referencedRelation: "depots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "routes_start_depot_id_fkey"
+            columns: ["start_depot_id"]
+            isOneToOne: false
+            referencedRelation: "depots"
             referencedColumns: ["id"]
           },
           {
@@ -904,6 +993,7 @@ export type Database = {
         | "batterie"
         | "sonstige"
       route_status: "geplant" | "aktiv" | "abgeschlossen"
+      route_stop_status: "offen" | "erledigt" | "uebersprungen"
       vehicle_status: "verfuegbar" | "unterwegs" | "in_wartung"
       vehicle_type: "lastenrad" | "e_van" | "transporter" | "sonstige"
     }
@@ -1046,6 +1136,7 @@ export const Constants = {
         "sonstige",
       ],
       route_status: ["geplant", "aktiv", "abgeschlossen"],
+      route_stop_status: ["offen", "erledigt", "uebersprungen"],
       vehicle_status: ["verfuegbar", "unterwegs", "in_wartung"],
       vehicle_type: ["lastenrad", "e_van", "transporter", "sonstige"],
     },
