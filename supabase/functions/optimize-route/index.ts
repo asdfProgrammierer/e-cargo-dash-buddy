@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
       headers: {
         Authorization: apiKey,
         "Content-Type": "application/json",
-        Accept: "application/json",
+        Accept: "application/geo+json",
       },
       body: JSON.stringify({ coordinates: coords, instructions: false }),
     });

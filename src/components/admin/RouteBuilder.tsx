@@ -129,7 +129,7 @@ export function RouteBuilder({ routeId }: RouteBuilderProps) {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
   const [optimizing, setOptimizing] = useState(false);
-  const [profile, setProfile] = useState<Profile>("cycling-electric");
+  const [profile, setProfile] = useState<Profile>("driving-car");
   const [addOpen, setAddOpen] = useState(false);
 
   const mapRef = useRef<maplibregl.Map | null>(null);
