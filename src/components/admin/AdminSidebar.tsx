@@ -20,11 +20,11 @@ import {
 
 const navItems = [
   { title: "Übersicht", url: "/admin", icon: LayoutDashboard },
+  { title: "Routenplanung", url: "/admin/routen", icon: MapPin },
   { title: "Händlerverwaltung", url: "/admin/haendler", icon: Users },
   { title: "Fahrer", url: "/admin/fahrer", icon: UserCircle },
   { title: "Fahrzeuge", url: "/admin/fahrzeuge", icon: Truck },
-  { title: "Routenplanung", url: "/admin/routen", icon: MapPin },
-  { title: "Liefergebiet", url: "/admin/liefergebiet", icon: Settings2 },
+  { title: "Einstellungen", url: "/admin/liefergebiet", icon: Settings2 },
 ];
 
 export function AdminSidebar() {
