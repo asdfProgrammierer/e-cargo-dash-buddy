@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -31,6 +32,7 @@ const statusVariant: Record<string, "default" | "secondary" | "outline"> = { gep
 const emptyForm = { name: "", driver_id: "", vehicle_id: "", datum: new Date().toISOString().slice(0, 10), status: "geplant" as Route["status"], notizen: "" };
 
 const RoutenplanungPage = () => {
+  const navigate = useNavigate();
   const [routes, setRoutes] = useState<Route[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -161,7 +163,11 @@ const RoutenplanungPage = () => {
                 <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Keine Routen vorhanden</TableCell></TableRow>
               ) : routes.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell className="font-medium"><div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" />{r.name}</div></TableCell>
+                  <TableCell className="font-medium">
+                    <button onClick={() => navigate(`/admin/routen/${r.id}`)} className="flex items-center gap-2 hover:underline">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />{r.name}
+                    </button>
+                  </TableCell>
                   <TableCell>{r.drivers?.name ?? "–"}</TableCell>
                   <TableCell>{r.vehicles?.kennzeichen ?? "–"}</TableCell>
                   <TableCell>{new Date(r.datum).toLocaleDateString("de-DE")}</TableCell>
