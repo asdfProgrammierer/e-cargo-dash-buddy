@@ -5,6 +5,26 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { sendOrderStatusEmail } from "@/lib/orderEmail";
 
+async function geocodeOrder(order: Order) {
+  if (!order.empfaengerStadt) return;
+  try {
+    const { data, error } = await supabase.functions.invoke("geocode-address", {
+      body: {
+        strasse: order.empfaengerAdresse ?? "",
+        plz: order.empfaengerPlz ?? "",
+        stadt: order.empfaengerStadt,
+      },
+    });
+    if (error || !data || data.error) return;
+    await supabase
+      .from("orders")
+      .update({ lat: data.lat, lng: data.lng, geocoded_at: new Date().toISOString() })
+      .eq("id", order.id);
+  } catch (err) {
+    console.warn("Geocoding failed for order", order.id, err);
+  }
+}
+
 interface DbOrder {
   id: string;
   user_id: string;
@@ -105,6 +125,7 @@ export function useOrderStore() {
     }
     const newOrder = dbToOrder(data as unknown as DbOrder);
     setOrders((prev) => [newOrder, ...prev]);
+    void geocodeOrder(newOrder);
     void sendOrderStatusEmail({
       orderId: newOrder.id,
       auftragsNr: newOrder.auftragsNr,
@@ -147,6 +168,9 @@ export function useOrderStore() {
     }
     const created = (data as unknown as DbOrder[]).map(dbToOrder);
     setOrders((prev) => [...created, ...prev]);
+    for (const o of created) {
+      void geocodeOrder(o);
+    }
     for (const o of created) {
       void sendOrderStatusEmail({
         orderId: o.id,

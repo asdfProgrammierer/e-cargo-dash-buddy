@@ -24,7 +24,7 @@ const navItems = [
   { title: "Händlerverwaltung", url: "/admin/haendler", icon: Users },
   { title: "Fahrer", url: "/admin/fahrer", icon: UserCircle },
   { title: "Fahrzeuge", url: "/admin/fahrzeuge", icon: Truck },
-  { title: "Einstellungen", url: "/admin/liefergebiet", icon: Settings2 },
+  { title: "Einstellungen", url: "/admin/einstellungen", icon: Settings2 },
 ];
 
 export function AdminSidebar() {

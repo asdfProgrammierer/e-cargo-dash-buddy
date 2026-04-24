@@ -22,6 +22,7 @@ import FahrzeugePage from "./pages/admin/FahrzeugePage";
 import FahrzeugDetailPage from "./pages/admin/FahrzeugDetailPage";
 import RoutenplanungPage from "./pages/admin/RoutenplanungPage";
 import DeliveryZonesPage from "./pages/admin/DeliveryZonesPage";
+import DepotsPage from "./pages/admin/DepotsPage";
 import NotFound from "./pages/NotFound";
 import UnsubscribePage from "./pages/UnsubscribePage";
 import TrackingPage from "./pages/TrackingPage";
@@ -94,7 +95,10 @@ const AppRoutes = () => (
     <Route path="/admin/fahrzeuge" element={<AdminRoute><FahrzeugePage /></AdminRoute>} />
     <Route path="/admin/fahrzeuge/:id" element={<AdminRoute><FahrzeugDetailPage /></AdminRoute>} />
     <Route path="/admin/routen" element={<AdminRoute><RoutenplanungPage /></AdminRoute>} />
-    <Route path="/admin/liefergebiet" element={<AdminRoute><DeliveryZonesPage /></AdminRoute>} />
+    <Route path="/admin/einstellungen" element={<Navigate to="/admin/einstellungen/liefergebiet" replace />} />
+    <Route path="/admin/einstellungen/liefergebiet" element={<AdminRoute><DeliveryZonesPage /></AdminRoute>} />
+    <Route path="/admin/einstellungen/depots" element={<AdminRoute><DepotsPage /></AdminRoute>} />
+    <Route path="/admin/liefergebiet" element={<Navigate to="/admin/einstellungen/liefergebiet" replace />} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
