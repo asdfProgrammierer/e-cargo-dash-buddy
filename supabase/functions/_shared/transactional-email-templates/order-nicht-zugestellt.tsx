@@ -1,7 +1,7 @@
 import * as React from 'npm:react@18.3.1'
-import { Body, Container, Head, Heading, Html, Preview, Text } from 'npm:@react-email/components@0.0.22'
+import { Body, Button, Container, Head, Heading, Html, Preview, Text } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
-import { main, container, brand, tagline, h1, text, card, cardLabel, cardValue, infoBox, infoLabel, infoValue, warnCard, warnLabel, footer } from './_styles.ts'
+import { main, container, brand, tagline, h1, text, card, cardLabel, cardValue, infoBox, infoLabel, infoValue, warnCard, warnLabel, footer, ctaWrap, ctaButton, ctaHint } from './_styles.ts'
 
 interface Props {
   kundenname?: string
@@ -9,9 +9,10 @@ interface Props {
   auftragsNr?: string
   lieferadresse?: string
   reason?: string
+  trackingUrl?: string
 }
 
-const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, reason }: Props) => (
+const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, reason, trackingUrl }: Props) => (
   <Html lang="de">
     <Head />
     <Preview>Ihre Bestellung konnte heute nicht zugestellt werden</Preview>
@@ -39,6 +40,12 @@ const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, reason }: 
           <div style={infoBox}>
             <Text style={infoLabel}>Lieferadresse</Text>
             <Text style={infoValue}>{lieferadresse}</Text>
+          </div>
+        ) : null}
+        {trackingUrl ? (
+          <div style={ctaWrap}>
+            <Button href={trackingUrl} style={ctaButton}>Sendung verfolgen</Button>
+            <Text style={ctaHint}>Zur Verifizierung wird Ihre Postleitzahl abgefragt.</Text>
           </div>
         ) : null}
         <Text style={text}>Wir setzen uns in Kürze mit Ihnen oder Ihrem Händler in Verbindung, um einen erneuten Zustellversuch abzustimmen.</Text>

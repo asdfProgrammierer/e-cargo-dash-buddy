@@ -13,3 +13,12 @@ verify_jwt = false
 
 [functions.handle-email-suppression]
 verify_jwt = false
+
+[functions.verify-tracking-access]
+verify_jwt = false
+
+[functions.tracking-data]
+verify_jwt = false
+
+[functions.update-delivery-instructions]
+verify_jwt = false

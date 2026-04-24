@@ -13,3 +13,6 @@ export const infoValue = { fontSize: '14px', color: '#0f172a', margin: '0 0 8px'
 export const footer = { fontSize: '12px', color: '#94a3b8', lineHeight: '1.5', margin: '32px 0 0', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }
 export const warnCard = { backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '16px 20px', margin: '20px 0' }
 export const warnLabel = { fontSize: '12px', color: '#b91c1c', textTransform: 'uppercase' as const, letterSpacing: '0.5px', margin: '0 0 4px', fontWeight: 600 }
+export const ctaWrap = { textAlign: 'center' as const, margin: '24px 0' }
+export const ctaButton = { backgroundColor: '#16a34a', color: '#ffffff', padding: '12px 24px', borderRadius: '8px', fontSize: '15px', fontWeight: 600, textDecoration: 'none', display: 'inline-block' }
+export const ctaHint = { fontSize: '12px', color: '#64748b', margin: '8px 0 0', textAlign: 'center' as const }
