@@ -62,6 +62,41 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_instructions: {
+        Row: {
+          created_at: string
+          freetext: string | null
+          id: string
+          options: Json
+          order_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          freetext?: string | null
+          id?: string
+          options?: Json
+          order_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          freetext?: string | null
+          id?: string
+          options?: Json
+          order_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_instructions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delivery_zone_postcodes: {
         Row: {
           created_at: string
@@ -359,6 +394,7 @@ export type Database = {
           package_width_cm: number | null
           pakete: number
           status: string
+          tracking_token: string | null
           updated_at: string
           user_id: string
         }
@@ -382,6 +418,7 @@ export type Database = {
           package_width_cm?: number | null
           pakete?: number
           status?: string
+          tracking_token?: string | null
           updated_at?: string
           user_id: string
         }
@@ -405,6 +442,7 @@ export type Database = {
           package_width_cm?: number | null
           pakete?: number
           status?: string
+          tracking_token?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -746,6 +784,7 @@ export type Database = {
           package_width_cm: number | null
           pakete: number
           status: string
+          tracking_token: string | null
           updated_at: string
           user_id: string
         }
