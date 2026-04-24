@@ -38,6 +38,18 @@ async function getMerchantName(userId: string): Promise<string> {
   return name;
 }
 
+const SITE_ORIGIN =
+  (typeof window !== "undefined" && window.location?.origin) || "https://ecargo-logistic.de";
+
+async function getTrackingToken(orderId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("orders")
+    .select("tracking_token")
+    .eq("id", orderId)
+    .maybeSingle();
+  return (data as { tracking_token?: string | null } | null)?.tracking_token ?? null;
+}
+
 function buildLieferadresse(p: OrderEmailPayload): string {
   const parts = [
     [p.empfaengerName].filter(Boolean).join(" "),
@@ -59,11 +71,14 @@ export async function sendOrderStatusEmail(payload: OrderEmailPayload): Promise<
 
   try {
     const haendlerName = await getMerchantName(payload.haendlerUserId);
+    const token = await getTrackingToken(payload.orderId);
+    const trackingUrl = token ? `${SITE_ORIGIN}/track/${token}` : "";
     const templateData: Record<string, string> = {
       kundenname: payload.empfaengerName,
       haendlerName,
       auftragsNr: payload.auftragsNr,
       lieferadresse: buildLieferadresse(payload),
+      trackingUrl,
     };
     if (payload.status === "nicht_zugestellt" && payload.reason?.trim()) {
       templateData.reason = payload.reason.trim();
