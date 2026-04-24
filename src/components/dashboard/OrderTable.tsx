@@ -185,8 +185,13 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
                         className="h-8 w-8"
                         title="PDF herunterladen"
                         onClick={(e) => downloadPdf(e, order)}
+                        disabled={pdfLoadingId === order.id}
                       >
-                        <FileDown className="h-4 w-4" />
+                        {pdfLoadingId === order.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <FileDown className="h-4 w-4" />
+                        )}
                       </Button>
                     )}
                   </div>
