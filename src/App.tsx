@@ -24,6 +24,7 @@ import RoutenplanungPage from "./pages/admin/RoutenplanungPage";
 import DeliveryZonesPage from "./pages/admin/DeliveryZonesPage";
 import NotFound from "./pages/NotFound";
 import UnsubscribePage from "./pages/UnsubscribePage";
+import TrackingPage from "./pages/TrackingPage";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 
 const queryClient = new QueryClient();
@@ -85,6 +86,7 @@ const AppRoutes = () => (
     <Route path="/profil" element={<ProtectedRoute><ProfilPage /></ProtectedRoute>} />
     <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route path="/unsubscribe" element={<UnsubscribePage />} />
+    <Route path="/track/:token" element={<TrackingPage />} />
     <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
     <Route path="/admin/haendler" element={<AdminRoute><HaendlerVerwaltungPage /></AdminRoute>} />
     <Route path="/admin/haendler/:id" element={<AdminRoute><HaendlerDetailPage /></AdminRoute>} />
