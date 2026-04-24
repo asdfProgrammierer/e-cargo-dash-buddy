@@ -164,6 +164,7 @@ const AuftraegePage = () => {
           orders={filtered}
           onDelete={deleteOrder}
           onSelect={handleSelect}
+          onCancel={(id) => updateStatus(id, "storniert")}
         />
       </div>
 
