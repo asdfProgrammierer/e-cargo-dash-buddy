@@ -162,6 +162,57 @@ export type Database = {
         }
         Relationships: []
       }
+      depots: {
+        Row: {
+          active: boolean
+          created_at: string
+          geocoded_at: string | null
+          id: string
+          is_default: boolean
+          land: string
+          lat: number | null
+          lng: number | null
+          name: string
+          notizen: string | null
+          plz: string
+          stadt: string
+          strasse: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          geocoded_at?: string | null
+          id?: string
+          is_default?: boolean
+          land?: string
+          lat?: number | null
+          lng?: number | null
+          name: string
+          notizen?: string | null
+          plz: string
+          stadt: string
+          strasse: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          geocoded_at?: string | null
+          id?: string
+          is_default?: boolean
+          land?: string
+          lat?: number | null
+          lng?: number | null
+          name?: string
+          notizen?: string | null
+          plz?: string
+          stadt?: string
+          strasse?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       drivers: {
         Row: {
           created_at: string
@@ -386,8 +437,11 @@ export type Database = {
           empfaenger_plz: string | null
           empfaenger_stadt: string
           empfaenger_telefon: string | null
+          geocoded_at: string | null
           gewicht: number
           id: string
+          lat: number | null
+          lng: number | null
           notizen: string | null
           package_height_cm: number | null
           package_length_cm: number | null
@@ -410,8 +464,11 @@ export type Database = {
           empfaenger_plz?: string | null
           empfaenger_stadt: string
           empfaenger_telefon?: string | null
+          geocoded_at?: string | null
           gewicht?: number
           id?: string
+          lat?: number | null
+          lng?: number | null
           notizen?: string | null
           package_height_cm?: number | null
           package_length_cm?: number | null
@@ -434,8 +491,11 @@ export type Database = {
           empfaenger_plz?: string | null
           empfaenger_stadt?: string
           empfaenger_telefon?: string | null
+          geocoded_at?: string | null
           gewicht?: number
           id?: string
+          lat?: number | null
+          lng?: number | null
           notizen?: string | null
           package_height_cm?: number | null
           package_length_cm?: number | null
@@ -776,8 +836,11 @@ export type Database = {
           empfaenger_plz: string | null
           empfaenger_stadt: string
           empfaenger_telefon: string | null
+          geocoded_at: string | null
           gewicht: number
           id: string
+          lat: number | null
+          lng: number | null
           notizen: string | null
           package_height_cm: number | null
           package_length_cm: number | null
