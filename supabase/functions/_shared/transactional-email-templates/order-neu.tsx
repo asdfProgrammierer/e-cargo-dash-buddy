@@ -21,7 +21,7 @@ const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, trackingUr
         <Text style={tagline}>Wir liefern 100% elektrisch.</Text>
         <Heading style={h1}>Guten Tag{kundenname ? ` ${kundenname}` : ''},</Heading>
         <Text style={text}>
-          Ihre Bestellung bei <strong>{haendlerName ?? 'unserem Händler'}</strong> wurde an uns übermittelt. Wir liefern Ihre Bestellung umweltfreundlich und emissionsfrei per Lastenrad an Sie aus.
+          Ihre Bestellung bei <strong>{haendlerName ?? 'unserem Händler'}</strong> wurde an uns übermittelt. Wir liefern Ihre Bestellung umweltfreundlich und emissionsfrei an Sie aus.
         </Text>
         {auftragsNr ? (
           <div style={card}>
