@@ -62,9 +62,9 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
     await printShippingLabels([order]);
   };
 
-  const downloadPdf = (e: React.MouseEvent, order: Order) => {
+  const downloadPdf = async (e: React.MouseEvent, order: Order) => {
     e.stopPropagation();
-    downloadOrderPdf(order);
+    await downloadOrderPdf(order);
   };
 
   if (orders.length === 0) {
