@@ -14,6 +14,39 @@ const ALLOWED_OPTIONS = new Set([
   'keine',
 ])
 
+const OPTION_LABELS: Record<string, string> = {
+  nachbar: 'Beim Nachbarn abgeben',
+  hausflur: 'Im Hausflur ablegen',
+  sicherer_ort: 'An sicherem Ort ablegen',
+  garage: 'In Garage / Carport ablegen',
+  keine: 'Keine Sonderwünsche',
+}
+
+const NOTE_MARKER_START = '--- Lieferanweisung des Kunden ---'
+const NOTE_MARKER_END = '--- Ende Lieferanweisung ---'
+
+function buildInstructionsNote(options: string[], freetext: string | null): string | null {
+  const parts: string[] = []
+  if (options.length) {
+    parts.push('Optionen: ' + options.map((o) => OPTION_LABELS[o] ?? o).join(', '))
+  }
+  if (freetext) {
+    parts.push('Hinweis: ' + freetext)
+  }
+  if (!parts.length) return null
+  return `${NOTE_MARKER_START}\n${parts.join('\n')}\n${NOTE_MARKER_END}`
+}
+
+function stripPreviousBlock(notes: string | null): string {
+  if (!notes) return ''
+  const startIdx = notes.indexOf(NOTE_MARKER_START)
+  if (startIdx === -1) return notes
+  const endIdx = notes.indexOf(NOTE_MARKER_END, startIdx)
+  const before = notes.slice(0, startIdx).replace(/\s+$/, '')
+  const after = endIdx === -1 ? '' : notes.slice(endIdx + NOTE_MARKER_END.length).replace(/^\s+/, '')
+  return [before, after].filter(Boolean).join('\n\n')
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -66,7 +99,7 @@ Deno.serve(async (req) => {
 
   const { data: order, error: orderErr } = await supabase
     .from('orders')
-    .select('id, status, tracking_token')
+    .select('id, status, tracking_token, notizen')
     .eq('id', session.order_id)
     .maybeSingle()
 
@@ -97,6 +130,18 @@ Deno.serve(async (req) => {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
+  }
+
+  // Mirror instructions into the order's notes so the team sees them at a glance.
+  const baseNotes = stripPreviousBlock(order.notizen as string | null)
+  const block = buildInstructionsNote(options, freetext)
+  const merged = [baseNotes, block].filter(Boolean).join('\n\n').trim()
+  const { error: notesErr } = await supabase
+    .from('orders')
+    .update({ notizen: merged.length ? merged : null })
+    .eq('id', order.id)
+  if (notesErr) {
+    console.error('Update order notes failed', notesErr)
   }
 
   return new Response(JSON.stringify({ success: true }), {
