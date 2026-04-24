@@ -23,6 +23,7 @@ import FahrzeugDetailPage from "./pages/admin/FahrzeugDetailPage";
 import RoutenplanungPage from "./pages/admin/RoutenplanungPage";
 import DeliveryZonesPage from "./pages/admin/DeliveryZonesPage";
 import NotFound from "./pages/NotFound";
+import UnsubscribePage from "./pages/UnsubscribePage";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 
 const queryClient = new QueryClient();
@@ -83,6 +84,7 @@ const AppRoutes = () => (
     <Route path="/online-shop" element={<ProtectedRoute><OnlineShopPage /></ProtectedRoute>} />
     <Route path="/profil" element={<ProtectedRoute><ProfilPage /></ProtectedRoute>} />
     <Route path="/reset-password" element={<ResetPasswordPage />} />
+    <Route path="/unsubscribe" element={<UnsubscribePage />} />
     <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
     <Route path="/admin/haendler" element={<AdminRoute><HaendlerVerwaltungPage /></AdminRoute>} />
     <Route path="/admin/haendler/:id" element={<AdminRoute><HaendlerDetailPage /></AdminRoute>} />
