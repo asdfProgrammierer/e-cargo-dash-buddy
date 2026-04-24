@@ -55,7 +55,7 @@ const STATUS_ORDER: Record<OrderStatus, number> = {
 };
 
 function isEditable(status: OrderStatus) {
-  return status === "neu" || status === "in_bearbeitung";
+  return status === "neu";
 }
 
 export function OrderDetailSheet({
@@ -71,17 +71,24 @@ export function OrderDetailSheet({
   const [form, setForm] = useState<Partial<Order>>({});
   const [pendingStatus, setPendingStatus] = useState<OrderStatus | null>(null);
   const [statusReason, setStatusReason] = useState("");
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [confirmReactivate, setConfirmReactivate] = useState(false);
   const [zoneMeta, setZoneMeta] = useState<{ label: string; color?: string | null } | null>(null);
   const currentStep = order ? STATUS_ORDER[order.status] : 0;
   const canEdit = order ? isEditable(order.status) : false;
   const isCancelled = order?.status === "storniert";
   const isUndelivered = order?.status === "nicht_zugestellt";
+  const isMerchantView = !canUpdateStatus;
+  const canMerchantCancel = isMerchantView && order && !isCancelled && order.status !== "zugestellt";
+  const canMerchantReactivate = isMerchantView && isCancelled;
   const zoneBadgeStyle = useMemo(() => getZoneBadgeStyle(zoneMeta?.color), [zoneMeta?.color]);
 
   useEffect(() => {
     if (!open) {
       setPendingStatus(null);
       setStatusReason("");
+      setConfirmCancel(false);
+      setConfirmReactivate(false);
     }
   }, [open]);
 
