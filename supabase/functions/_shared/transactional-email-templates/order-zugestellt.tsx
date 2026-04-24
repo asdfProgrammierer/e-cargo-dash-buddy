@@ -19,7 +19,7 @@ const Email = ({ kundenname, haendlerName, auftragsNr }: Props) => (
         <Text style={tagline}>Wir liefern 100% elektrisch.</Text>
         <Heading style={h1}>Guten Tag{kundenname ? ` ${kundenname}` : ''},</Heading>
         <Text style={text}>
-          Ihre Bestellung von <strong>{haendlerName ?? 'unserem Händler'}</strong> wurde erfolgreich an Sie zugestellt. Vielen Dank, dass Sie sich für eine umweltfreundliche Lieferung per Lastenrad entschieden haben – Sie haben damit aktiv CO₂ eingespart.
+          Ihre Bestellung von <strong>{haendlerName ?? 'unserem Händler'}</strong> wurde erfolgreich an Sie zugestellt. Vielen Dank, dass Sie sich für eine umweltfreundliche und emissionsfreie Lieferung entschieden haben – Sie haben damit aktiv CO₂ eingespart.
         </Text>
         {auftragsNr ? (
           <div style={card}>
