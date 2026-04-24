@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Users, UserCheck, UserX, Package } from "lucide-react";
 import { STATUS_COLORS, STATUS_LABELS, type OrderStatus } from "@/types/order";
 import type { TablesUpdate } from "@/integrations/supabase/types";
+import { sendOrderStatusEmail } from "@/lib/orderEmail";
 
 type DashboardStats = {
   total: number;
@@ -202,6 +203,22 @@ const AdminDashboardPage = () => {
     if (data?.id === id) {
       const updatedOrder = data as { status: OrderStatus };
       setOrders((prev) => prev.map((order) => (order.id === id ? { ...order, status: updatedOrder.status } : order)));
+    }
+
+    const o = orders.find((x) => x.id === id);
+    if (o) {
+      void sendOrderStatusEmail({
+        orderId: o.id,
+        auftragsNr: o.auftrags_nr,
+        status,
+        empfaengerName: o.empfaenger_name,
+        empfaengerEmail: o.empfaenger_email,
+        empfaengerAdresse: o.empfaenger_adresse,
+        empfaengerPlz: o.empfaenger_plz,
+        empfaengerStadt: o.empfaenger_stadt,
+        haendlerUserId: o.user_id,
+        reason,
+      });
     }
 
     if (status === "nicht_zugestellt" && selectedOrderId === id && reason?.trim()) {

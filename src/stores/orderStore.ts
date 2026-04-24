@@ -3,6 +3,7 @@ import { Order, OrderStatus } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { sendOrderStatusEmail } from "@/lib/orderEmail";
 
 interface DbOrder {
   id: string;
@@ -104,6 +105,17 @@ export function useOrderStore() {
     }
     const newOrder = dbToOrder(data as unknown as DbOrder);
     setOrders((prev) => [newOrder, ...prev]);
+    void sendOrderStatusEmail({
+      orderId: newOrder.id,
+      auftragsNr: newOrder.auftragsNr,
+      status: "neu",
+      empfaengerName: newOrder.empfaengerName,
+      empfaengerEmail: newOrder.empfaengerEmail,
+      empfaengerAdresse: newOrder.empfaengerAdresse,
+      empfaengerPlz: newOrder.empfaengerPlz,
+      empfaengerStadt: newOrder.empfaengerStadt,
+      haendlerUserId: user.id,
+    });
     return newOrder;
   };
 
@@ -135,6 +147,19 @@ export function useOrderStore() {
     }
     const created = (data as unknown as DbOrder[]).map(dbToOrder);
     setOrders((prev) => [...created, ...prev]);
+    for (const o of created) {
+      void sendOrderStatusEmail({
+        orderId: o.id,
+        auftragsNr: o.auftragsNr,
+        status: "neu",
+        empfaengerName: o.empfaengerName,
+        empfaengerEmail: o.empfaengerEmail,
+        empfaengerAdresse: o.empfaengerAdresse,
+        empfaengerPlz: o.empfaengerPlz,
+        empfaengerStadt: o.empfaengerStadt,
+        haendlerUserId: user.id,
+      });
+    }
     return created;
   };
 

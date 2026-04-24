@@ -1,0 +1,15 @@
+export const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, Helvetica, sans-serif', margin: 0, padding: 0 }
+export const container = { maxWidth: '560px', margin: '0 auto', padding: '32px 24px' }
+export const brand = { fontSize: '14px', fontWeight: 700, color: '#16a34a', letterSpacing: '1px', textTransform: 'uppercase' as const, margin: '0 0 4px' }
+export const tagline = { fontSize: '12px', color: '#6b7280', margin: '0 0 24px' }
+export const h1 = { fontSize: '22px', fontWeight: 700, color: '#0f172a', margin: '0 0 16px', lineHeight: '1.3' }
+export const text = { fontSize: '15px', color: '#334155', lineHeight: '1.6', margin: '0 0 16px' }
+export const card = { backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '16px 20px', margin: '20px 0' }
+export const cardLabel = { fontSize: '12px', color: '#15803d', textTransform: 'uppercase' as const, letterSpacing: '0.5px', margin: '0 0 4px', fontWeight: 600 }
+export const cardValue = { fontSize: '15px', color: '#0f172a', margin: 0, fontWeight: 500 }
+export const infoBox = { backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '14px 18px', margin: '16px 0' }
+export const infoLabel = { fontSize: '11px', color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: '0.5px', margin: '0 0 2px', fontWeight: 600 }
+export const infoValue = { fontSize: '14px', color: '#0f172a', margin: '0 0 8px' }
+export const footer = { fontSize: '12px', color: '#94a3b8', lineHeight: '1.5', margin: '32px 0 0', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }
+export const warnCard = { backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '16px 20px', margin: '20px 0' }
+export const warnLabel = { fontSize: '12px', color: '#b91c1c', textTransform: 'uppercase' as const, letterSpacing: '0.5px', margin: '0 0 4px', fontWeight: 600 }
