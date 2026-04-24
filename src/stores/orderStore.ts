@@ -105,6 +105,7 @@ export function useOrderStore() {
     }
     const newOrder = dbToOrder(data as unknown as DbOrder);
     setOrders((prev) => [newOrder, ...prev]);
+    void geocodeOrder(newOrder);
     void sendOrderStatusEmail({
       orderId: newOrder.id,
       auftragsNr: newOrder.auftragsNr,
@@ -147,6 +148,9 @@ export function useOrderStore() {
     }
     const created = (data as unknown as DbOrder[]).map(dbToOrder);
     setOrders((prev) => [...created, ...prev]);
+    for (const o of created) {
+      void geocodeOrder(o);
+    }
     for (const o of created) {
       void sendOrderStatusEmail({
         orderId: o.id,
