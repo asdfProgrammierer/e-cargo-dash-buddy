@@ -516,6 +516,81 @@ export function OrderDetailSheet({
               → {STATUS_LABELS[TIMELINE_STEPS[currentStep + 1]?.status]}
             </Button>
           )}
+
+          {canMerchantCancel && (
+            confirmCancel ? (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 space-y-3">
+                <p className="text-sm font-medium text-foreground">
+                  Auftrag wirklich stornieren?
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Sie können den Auftrag anschließend wieder bearbeiten und neu einreichen.
+                </p>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setConfirmCancel(false)}>
+                    Abbrechen
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={async () => {
+                      await onUpdateStatus(order.id, "storniert");
+                      setConfirmCancel(false);
+                    }}
+                  >
+                    Stornieren
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                variant="destructive"
+                className="w-full"
+                onClick={() => setConfirmCancel(true)}
+              >
+                <XCircle className="mr-2 h-4 w-4" />
+                Auftrag stornieren
+              </Button>
+            )
+          )}
+
+          {canMerchantReactivate && (
+            confirmReactivate ? (
+              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
+                <p className="text-sm font-medium text-foreground">
+                  Stornierten Auftrag bearbeiten?
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Der Auftrag wird auf „Neu" zurückgesetzt und kann erneut bearbeitet werden.
+                </p>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setConfirmReactivate(false)}>
+                    Abbrechen
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={async () => {
+                      await onUpdateStatus(order.id, "neu");
+                      setConfirmReactivate(false);
+                    }}
+                  >
+                    Auftrag bearbeiten
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setConfirmReactivate(true)}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Auftrag bearbeiten
+              </Button>
+            )
+          )}
         </div>
       </SheetContent>
     </Sheet>
