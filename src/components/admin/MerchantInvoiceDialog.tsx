@@ -27,6 +27,8 @@ interface InvoiceOrder {
   empfaenger_name: string;
   pakete: number;
   delivered_at: string | null;
+  status: string;
+  updated_at: string;
 }
 
 const formatCurrency = (value: number) =>
@@ -73,12 +75,14 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
 
     const { data, error } = await supabase
       .from("orders")
-      .select("id, auftrags_nr, empfaenger_name, pakete, delivered_at")
+      .select("id, auftrags_nr, empfaenger_name, pakete, delivered_at, status, updated_at")
       .eq("user_id", merchant.user_id)
-      .eq("status", "zugestellt")
-      .gte("delivered_at", startOfDayIso(startDate))
-      .lte("delivered_at", endOfDayIso(endDate))
-      .order("delivered_at", { ascending: true });
+      .in("status", ["zugestellt", "nicht_zugestellt"])
+      .or(
+        `and(status.eq.zugestellt,delivered_at.gte.${startOfDayIso(startDate)},delivered_at.lte.${endOfDayIso(endDate)}),` +
+          `and(status.eq.nicht_zugestellt,updated_at.gte.${startOfDayIso(startDate)},updated_at.lte.${endOfDayIso(endDate)})`
+      )
+      .order("updated_at", { ascending: true });
 
     setLoading(false);
 
@@ -113,11 +117,15 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
 
     autoTable(doc, {
       startY: 58,
-      head: [["Auftrag", "Geliefert am", "Empfänger", "Pakete", "Preis", "Summe"]],
+      head: [["Auftrag", "Datum", "Empfänger", "Status", "Pakete", "Preis", "Summe"]],
       body: orders.map((order) => [
         order.auftrags_nr,
-        order.delivered_at ? new Date(order.delivered_at).toLocaleDateString("de-DE") : "–",
+        (() => {
+          const date = order.status === "zugestellt" ? order.delivered_at : order.updated_at;
+          return date ? new Date(date).toLocaleDateString("de-DE") : "–";
+        })(),
         order.empfaenger_name,
+        order.status === "zugestellt" ? "Zugestellt" : "Nicht zugestellt",
         String(order.pakete),
         formatCurrency(packagePrice),
         formatCurrency(order.pakete * packagePrice),
@@ -210,8 +218,9 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
               <TableHeader>
                 <TableRow>
                   <TableHead>Auftrag</TableHead>
-                  <TableHead>Geliefert am</TableHead>
+                  <TableHead>Datum</TableHead>
                   <TableHead>Empfänger</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Pakete</TableHead>
                   <TableHead>Preis/Paket</TableHead>
                   <TableHead>Summe</TableHead>
@@ -220,7 +229,7 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
               <TableBody>
                 {!orders.length ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                       Noch keine Rechnungsdaten geladen
                     </TableCell>
                   </TableRow>
@@ -228,8 +237,18 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
                   orders.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell className="font-medium">{order.auftrags_nr}</TableCell>
-                      <TableCell>{order.delivered_at ? new Date(order.delivered_at).toLocaleDateString("de-DE") : "–"}</TableCell>
+                      <TableCell>
+                        {(() => {
+                          const date = order.status === "zugestellt" ? order.delivered_at : order.updated_at;
+                          return date ? new Date(date).toLocaleDateString("de-DE") : "–";
+                        })()}
+                      </TableCell>
                       <TableCell>{order.empfaenger_name}</TableCell>
+                      <TableCell>
+                        <Badge variant={order.status === "zugestellt" ? "default" : "secondary"}>
+                          {order.status === "zugestellt" ? "Zugestellt" : "Nicht zugestellt"}
+                        </Badge>
+                      </TableCell>
                       <TableCell>{order.pakete}</TableCell>
                       <TableCell>{formatCurrency(packagePrice)}</TableCell>
                       <TableCell>{formatCurrency(order.pakete * packagePrice)}</TableCell>
