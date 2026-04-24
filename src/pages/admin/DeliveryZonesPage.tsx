@@ -3,6 +3,7 @@ import { Pencil, Plus, MapPinned, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { SettingsTabs } from "@/components/admin/SettingsTabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -187,7 +188,8 @@ const DeliveryZonesPage = () => {
   };
 
   return (
-    <AdminLayout title="Liefergebiet & Zonen">
+    <AdminLayout title="Einstellungen">
+      <SettingsTabs />
       <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
