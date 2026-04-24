@@ -1,54 +1,53 @@
-# PDF-Verbesserung: Auftragsdokument + Lieferschein
+# E-Mail-Benachrichtigungen für Endkunden
 
-## Ziel
-Das PDF in `src/lib/orderPdf.ts` so erweitern, dass es alle wichtigen Auftragsinformationen für den Händler enthält und am Ende einen abtrennbaren Lieferschein zur Übergabe / Quittierung enthält.
+Endkunden mit hinterlegter E-Mail erhalten automatisch Updates zu ihrer Bestellung, abhängig vom Status. Versand erfolgt über die in Lovable integrierte E-Mail-Infrastruktur (eigene Domain, kein externer Dienst nötig).
 
-## Inhalt des neuen PDFs (mehrseitig, A4)
+## Voraussetzung: Sender-Domain einrichten
 
-### Seite 1 – Auftragsübersicht
-- **Briefkopf**: e-cargo Logo (Text), Tagline „Wir liefern 100% elektrisch.", Dokumenttitel „Auftrag / Lieferschein", Auftrags-Nr. groß, Erstelldatum, aktueller Status als farbiger Badge.
-- **Zwei-Spalten-Block**: Absender (links) und Empfänger (rechts) mit Name, Adresse, PLZ/Stadt, E-Mail, Telefon.
-- **Sendungsdetails**-Tabelle: Pakete, Gewicht (kg), Maße L×B×H (cm), berechnetes Volumen, geschätzter CO₂-Wert (0,5 kg / Paket – konsistent mit Dashboard-Memory).
-- **Hinweise / Notizen**-Block (falls vorhanden).
-- **QR-Code** mit Auftrags-Nr. + Empfängerdaten oben rechts (gleiche Logik wie Versandetiketten via `qrcode`-Lib, bereits im Projekt).
-- **Statushistorie**-Tabelle: Datum/Uhrzeit, Status, Grund. Wird aus `order_status_history` über Supabase geladen (analog zum AdminDashboardPage-Pattern). Falls keine Historie vorhanden → „Keine Statusänderungen protokolliert".
+Aktuell ist noch keine Absender-Domain konfiguriert. Damit E-Mails von einer e-cargo-Adresse (z. B. `versand@deinedomain.de`) statt einer generischen Adresse versendet werden, ist als erster Schritt die einmalige Einrichtung der Domain nötig. Danach läuft alles automatisch.
 
-### Seite 2 – Lieferschein (abtrennbar)
-- Schnittlinie oben („✂ Bitte hier abtrennen – Lieferschein").
-- Kompakter Wiederholungs-Header: Auftrags-Nr., Datum, QR-Code.
-- **Empfänger** prominent.
-- **Sendungsinhalt**: Pakete, Gewicht, Maße.
-- **Quittierungsfeld**:
-  - Zeile „Übernommen am: __________ Uhrzeit: ______"
-  - Zeile „Name in Druckbuchstaben: ____________________"
-  - Größeres Unterschriftenfeld mit Rahmen + Label „Unterschrift Empfänger"
-  - Checkbox-Kästchen: ☐ Persönlich übergeben ☐ An Nachbarn ☐ Ablageort: ______
-- **Bemerkungen Fahrer** (leeres Linienfeld, ~4 Zeilen).
-- Footer mit Auftrags-Nr. + Seitenzahl.
+## Welche E-Mails werden versendet?
+
+Versand nur, wenn `empfaenger_email` gesetzt ist. Auslöser ist jede Statusänderung durch den Admin.
+
+| Status | Betreff | Inhalt (Kurzform) |
+|---|---|---|
+| **neu** | Bestellung bei [Händler] erhalten | "Guten Tag [Name], Ihre Bestellung bei [Händler] wurde an uns übermittelt und wir liefern sie umweltfreundlich per Lastenrad an Sie aus." |
+| **in_bearbeitung** | Ihre Bestellung wird vorbereitet | "Guten Tag [Name], Ihre Bestellung von [Händler] wird vorbereitet und in Kürze auf den Weg gebracht." + Bestellnummer + Tracking-Hinweis |
+| **unterwegs** | Ihre Bestellung ist unterwegs | "Guten Tag [Name], unser Fahrer ist mit Ihrer Bestellung von [Händler] unterwegs zu Ihnen. Voraussichtliche Zustellung heute." |
+| **zugestellt** | Ihre Bestellung wurde zugestellt | "Guten Tag [Name], Ihre Bestellung von [Händler] wurde erfolgreich zugestellt. Vielen Dank, dass Sie sich für eine umweltfreundliche Lieferung entschieden haben." + CO₂-Hinweis |
+| **nicht_zugestellt** | Zustellung nicht möglich | "Guten Tag [Name], leider konnten wir Ihre Bestellung von [Händler] heute nicht zustellen. Grund: [reason]. Wir versuchen es erneut." |
+| **storniert** | _kein E-Mail-Versand_ (Händler-/Adminentscheidung, Endkunde wird ggf. vom Händler informiert) | – |
+
+Alle E-Mails enthalten:
+- Bestellnummer (EC-XXX-0000001)
+- Händlername (aus `profiles.firma_name`)
+- Lieferadresse zur Bestätigung
+- e-cargo Branding (grün, Sage/Emerald), kein Werbeanteil
+- System-Footer mit Abmelde-Link (automatisch angehängt)
 
 ## Technische Umsetzung
 
-### `src/lib/orderPdf.ts`
-- Funktion async machen: `export async function downloadOrderPdf(order: Order)`.
-- Neue Helfer:
-  - `loadStatusHistory(orderId)` – Supabase-Query auf `order_status_history` (select id, status, reason, created_at, sortiert asc). Bei Fehler/leer → leeres Array.
-  - `generateQrDataUrl(order)` – via `qrcode` Bibliothek (Wiederverwendung wie in `shippingLabels.ts`).
-  - `drawHeader(doc, order)`, `drawAddresses(doc, order)`, `drawShipmentTable(doc, order)`, `drawHistory(doc, history)`, `drawDeliveryNote(doc, order, qr)` – modulare Blöcke mit klarer Y-Verwaltung.
-- jsPDF-Features: `addImage` für QR-Code (PNG dataURL), `roundedRect`/`rect` für Felder, `setFillColor` für Status-Badge-Hintergrund, `setLineDashPattern` für Schnittlinie, `addPage()` für den Lieferschein.
-- Statusfarben aus einer kleinen Map im PDF-Modul (RGB), passend zur App-Semantik (neu=blau, in_bearbeitung=orange, unterwegs=primary, zugestellt=grün, nicht_zugestellt=rot, storniert=grau).
-- Datumsformatierung über `toLocaleString('de-DE')`.
-- Footer auf jeder Seite (Auftrags-Nr. links, „Seite x / y" rechts) per `getNumberOfPages()`-Loop am Ende.
+1. **Domain & Infrastruktur einrichten**
+   - Setup-Dialog für Sender-Domain
+   - E-Mail-Queue, Log-Tabelle, Cron-Job, Suppression-Liste werden automatisch angelegt
+   - Edge Function `send-transactional-email` und Unsubscribe-Seite werden gescaffoldet
 
-### Aufrufer anpassen
-- `src/components/dashboard/OrderTable.tsx` (`downloadPdf`): `await downloadOrderPdf(order)` (Funktion ist nun async).
-- `src/components/dashboard/OrderDetailSheet.tsx`: gleicher async-Aufruf, falls dort ebenfalls verwendet (prüfen und anpassen).
+2. **6 React-Email-Templates** (im e-cargo Look) für die fünf versendeten Status:
+   - `order-neu`, `order-in-bearbeitung`, `order-unterwegs`, `order-zugestellt`, `order-nicht-zugestellt`
+   - Jedes Template bekommt Props: `kundenname`, `haendlerName`, `auftragsNr`, `lieferadresse`, optional `reason` (für nicht_zugestellt)
 
-### Abhängigkeiten
-- `jspdf` – bereits installiert.
-- `qrcode` – bereits installiert (verwendet in `shippingLabels.ts`).
-- `@/integrations/supabase/client` – für Historie.
+3. **Trigger beim Statuswechsel**
+   - Im Admin-Dashboard (`AdminDashboardPage.tsx`, `handleUpdateStatus`) wird nach erfolgreichem `admin_update_order_status`-RPC-Aufruf zusätzlich `send-transactional-email` aufgerufen, sofern der Auftrag eine `empfaenger_email` hat
+   - `idempotencyKey = order-status-{orderId}-{status}` verhindert doppelte Sends bei Klick-Spam
+   - Händlername wird per Join aus `profiles` geladen (oder einmalig zusammen mit den Orders mitgeliefert)
 
-## Nicht enthalten
-- Keine Änderungen an Datenmodell oder DB.
-- Keine Änderung am Versandetikett (`shippingLabels.ts`).
-- Kein Server-seitiges PDF – Generierung bleibt clientseitig.
+4. **Optional sinnvoll (kann ich gleich mitmachen oder weglassen):**
+   - Beim Anlegen einer neuen Bestellung (Händler erstellt Order) wird ebenfalls die "neu"-Mail ausgelöst, falls Endkunde-E-Mail vorhanden – also nicht nur beim Admin-Statuswechsel, sondern direkt beim Insert. Das deckt den Fall ab, dass eine Bestellung noch im Status "neu" beim Händler liegt.
+
+## Reihenfolge der Schritte
+
+1. Du klickst auf den "E-Mail-Domain einrichten"-Button (kommt nach Plan-Freigabe)
+2. Du fügst die NS-Records bei deinem Domain-Anbieter hinzu (Anleitung wird angezeigt)
+3. Während die DNS-Verifizierung läuft (kann bis zu 72 h dauern, meist <1 h), baue ich bereits Templates + Trigger-Logik – Versand startet automatisch sobald die Domain verifiziert ist
+4. Test: Bestellung mit deiner eigenen E-Mail anlegen, Status durchklicken, E-Mails prüfen
