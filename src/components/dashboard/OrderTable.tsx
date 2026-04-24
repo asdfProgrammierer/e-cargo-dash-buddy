@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   Table,
   TableBody,
@@ -20,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Printer, Trash2, XCircle, FileDown } from "lucide-react";
+import { Printer, Trash2, XCircle, FileDown, Loader2 } from "lucide-react";
 import { Order, STATUS_LABELS, STATUS_COLORS } from "@/types/order";
 import { printShippingLabels } from "@/lib/shippingLabels";
 import { downloadOrderPdf } from "@/lib/orderPdf";
@@ -35,6 +36,7 @@ interface OrderTableProps {
 export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
+  const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -64,7 +66,16 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
 
   const downloadPdf = async (e: React.MouseEvent, order: Order) => {
     e.stopPropagation();
-    await downloadOrderPdf(order);
+    if (pdfLoadingId) return;
+    setPdfLoadingId(order.id);
+    try {
+      await downloadOrderPdf(order);
+    } catch (err) {
+      console.error("PDF-Erstellung fehlgeschlagen", err);
+      toast.error("PDF konnte nicht erstellt werden. Bitte erneut versuchen.");
+    } finally {
+      setPdfLoadingId(null);
+    }
   };
 
   if (orders.length === 0) {
@@ -174,8 +185,13 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
                         className="h-8 w-8"
                         title="PDF herunterladen"
                         onClick={(e) => downloadPdf(e, order)}
+                        disabled={pdfLoadingId === order.id}
                       >
-                        <FileDown className="h-4 w-4" />
+                        {pdfLoadingId === order.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <FileDown className="h-4 w-4" />
+                        )}
                       </Button>
                     )}
                   </div>
