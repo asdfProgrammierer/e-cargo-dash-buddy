@@ -27,7 +27,8 @@ async function loadStatusHistory(orderId: string): Promise<HistoryEntry[]> {
     .select("id, status, reason, created_at")
     .eq("order_id", orderId)
     .order("created_at", { ascending: true });
-  if (error || !data) return [];
+  if (error) throw new Error(`Statushistorie konnte nicht geladen werden: ${error.message}`);
+  if (!data) return [];
   return data as HistoryEntry[];
 }
 
@@ -84,8 +85,8 @@ export async function downloadOrderPdf(order: Order) {
   doc.text("Wir liefern 100% elektrisch.", marginX, y + 5);
   doc.setTextColor(0);
 
-  // QR top-right
-  doc.addImage(qrDataUrl, "PNG", pageW - marginX - 28, y - 6, 28, 28);
+  // QR top-right (kleiner, damit Status-Badge darunter Platz hat)
+  doc.addImage(qrDataUrl, "PNG", pageW - marginX - 20, y - 4, 20, 20);
 
   y += 14;
   doc.setFont("helvetica", "bold");
@@ -303,7 +304,7 @@ export async function downloadOrderPdf(order: Order) {
   doc.text(`Auftrags-Nr.: ${order.auftragsNr}`, marginX, y + 6);
   doc.text(`Erstellt: ${order.erstelltAm}`, marginX, y + 11);
   doc.setTextColor(0);
-  doc.addImage(qrDataUrl, "PNG", pageW - marginX - 28, y - 6, 28, 28);
+  doc.addImage(qrDataUrl, "PNG", pageW - marginX - 20, y - 4, 20, 20);
   y += 20;
 
   // Empfänger box (prominent)
