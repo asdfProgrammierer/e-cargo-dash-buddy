@@ -79,7 +79,8 @@ export function OrderDetailSheet({
   const isCancelled = order?.status === "storniert";
   const isUndelivered = order?.status === "nicht_zugestellt";
   const isMerchantView = !canUpdateStatus;
-  const canMerchantCancel = isMerchantView && order && !isCancelled && order.status !== "zugestellt";
+  const canMerchantCancel =
+    isMerchantView && order && (order.status === "neu" || order.status === "in_bearbeitung");
   const canMerchantReactivate = isMerchantView && isCancelled;
   const zoneBadgeStyle = useMemo(() => getZoneBadgeStyle(zoneMeta?.color), [zoneMeta?.color]);
 
