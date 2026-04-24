@@ -113,7 +113,7 @@ const RouteDetailPage = () => {
         .order("position", { ascending: true }),
       supabase.from("depots").select("id, name, lat, lng, is_default").eq("active", true).order("name"),
     ]);
-    setRoute(r.data as RouteRow | null);
+    setRoute(r.data as unknown as RouteRow | null);
     setStops((s.data as unknown as StopRow[]) ?? []);
     setDepots((d.data as Depot[]) ?? []);
     setLoading(false);
