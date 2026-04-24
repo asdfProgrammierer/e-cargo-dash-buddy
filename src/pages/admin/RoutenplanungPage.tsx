@@ -10,9 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, MapPin, Pencil, Trash2, ExternalLink } from "lucide-react";
+import { Plus, MapPin, Pencil, Trash2, ExternalLink, Map as MapIcon, List } from "lucide-react";
 import { RouteBuilder } from "@/components/admin/RouteBuilder";
+import { RoutesOverviewMap } from "@/components/admin/RoutesOverviewMap";
 
 interface Driver { id: string; name: string; }
 interface Vehicle { id: string; kennzeichen: string; }
@@ -105,7 +107,14 @@ const RoutenplanungPage = () => {
 
   return (
     <AdminLayout title="Routenplanung">
-      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
+      <Tabs defaultValue="list" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="list"><List className="mr-2 h-4 w-4" />Routen bearbeiten</TabsTrigger>
+          <TabsTrigger value="overview"><MapIcon className="mr-2 h-4 w-4" />Disposition (Karte)</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="list">
+        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
         {/* LEFT: Routes list */}
         <Card className="h-fit">
           <div className="flex items-center justify-between p-3 border-b">
@@ -215,7 +224,13 @@ const RoutenplanungPage = () => {
             </Card>
           )}
         </div>
-      </div>
+        </div>
+        </TabsContent>
+
+        <TabsContent value="overview">
+          <RoutesOverviewMap onSelectRoute={(id) => setSearchParams({ route: id })} />
+        </TabsContent>
+      </Tabs>
     </AdminLayout>
   );
 };
