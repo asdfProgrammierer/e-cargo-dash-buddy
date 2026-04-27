@@ -469,7 +469,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
                 <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                   <ScrollArea className="flex-1 min-h-0">
                     <div className="border-y border-border/50">
-                      {stops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} />)}
+                      {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} />)}
                     </div>
                   </ScrollArea>
                 </SortableContext>
@@ -575,7 +575,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                   <div className="border-y border-border/50">
-                    {stops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} />)}
+                    {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} />)}
                   </div>
                 </SortableContext>
               </DndContext>
