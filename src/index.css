@@ -138,3 +138,19 @@ All colors MUST be HSL.
     font-variant-numeric: tabular-nums;
   }
 }
+
+/* Map hover popups (RoutesOverviewMap) */
+.ovr-hover-popup .maplibregl-popup-content {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 6px 20px -6px hsl(0 0% 0% / 0.18);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.ovr-hover-popup .maplibregl-popup-tip {
+  border-top-color: hsl(var(--card));
+  border-bottom-color: hsl(var(--card));
+}
