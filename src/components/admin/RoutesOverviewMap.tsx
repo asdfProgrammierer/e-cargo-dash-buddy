@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { MapPin, Eye, EyeOff } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Depot { id: string; name: string; lat: number | null; lng: number | null; is_default: boolean; }
 interface RouteRow {
@@ -41,6 +42,12 @@ const STATUS_LABELS: Record<RouteRow["status"], string> = {
   geplant: "Geplant",
   aktiv: "Aktiv",
   abgeschlossen: "Abgeschl.",
+};
+
+const STATUS_DOT: Record<RouteRow["status"], string> = {
+  geplant: "bg-muted-foreground/40",
+  aktiv: "bg-success shadow-[0_0_0_3px_hsl(var(--success)/0.18)]",
+  abgeschlossen: "bg-primary/60",
 };
 
 interface Props {
@@ -218,44 +225,74 @@ export function RoutesOverviewMap({ onSelectRoute }: Props) {
   }, [stops]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4">
       {/* Sidebar: date + legend */}
-      <Card className="h-fit">
-        <CardContent className="p-3 space-y-3">
-          <div>
-            <Label className="text-xs">Datum</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+      <Card className="h-fit border-border/60 shadow-card">
+        <CardContent className="p-3 space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-caption font-medium text-muted-foreground uppercase tracking-wide">Datum</Label>
+            <Input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="h-9 text-body"
+            />
           </div>
-          <div className="space-y-1">
-            <div className="text-xs font-medium text-muted-foreground">
-              Routen ({routes.length})
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between px-0.5">
+              <span className="text-caption font-medium text-muted-foreground uppercase tracking-wide">
+                Routen
+              </span>
+              <span className="text-caption tabular-nums text-muted-foreground">
+                {routes.length}
+              </span>
             </div>
-            <ScrollArea className="h-[55vh] pr-2">
+            <ScrollArea className="h-[55vh] -mr-2 pr-2">
               {loading ? (
-                <div className="p-3 text-xs text-muted-foreground">Lade…</div>
+                <div className="px-2 py-6 text-caption text-muted-foreground">Lade…</div>
               ) : routes.length === 0 ? (
-                <div className="p-3 text-xs text-muted-foreground">Keine Routen für dieses Datum.</div>
+                <div className="px-2 py-6 text-caption text-muted-foreground">
+                  Keine Routen für dieses Datum.
+                </div>
               ) : (
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {routes.map((r) => {
                     const isHidden = hidden.has(r.id);
                     return (
-                      <div key={r.id} className="flex items-start gap-2 rounded-md border p-2 text-xs">
+                      <div
+                        key={r.id}
+                        className={cn(
+                          "group flex items-center gap-2.5 rounded-md px-2 py-2 transition-colors duration-fast ease-fast-out",
+                          "hover:bg-surface-muted",
+                          isHidden && "opacity-50",
+                        )}
+                      >
                         <Checkbox
                           checked={!isHidden}
                           onCheckedChange={() => toggleHidden(r.id)}
-                          className="mt-0.5"
+                          className="shrink-0"
                         />
-                        <span className="mt-1 inline-block h-3 w-3 rounded-sm shrink-0" style={{ backgroundColor: colorByRoute[r.id] }} />
-                        <button onClick={() => onSelectRoute?.(r.id)} className="min-w-0 flex-1 text-left hover:underline">
-                          <div className="truncate font-medium">{r.name}</div>
-                          <div className="text-muted-foreground truncate">
-                            {stopsByRoute[r.id] ?? 0} Stops
-                            {r.drivers?.name && ` · ${r.drivers.name}`}
-                            {r.vehicles?.kennzeichen && ` · ${r.vehicles.kennzeichen}`}
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-full shrink-0 ring-2 ring-background"
+                          style={{ backgroundColor: colorByRoute[r.id] }}
+                        />
+                        <button
+                          onClick={() => onSelectRoute?.(r.id)}
+                          className="min-w-0 flex-1 text-left"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", STATUS_DOT[r.status])} />
+                            <span className="truncate text-body font-medium leading-tight">
+                              {r.name}
+                            </span>
+                          </div>
+                          <div className="mt-0.5 truncate text-caption text-muted-foreground">
+                            <span className="tabular-nums">{stopsByRoute[r.id] ?? 0}</span> Stops
+                            {r.drivers?.name && <> · {r.drivers.name}</>}
+                            {r.vehicles?.kennzeichen && <> · {r.vehicles.kennzeichen}</>}
                           </div>
                         </button>
-                        <Badge variant="outline" className="text-[9px] shrink-0">{STATUS_LABELS[r.status]}</Badge>
                       </div>
                     );
                   })}
@@ -263,17 +300,23 @@ export function RoutesOverviewMap({ onSelectRoute }: Props) {
               )}
             </ScrollArea>
           </div>
-          <div className="border-t pt-2 text-[10px] text-muted-foreground space-y-0.5">
-            <div>★ Standard-Depot · D Depot</div>
+
+          <div className="border-t border-border/50 pt-2.5 space-y-1 text-caption text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-foreground text-background text-[9px] font-bold">★</span>
+              <span>Standard-Depot</span>
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-foreground text-background text-[9px] font-bold ml-2">D</span>
+              <span>Depot</span>
+            </div>
             <div>Doppelklick auf Stop → Route öffnen</div>
           </div>
         </CardContent>
       </Card>
 
       {/* Map */}
-      <Card>
+      <Card className="overflow-hidden border-border/60 shadow-card">
         <CardContent className="p-0">
-          <div ref={containerRef} className="h-[78vh] w-full rounded-md" />
+          <div ref={containerRef} className="h-[78vh] w-full" />
         </CardContent>
       </Card>
     </div>
