@@ -441,25 +441,25 @@ export function RouteBuilder({ routeId }: RouteBuilderProps) {
             <CardTitle className="text-base">Stops ({stops.length})</CardTitle>
             <AddStopsDialog routeId={routeId} existingOrderIds={stops.map((s) => s.order_id)} open={addOpen} onOpenChange={setAddOpen} onAdded={load} />
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-0 pb-2">
             {loading ? (
-              <div className="text-sm text-muted-foreground">Lade...</div>
+              <div className="px-4 text-sm text-muted-foreground">Lade...</div>
             ) : stops.length === 0 ? (
-              <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+              <div className="mx-4 rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
                 Noch keine Stops. Füge Bestellungen hinzu.
               </div>
             ) : (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-2">
+                  <div className="border-y border-border/50">
                     {stops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} />)}
                   </div>
                 </SortableContext>
               </DndContext>
             )}
             {stops.length > 0 && (
-              <div className="mt-2 text-xs text-muted-foreground">
-                Tipp: Auf die Nummer klicken, um Status zu wechseln (offen → erledigt → übersprungen).
+              <div className="mt-2 px-4 text-caption text-muted-foreground">
+                Tipp: Auf den Status-Punkt klicken, um zwischen offen → erledigt → übersprungen zu wechseln.
               </div>
             )}
           </CardContent>
