@@ -385,13 +385,14 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
   };
 
   const exportCsv = () => {
-    const header = ["Position", "Auftragsnr", "Name", "Telefon", "Adresse", "PLZ", "Stadt", "Pakete", "Gewicht_kg", "Etappe_km", "Etappe_min", "Status", "Notiz"];
-    const rows = stops.map((s, i) => [
+    const header = ["Position", "Auftragsnr", "Name", "Telefon", "Adresse", "PLZ", "Stadt", "Pakete", "Gewicht_kg", "Etappe_km", "Etappe_min", "ETA", "Status", "Notiz"];
+    const rows = displayStops.map((s, i) => [
       i + 1, s.orders.auftrags_nr, s.orders.empfaenger_name, s.orders.empfaenger_telefon ?? "",
       s.orders.empfaenger_adresse ?? "", s.orders.empfaenger_plz ?? "", s.orders.empfaenger_stadt,
       s.orders.pakete, Number(s.orders.gewicht).toFixed(2),
       s.leg_distance_m != null ? (s.leg_distance_m / 1000).toFixed(2) : "",
       s.leg_duration_s != null ? Math.round(s.leg_duration_s / 60) : "",
+      formatTime(s.eta) ?? "",
       s.status, (s.orders.notizen ?? "").replace(/[\r\n;]/g, " "),
     ]);
     const csv = [header, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\n");
