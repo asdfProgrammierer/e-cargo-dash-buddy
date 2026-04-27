@@ -224,7 +224,7 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
     };
     if (map.loaded()) apply();
     else map.once("load", apply);
-  }, [routes, stops, depots, hidden, colorByRoute, onSelectRoute]);
+  }, [routes, stops, depots, hidden, colorByRoute, onSelectRoute, highlightRouteId]);
 
   const toggleHidden = (id: string) => {
     setHidden((prev) => {
@@ -239,6 +239,16 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
     stops.forEach((s) => { m[s.route_id] = (m[s.route_id] ?? 0) + 1; });
     return m;
   }, [stops]);
+
+  if (mapOnly) {
+    return (
+      <Card className="overflow-hidden border-border/60 shadow-card h-full">
+        <CardContent className="p-0 h-full">
+          <div ref={containerRef} className="h-full w-full min-h-[300px]" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4">
