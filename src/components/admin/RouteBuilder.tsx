@@ -26,6 +26,7 @@ interface RouteRow {
   vehicle_id: string | null;
   total_distance_m: number | null; total_duration_s: number | null;
   geometry: GeoJSON.Geometry | null; optimized_at: string | null;
+  start_time: string | null;
 }
 interface OrderRow {
   id: string; auftrags_nr: string; empfaenger_name: string; empfaenger_adresse: string | null;
@@ -38,6 +39,7 @@ interface OrderRow {
 interface StopRow {
   id: string; route_id: string; order_id: string; position: number;
   leg_distance_m: number | null; leg_duration_s: number | null;
+  eta: string | null;
   status: "offen" | "erledigt" | "uebersprungen";
   orders: OrderRow;
 }
@@ -59,6 +61,13 @@ function formatDistance(m: number | null) {
   if (m == null) return "–";
   if (m < 1000) return `${m} m`;
   return `${(m / 1000).toFixed(1)} km`;
+}
+
+function formatTime(iso: string | null) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
 }
 
 const STATUS_ICON = {
@@ -116,6 +125,14 @@ function SortableStop({ stop, index, onRemove, onCycleStatus }: {
           )}
         </div>
       </div>
+      {formatTime(stop.eta) && (
+        <span
+          className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary tabular-nums"
+          title="Geschätzte Ankunftszeit"
+        >
+          {formatTime(stop.eta)}
+        </span>
+      )}
       <button
         onClick={() => onCycleStatus(stop.id, stop.status)}
         title={`Status: ${stop.status} (klicken zum Wechseln)`}
