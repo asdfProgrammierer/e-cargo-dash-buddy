@@ -25,6 +25,7 @@ interface Route {
   driver_id: string | null;
   vehicle_id: string | null;
   datum: string;
+  start_time: string;
   status: "geplant" | "aktiv" | "abgeschlossen";
   notizen: string | null;
   drivers?: Driver | null;
@@ -33,7 +34,7 @@ interface Route {
 
 const statusLabels: Record<string, string> = { geplant: "Geplant", aktiv: "Aktiv", abgeschlossen: "Abgeschlossen" };
 const statusVariant: Record<string, "default" | "secondary" | "outline"> = { geplant: "secondary", aktiv: "default", abgeschlossen: "outline" };
-const emptyForm = { name: "", driver_id: "", vehicle_id: "", datum: new Date().toISOString().slice(0, 10), status: "geplant" as Route["status"], notizen: "" };
+const emptyForm = { name: "", driver_id: "", vehicle_id: "", datum: new Date().toISOString().slice(0, 10), start_time: "09:00", status: "geplant" as Route["status"], notizen: "" };
 
 const RoutenplanungPage = () => {
   const navigate = useNavigate();
@@ -111,6 +112,7 @@ const RoutenplanungPage = () => {
       driver_id: form.driver_id || null,
       vehicle_id: form.vehicle_id || null,
       datum: form.datum,
+      start_time: form.start_time || "09:00",
       status: form.status,
       notizen: form.notizen || null,
     };
@@ -137,7 +139,7 @@ const RoutenplanungPage = () => {
 
   const openEdit = (r: Route) => {
     setEditId(r.id);
-    setForm({ name: r.name, driver_id: r.driver_id ?? "", vehicle_id: r.vehicle_id ?? "", datum: r.datum, status: r.status, notizen: r.notizen ?? "" });
+    setForm({ name: r.name, driver_id: r.driver_id ?? "", vehicle_id: r.vehicle_id ?? "", datum: r.datum, start_time: (r.start_time ?? "09:00").slice(0, 5), status: r.status, notizen: r.notizen ?? "" });
     setOpen(true);
   };
 
@@ -207,6 +209,9 @@ const RoutenplanungPage = () => {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Datum</Label><Input type="date" value={form.datum} onChange={(e) => setForm({ ...form, datum: e.target.value })} /></div>
+                <div><Label>Startzeit</Label><Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} /></div>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
                 <div>
                   <Label>Status</Label>
                   <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Route["status"] })}>
