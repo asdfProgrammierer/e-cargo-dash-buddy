@@ -116,6 +116,8 @@ All colors MUST be HSL.
     --card-shadow: 0 0 0 1px rgba(255,255,255,.04), 0 2px 4px rgba(0,0,0,.2), 0 8px 16px rgba(0,0,0,.3);
     --shadow-marker: 0 2px 8px rgba(0,0,0,0.4);
   }
+}
+
 @layer base {
   * {
     @apply border-border;
