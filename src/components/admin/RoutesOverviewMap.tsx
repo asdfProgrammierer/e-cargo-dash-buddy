@@ -52,14 +52,28 @@ const STATUS_DOT: Record<RouteRow["status"], string> = {
 
 interface Props {
   onSelectRoute?: (id: string) => void;
+  /** When true, only render the map (parent provides its own controls). */
+  mapOnly?: boolean;
+  /** External date control (e.g. provided by parent toolbar). */
+  date?: string;
+  /** External "hidden routes" control. */
+  hidden?: Set<string>;
+  /** Highlight a single route (others get dimmed). */
+  highlightRouteId?: string | null;
+  /** Bumped by parent to force a reload. */
+  refreshKey?: number;
 }
 
-export function RoutesOverviewMap({ onSelectRoute }: Props) {
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: dateProp, hidden: hiddenProp, highlightRouteId, refreshKey }: Props) {
+  const [dateState, setDateState] = useState(() => new Date().toISOString().slice(0, 10));
+  const date = dateProp ?? dateState;
+  const setDate = setDateState;
   const [routes, setRoutes] = useState<RouteRow[]>([]);
   const [stops, setStops] = useState<StopRow[]>([]);
   const [depots, setDepots] = useState<Depot[]>([]);
-  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [hiddenState, setHiddenState] = useState<Set<string>>(new Set());
+  const hidden = hiddenProp ?? hiddenState;
+  const setHidden = setHiddenState;
   const [loading, setLoading] = useState(true);
 
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -97,7 +111,7 @@ export function RoutesOverviewMap({ onSelectRoute }: Props) {
     setLoading(false);
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [date]);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [date, refreshKey]);
 
   // Init map (Carto Positron — clean, only roads + outlines)
   useEffect(() => {
@@ -165,6 +179,7 @@ export function RoutesOverviewMap({ onSelectRoute }: Props) {
       routes.forEach((r) => {
         if (hidden.has(r.id)) return;
         const color = colorByRoute[r.id];
+        const dimmed = highlightRouteId != null && r.id !== highlightRouteId;
 
         // Route line
         if (r.geometry) {
@@ -174,7 +189,7 @@ export function RoutesOverviewMap({ onSelectRoute }: Props) {
           map.addLayer({
             id: layerId, type: "line", source: srcId,
             layout: { "line-join": "round", "line-cap": "round" },
-            paint: { "line-color": color, "line-width": 4, "line-opacity": 0.85 },
+            paint: { "line-color": color, "line-width": dimmed ? 3 : 5, "line-opacity": dimmed ? 0.25 : 0.9 },
           });
         }
 
@@ -188,6 +203,7 @@ export function RoutesOverviewMap({ onSelectRoute }: Props) {
           el.className = "flex h-6 w-6 items-center justify-center rounded-full text-white text-[10px] font-bold border-2 border-white shadow cursor-pointer";
           el.style.backgroundColor = done ? "hsl(142 71% 35%)" : skip ? "hsl(38 92% 45%)" : color;
           if (done) el.style.opacity = "0.7";
+          if (dimmed) el.style.opacity = "0.35";
           el.textContent = String(idx + 1);
           const m = new maplibregl.Marker({ element: el })
             .setLngLat([Number(o.lng), Number(o.lat)])
@@ -208,7 +224,7 @@ export function RoutesOverviewMap({ onSelectRoute }: Props) {
     };
     if (map.loaded()) apply();
     else map.once("load", apply);
-  }, [routes, stops, depots, hidden, colorByRoute, onSelectRoute]);
+  }, [routes, stops, depots, hidden, colorByRoute, onSelectRoute, highlightRouteId]);
 
   const toggleHidden = (id: string) => {
     setHidden((prev) => {
@@ -223,6 +239,16 @@ export function RoutesOverviewMap({ onSelectRoute }: Props) {
     stops.forEach((s) => { m[s.route_id] = (m[s.route_id] ?? 0) + 1; });
     return m;
   }, [stops]);
+
+  if (mapOnly) {
+    return (
+      <Card className="overflow-hidden border-border/60 shadow-card h-full">
+        <CardContent className="p-0 h-full">
+          <div ref={containerRef} className="h-full w-full min-h-[300px]" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4">

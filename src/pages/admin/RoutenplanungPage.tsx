@@ -10,11 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, MapPin, Pencil, Trash2, ExternalLink, Map as MapIcon, List } from "lucide-react";
+import { Plus, MapPin, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { RouteBuilder } from "@/components/admin/RouteBuilder";
 import { RoutesOverviewMap } from "@/components/admin/RoutesOverviewMap";
+import { NewOrdersTable } from "@/components/admin/NewOrdersTable";
 
 interface Driver { id: string; name: string; }
 interface Vehicle { id: string; kennzeichen: string; }
@@ -44,6 +44,8 @@ const RoutenplanungPage = () => {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const selectedId = searchParams.get("route");
 
@@ -65,6 +67,8 @@ const RoutenplanungPage = () => {
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+  const bumpRefresh = () => setRefreshKey((k) => k + 1);
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error("Name ist erforderlich"); return; }
@@ -105,132 +109,166 @@ const RoutenplanungPage = () => {
 
   const selectRoute = (id: string) => setSearchParams({ route: id });
 
+  const routesForDate = routes.filter((r) => r.datum === date);
+
   return (
     <AdminLayout title="Routenplanung">
-      <Tabs defaultValue="list" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="list"><List className="mr-2 h-4 w-4" />Routen bearbeiten</TabsTrigger>
-          <TabsTrigger value="overview"><MapIcon className="mr-2 h-4 w-4" />Disposition (Karte)</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="list">
-        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
-        {/* LEFT: Routes list */}
-        <Card className="h-fit shadow-card">
-          <div className="flex items-center justify-between px-4 h-11 border-b border-border/50">
-            <div className="text-caption tabular-nums text-muted-foreground">{routes.length} Routen</div>
-            <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm(emptyForm); } }}>
-              <DialogTrigger asChild>
-                <Button size="sm"><Plus className="mr-1 h-4 w-4" />Neu</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>{editId ? "Route bearbeiten" : "Neue Route"}</DialogTitle></DialogHeader>
-                <div className="space-y-3">
-                  <div><Label>Name *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="z.B. Dortmund-Innenstadt" /></div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Fahrer</Label>
-                      <Select value={form.driver_id} onValueChange={(v) => setForm({ ...form, driver_id: v })}>
-                        <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
-                        <SelectContent>{drivers.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Fahrzeug</Label>
-                      <Select value={form.vehicle_id} onValueChange={(v) => setForm({ ...form, vehicle_id: v })}>
-                        <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
-                        <SelectContent>{vehicles.map((v) => <SelectItem key={v.id} value={v.id}>{v.kennzeichen}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><Label>Datum</Label><Input type="date" value={form.datum} onChange={(e) => setForm({ ...form, datum: e.target.value })} /></div>
-                    <div>
-                      <Label>Status</Label>
-                      <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Route["status"] })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="geplant">Geplant</SelectItem>
-                          <SelectItem value="aktiv">Aktiv</SelectItem>
-                          <SelectItem value="abgeschlossen">Abgeschlossen</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div><Label>Notizen</Label><Input value={form.notizen} onChange={(e) => setForm({ ...form, notizen: e.target.value })} /></div>
-                  <Button className="w-full" onClick={handleSave}>{editId ? "Speichern" : "Erstellen"}</Button>
+      {/* Toolbar */}
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Label className="text-caption text-muted-foreground">Datum</Label>
+          <Input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="h-8 w-40 text-caption"
+          />
+          <Badge variant="secondary" className="text-[10px] tabular-nums">
+            {routesForDate.length} Routen
+          </Badge>
+        </div>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm({ ...emptyForm, datum: date }); } }}>
+          <DialogTrigger asChild>
+            <Button size="sm" onClick={() => setForm({ ...emptyForm, datum: date })}>
+              <Plus className="mr-1 h-4 w-4" />Neue Route
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>{editId ? "Route bearbeiten" : "Neue Route"}</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div><Label>Name *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="z.B. Dortmund-Innenstadt" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Fahrer</Label>
+                  <Select value={form.driver_id} onValueChange={(v) => setForm({ ...form, driver_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
+                    <SelectContent>{drivers.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
+                  </Select>
                 </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-          <ScrollArea className="h-[75vh]">
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="p-4 text-caption text-muted-foreground">Lade...</div>
-              ) : routes.length === 0 ? (
-                <div className="p-6 text-center text-caption text-muted-foreground">Keine Routen. Erstelle eine neue.</div>
-              ) : routes.map((r) => {
-                const active = r.id === selectedId;
-                return (
-                  <button
-                    key={r.id}
-                    onClick={() => selectRoute(r.id)}
-                    className={`w-full px-3 py-2.5 text-left border-b border-border/50 transition-colors duration-fast ease-fast-out hover:bg-surface-muted ${active ? "bg-active-surface" : ""}`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
-                          <div className="truncate text-body font-medium">{r.name}</div>
-                        </div>
-                        <div className="mt-0.5 text-caption text-muted-foreground tabular-nums truncate">
-                          {new Date(r.datum).toLocaleDateString("de-DE")}
-                          {r.drivers?.name && ` · ${r.drivers.name}`}
-                          {r.vehicles?.kennzeichen && ` · ${r.vehicles.kennzeichen}`}
-                        </div>
-                      </div>
-                      <Badge variant={statusVariant[r.status]} className="shrink-0 text-[10px]">{statusLabels[r.status]}</Badge>
-                    </div>
-                    {active && (
-                      <div className="mt-2 flex gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(r)} title="Bearbeiten">
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/admin/routen/${r.id}`)} title="Vollansicht">
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(r.id)} title="Löschen">
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </CardContent>
-          </ScrollArea>
-        </Card>
+                <div>
+                  <Label>Fahrzeug</Label>
+                  <Select value={form.vehicle_id} onValueChange={(v) => setForm({ ...form, vehicle_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
+                    <SelectContent>{vehicles.map((v) => <SelectItem key={v.id} value={v.id}>{v.kennzeichen}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Datum</Label><Input type="date" value={form.datum} onChange={(e) => setForm({ ...form, datum: e.target.value })} /></div>
+                <div>
+                  <Label>Status</Label>
+                  <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Route["status"] })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="geplant">Geplant</SelectItem>
+                      <SelectItem value="aktiv">Aktiv</SelectItem>
+                      <SelectItem value="abgeschlossen">Abgeschlossen</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div><Label>Notizen</Label><Input value={form.notizen} onChange={(e) => setForm({ ...form, notizen: e.target.value })} /></div>
+              <Button className="w-full" onClick={handleSave}>{editId ? "Speichern" : "Erstellen"}</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
 
-        {/* RIGHT: Builder */}
-        <div>
-          {selectedId ? (
-            <RouteBuilder key={selectedId} routeId={selectedId} />
-          ) : (
-            <Card>
-              <CardContent className="py-16 text-center text-muted-foreground">
-                <MapPin className="mx-auto mb-3 h-10 w-10 opacity-30" />
-                <p>Wähle links eine Route aus oder erstelle eine neue.</p>
+      {/* 4-Quadrant Layout: Left (Routes + Stops) | Right (Map + New Orders) */}
+      <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-3">
+        {/* LEFT COLUMN */}
+        <div className="flex flex-col gap-3 min-h-0">
+          {/* Routes (top) */}
+          <Card className="shadow-card flex flex-col">
+            <div className="flex items-center justify-between px-4 h-10 border-b border-border/50">
+              <span className="text-body font-medium">Routen</span>
+              <span className="text-caption tabular-nums text-muted-foreground">{routesForDate.length}</span>
+            </div>
+            <ScrollArea className="h-[32vh]">
+              <CardContent className="p-0">
+                {loading ? (
+                  <div className="p-4 text-caption text-muted-foreground">Lade…</div>
+                ) : routesForDate.length === 0 ? (
+                  <div className="p-6 text-center text-caption text-muted-foreground">
+                    Keine Routen für dieses Datum.
+                  </div>
+                ) : routesForDate.map((r) => {
+                  const active = r.id === selectedId;
+                  return (
+                    <button
+                      key={r.id}
+                      onClick={() => selectRoute(r.id)}
+                      className={`w-full px-3 py-2 text-left border-b border-border/50 transition-colors duration-fast ease-fast-out hover:bg-surface-muted ${active ? "bg-active-surface" : ""}`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+                            <div className="truncate text-body font-medium">{r.name}</div>
+                          </div>
+                          <div className="mt-0.5 text-caption text-muted-foreground tabular-nums truncate">
+                            {r.drivers?.name ?? "–"}
+                            {r.vehicles?.kennzeichen && ` · ${r.vehicles.kennzeichen}`}
+                          </div>
+                        </div>
+                        <Badge variant={statusVariant[r.status]} className="shrink-0 text-[10px]">{statusLabels[r.status]}</Badge>
+                      </div>
+                      {active && (
+                        <div className="mt-1.5 flex gap-1" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(r)} title="Bearbeiten">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/admin/routen/${r.id}`)} title="Vollansicht">
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(r.id)} title="Löschen">
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </CardContent>
-            </Card>
-          )}
-        </div>
-        </div>
-        </TabsContent>
+            </ScrollArea>
+          </Card>
 
-        <TabsContent value="overview">
-          <RoutesOverviewMap onSelectRoute={(id) => setSearchParams({ route: id })} />
-        </TabsContent>
-      </Tabs>
+          {/* Stops of selected route (bottom) */}
+          <div className="flex-1 min-h-0">
+            {selectedId ? (
+              <RouteBuilder key={selectedId + ":" + refreshKey} routeId={selectedId} compact />
+            ) : (
+              <Card>
+                <CardContent className="py-10 text-center text-caption text-muted-foreground">
+                  <MapPin className="mx-auto mb-2 h-8 w-8 opacity-30" />
+                  Wähle oben eine Route, um die Stops zu sehen.
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN */}
+        <div className="flex flex-col gap-3 min-h-0">
+          {/* Map (top, large) */}
+          <div className="h-[55vh]">
+            <RoutesOverviewMap
+              date={date}
+              mapOnly
+              highlightRouteId={selectedId}
+              refreshKey={refreshKey}
+              onSelectRoute={(id) => setSearchParams({ route: id })}
+            />
+          </div>
+
+          {/* New orders table (bottom) */}
+          <NewOrdersTable
+            routeId={selectedId}
+            refreshKey={refreshKey}
+            onAssigned={bumpRefresh}
+          />
+        </div>
+      </div>
     </AdminLayout>
   );
 };

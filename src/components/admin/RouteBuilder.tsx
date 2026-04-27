@@ -139,7 +139,7 @@ interface RouteBuilderProps {
   compact?: boolean;
 }
 
-export function RouteBuilder({ routeId }: RouteBuilderProps) {
+export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
   const [route, setRoute] = useState<RouteRow | null>(null);
   const [stops, setStops] = useState<StopRow[]>([]);
   const [depots, setDepots] = useState<Depot[]>([]);
@@ -301,8 +301,13 @@ export function RouteBuilder({ routeId }: RouteBuilderProps) {
   };
 
   const removeStop = async (stopId: string) => {
+    const stop = stops.find((s) => s.id === stopId);
     const { error } = await supabase.from("route_stops").delete().eq("id", stopId);
     if (error) { toast.error("Stop konnte nicht entfernt werden"); return; }
+    // Reset order status back to "neu" when removed from route
+    if (stop?.order_id) {
+      await supabase.from("orders").update({ status: "neu" }).eq("id", stop.order_id);
+    }
     setStops((prev) => prev.filter((s) => s.id !== stopId));
   };
 
@@ -357,6 +362,81 @@ export function RouteBuilder({ routeId }: RouteBuilderProps) {
   };
 
   const openPrint = () => window.open(`/admin/routen/${routeId}/druck`, "_blank");
+
+  if (compact) {
+    return (
+      <div className="space-y-4">
+        <Card>
+          <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Stops ({stops.length})</CardTitle>
+            <div className="flex items-center gap-1">
+              <AddStopsDialog routeId={routeId} existingOrderIds={stops.map((s) => s.order_id)} open={addOpen} onOpenChange={setAddOpen} onAdded={load} />
+              <Button variant="ghost" size="icon" onClick={openPrint} title="Drucken"><Printer className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={exportCsv} title="CSV-Export"><Download className="h-4 w-4" /></Button>
+            </div>
+          </CardHeader>
+          <CardContent className="px-0 pb-2">
+            <div className="px-4 pb-3 grid grid-cols-2 gap-2">
+              <Select value={startDepot?.id ?? ""} onValueChange={(v) => updateDepot("start", v)}>
+                <SelectTrigger className="h-8 text-caption"><SelectValue placeholder="Start-Depot" /></SelectTrigger>
+                <SelectContent>
+                  {depots.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}{d.is_default ? " ★" : ""}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={endDepot?.id ?? ""} onValueChange={(v) => updateDepot("end", v)}>
+                <SelectTrigger className="h-8 text-caption"><SelectValue placeholder="Ziel-Depot" /></SelectTrigger>
+                <SelectContent>
+                  {depots.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}{d.is_default ? " ★" : ""}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={profile} onValueChange={(v) => setProfile(v as Profile)}>
+                <SelectTrigger className="h-8 text-caption"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cycling-electric"><div className="flex items-center gap-2"><Zap className="h-3 w-3" />{PROFILE_LABEL["cycling-electric"]}</div></SelectItem>
+                  <SelectItem value="cycling-regular"><div className="flex items-center gap-2"><Bike className="h-3 w-3" />{PROFILE_LABEL["cycling-regular"]}</div></SelectItem>
+                  <SelectItem value="driving-car"><div className="flex items-center gap-2"><Car className="h-3 w-3" />{PROFILE_LABEL["driving-car"]}</div></SelectItem>
+                </SelectContent>
+              </Select>
+              <Button size="sm" className="h-8" onClick={optimize} disabled={optimizing || stops.length < 2}>
+                <Sparkles className="mr-1 h-3.5 w-3.5" />
+                {optimizing ? "Optimiere…" : "Optimieren"}
+              </Button>
+            </div>
+
+            {vehicle && (
+              <div className="mx-4 mb-2 rounded-md border border-border/50 p-2 space-y-1">
+                <div className="flex items-center justify-between text-caption">
+                  <span className="text-muted-foreground">Auslastung {vehicle.kennzeichen}</span>
+                  <span className={overCapacity ? "text-destructive font-medium tabular-nums" : "font-medium tabular-nums"}>
+                    {totals.gewicht.toFixed(1)} / {Number(vehicle.kapazitaet_kg).toFixed(0)} kg
+                  </span>
+                </div>
+                <Progress value={capacityPct} className={overCapacity ? "bg-destructive/20" : undefined} />
+              </div>
+            )}
+
+            {loading ? (
+              <div className="px-4 text-caption text-muted-foreground">Lade…</div>
+            ) : stops.length === 0 ? (
+              <div className="mx-4 rounded-md border border-dashed p-6 text-center text-caption text-muted-foreground">
+                Noch keine Stops. Wähle unten rechts Bestellungen aus und füge sie hinzu.
+              </div>
+            ) : (
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                  <ScrollArea className="max-h-[40vh]">
+                    <div className="border-y border-border/50">
+                      {stops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} />)}
+                    </div>
+                  </ScrollArea>
+                </SortableContext>
+              </DndContext>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -510,9 +590,12 @@ function AddStopsDialog({ routeId, existingOrderIds, open, onOpenChange, onAdded
 
   const add = async () => {
     if (selected.size === 0) return;
-    const rows = Array.from(selected).map((order_id, i) => ({ route_id: routeId, order_id, position: i + 1 }));
+    const ids = Array.from(selected);
+    const rows = ids.map((order_id, i) => ({ route_id: routeId, order_id, position: i + 1 }));
     const { error } = await supabase.from("route_stops").insert(rows);
     if (error) { toast.error("Stops konnten nicht hinzugefügt werden"); return; }
+    // Move selected orders to "in_bearbeitung" so they leave the "Neu" pool
+    await supabase.from("orders").update({ status: "in_bearbeitung" }).in("id", ids);
     toast.success(`${rows.length} Stop(s) hinzugefügt`);
     onOpenChange(false);
     onAdded();
