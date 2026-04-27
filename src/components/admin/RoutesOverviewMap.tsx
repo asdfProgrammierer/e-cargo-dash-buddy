@@ -62,9 +62,15 @@ interface Props {
   highlightRouteId?: string | null;
   /** Bumped by parent to force a reload. */
   refreshKey?: number;
+  /** Optional new orders to also render on the map. */
+  newOrders?: Array<{ id: string; auftrags_nr: string; empfaenger_name: string; empfaenger_stadt: string; lat: number | null; lng: number | null; }>;
+  /** Selected new order ids (highlighted). */
+  selectedNewOrderIds?: Set<string>;
+  /** Called when a new-order pin is clicked. */
+  onNewOrderClick?: (id: string) => void;
 }
 
-export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: dateProp, hidden: hiddenProp, highlightRouteId, refreshKey }: Props) {
+export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: dateProp, hidden: hiddenProp, highlightRouteId, refreshKey, newOrders = [], selectedNewOrderIds, onNewOrderClick }: Props) {
   const [dateState, setDateState] = useState(() => new Date().toISOString().slice(0, 10));
   const date = dateProp ?? dateState;
   const setDate = setDateState;
@@ -226,11 +232,33 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
         });
       });
 
+      // New orders (status = "neu") — only when parent passes them in
+      newOrders.forEach((o) => {
+        if (o.lat == null || o.lng == null) return;
+        const isSel = selectedNewOrderIds?.has(o.id);
+        const el = document.createElement("div");
+        el.className = "flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold border-2 cursor-pointer transition-transform";
+        el.style.backgroundColor = "hsl(var(--background))";
+        el.style.borderColor = isSel ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))";
+        el.style.color = isSel ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))";
+        if (isSel) el.style.boxShadow = "0 0 0 3px hsl(var(--primary) / 0.25)";
+        el.textContent = "N";
+        el.title = `${o.auftrags_nr} · ${o.empfaenger_name}`;
+        const m = new maplibregl.Marker({ element: el })
+          .setLngLat([Number(o.lng), Number(o.lat)])
+          .addTo(map);
+        el.addEventListener("click", (e) => { e.stopPropagation(); onNewOrderClick?.(o.id); });
+        markersRef.current.push(m);
+        bounds.extend([Number(o.lng), Number(o.lat)]);
+        hasPoint = true;
+      });
+
       const defaultDepot = depots.find((d) => d.is_default && d.lat != null && d.lng != null)
         ?? depots.find((d) => d.lat != null && d.lng != null);
       const hasRouteContent = routes.some((r) => !hidden.has(r.id) && (r.geometry || stops.some((s) => s.route_id === r.id && s.orders?.lat != null)));
 
-      if (hasRouteContent && hasPoint) {
+      const hasNewOrderPins = newOrders.some((o) => o.lat != null && o.lng != null);
+      if ((hasRouteContent || hasNewOrderPins) && hasPoint) {
         try { map.fitBounds(bounds, { padding: 60, maxZoom: 13, duration: 600 }); } catch { /* noop */ }
       } else if (defaultDepot) {
         // No routes for this date → center on the default depot
@@ -239,7 +267,7 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
     };
     if (map.loaded()) apply();
     else map.once("load", apply);
-  }, [routes, stops, depots, hidden, colorByRoute, onSelectRoute, highlightRouteId]);
+  }, [routes, stops, depots, hidden, colorByRoute, onSelectRoute, highlightRouteId, newOrders, selectedNewOrderIds, onNewOrderClick]);
 
   const toggleHidden = (id: string) => {
     setHidden((prev) => {
