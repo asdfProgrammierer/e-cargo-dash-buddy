@@ -1,53 +1,53 @@
-# E-Mail-Benachrichtigungen für Endkunden
+## Ziel
 
-Endkunden mit hinterlegter E-Mail erhalten automatisch Updates zu ihrer Bestellung, abhängig vom Status. Versand erfolgt über die in Lovable integrierte E-Mail-Infrastruktur (eigene Domain, kein externer Dienst nötig).
+Beim Planen einer Route lässt sich eine **Startzeit** angeben. Daraus wird für jeden Stopp eine **ETA** berechnet — basierend auf der Fahrzeit (`leg_duration_s`) zwischen den Stopps **plus** einer konfigurierbaren **Stopp-Dauer** (Standard 4 Min), die jeder Stopp für Paketsuche/Übergabe braucht. Die Stopp-Dauer wird zentral in den Einstellungen gepflegt.
 
-## Voraussetzung: Sender-Domain einrichten
+## Was der Nutzer sieht
 
-Aktuell ist noch keine Absender-Domain konfiguriert. Damit E-Mails von einer e-cargo-Adresse (z. B. `versand@deinedomain.de`) statt einer generischen Adresse versendet werden, ist als erster Schritt die einmalige Einrichtung der Domain nötig. Danach läuft alles automatisch.
-
-## Welche E-Mails werden versendet?
-
-Versand nur, wenn `empfaenger_email` gesetzt ist. Auslöser ist jede Statusänderung durch den Admin.
-
-| Status | Betreff | Inhalt (Kurzform) |
-|---|---|---|
-| **neu** | Bestellung bei [Händler] erhalten | "Guten Tag [Name], Ihre Bestellung bei [Händler] wurde an uns übermittelt und wir liefern sie umweltfreundlich per Lastenrad an Sie aus." |
-| **in_bearbeitung** | Ihre Bestellung wird vorbereitet | "Guten Tag [Name], Ihre Bestellung von [Händler] wird vorbereitet und in Kürze auf den Weg gebracht." + Bestellnummer + Tracking-Hinweis |
-| **unterwegs** | Ihre Bestellung ist unterwegs | "Guten Tag [Name], unser Fahrer ist mit Ihrer Bestellung von [Händler] unterwegs zu Ihnen. Voraussichtliche Zustellung heute." |
-| **zugestellt** | Ihre Bestellung wurde zugestellt | "Guten Tag [Name], Ihre Bestellung von [Händler] wurde erfolgreich zugestellt. Vielen Dank, dass Sie sich für eine umweltfreundliche Lieferung entschieden haben." + CO₂-Hinweis |
-| **nicht_zugestellt** | Zustellung nicht möglich | "Guten Tag [Name], leider konnten wir Ihre Bestellung von [Händler] heute nicht zustellen. Grund: [reason]. Wir versuchen es erneut." |
-| **storniert** | _kein E-Mail-Versand_ (Händler-/Adminentscheidung, Endkunde wird ggf. vom Händler informiert) | – |
-
-Alle E-Mails enthalten:
-- Bestellnummer (EC-XXX-0000001)
-- Händlername (aus `profiles.firma_name`)
-- Lieferadresse zur Bestätigung
-- e-cargo Branding (grün, Sage/Emerald), kein Werbeanteil
-- System-Footer mit Abmelde-Link (automatisch angehängt)
+1. **Route bearbeiten/anlegen** (Dialog auf `/admin/routen`): neues Feld **„Startzeit"** (`time`, Default 09:00) neben Datum.
+2. **Stops-Liste** (RouteBuilder, kompakt): pro Stopp wird die **Ankunftszeit (ETA)** angezeigt, z. B. `09:14`. Wenn keine Optimierung gelaufen ist und keine `leg_duration_s` vorhanden sind, bleibt das Feld leer.
+3. **Einstellungen → neuer Tab „Routen"**: Eingabefeld **„Stopp-Dauer (Minuten)"**, Default 4. Wird global gespeichert. Änderung wirkt sich auf neu berechnete ETAs aus.
+4. **Optimieren-Button**: berechnet ETAs neu (Startzeit + kumulierte Fahrzeit + n × Stopp-Dauer).
 
 ## Technische Umsetzung
 
-1. **Domain & Infrastruktur einrichten**
-   - Setup-Dialog für Sender-Domain
-   - E-Mail-Queue, Log-Tabelle, Cron-Job, Suppression-Liste werden automatisch angelegt
-   - Edge Function `send-transactional-email` und Unsubscribe-Seite werden gescaffoldet
+### 1. Datenbank (Migration)
 
-2. **6 React-Email-Templates** (im e-cargo Look) für die fünf versendeten Status:
-   - `order-neu`, `order-in-bearbeitung`, `order-unterwegs`, `order-zugestellt`, `order-nicht-zugestellt`
-   - Jedes Template bekommt Props: `kundenname`, `haendlerName`, `auftragsNr`, `lieferadresse`, optional `reason` (für nicht_zugestellt)
+- `routes`: neue Spalte `start_time time NOT NULL DEFAULT '09:00'`.
+- Neue Tabelle `route_settings` (Singleton, RLS admin-only):
+  - `id int PK default 1` (CHECK id = 1)
+  - `stop_duration_minutes int NOT NULL DEFAULT 4`
+  - `updated_at timestamptz default now()`
+- `route_stops.eta` ist schon vorhanden (`timestamptz`) — wird befüllt.
 
-3. **Trigger beim Statuswechsel**
-   - Im Admin-Dashboard (`AdminDashboardPage.tsx`, `handleUpdateStatus`) wird nach erfolgreichem `admin_update_order_status`-RPC-Aufruf zusätzlich `send-transactional-email` aufgerufen, sofern der Auftrag eine `empfaenger_email` hat
-   - `idempotencyKey = order-status-{orderId}-{status}` verhindert doppelte Sends bei Klick-Spam
-   - Händlername wird per Join aus `profiles` geladen (oder einmalig zusammen mit den Orders mitgeliefert)
+### 2. Edge Function `optimize-route`
 
-4. **Optional sinnvoll (kann ich gleich mitmachen oder weglassen):**
-   - Beim Anlegen einer neuen Bestellung (Händler erstellt Order) wird ebenfalls die "neu"-Mail ausgelöst, falls Endkunde-E-Mail vorhanden – also nicht nur beim Admin-Statuswechsel, sondern direkt beim Insert. Das deckt den Fall ab, dass eine Bestellung noch im Status "neu" beim Händler liegt.
+Nach dem Berechnen von `leg_duration_s` pro Stop:
+- Lade `routes.datum` + `routes.start_time` + `route_settings.stop_duration_minutes`.
+- Setze `cursor = datum + start_time` (UTC-konvertiert).
+- Iteriere Stops in optimierter Reihenfolge:
+  - `cursor += leg_duration_s` → `eta` für diesen Stop.
+  - Schreibe `eta` in `route_stops`.
+  - `cursor += stop_duration_minutes * 60` (Service-Zeit nach Ankunft).
+- `routes.total_duration_s` = Fahrzeit + (n × Stopp-Dauer), damit „Fahrzeit gesamt" realistisch bleibt (alternativ separates `total_service_s` — wir bleiben bei einem Wert und benennen Anzeige in „Gesamtdauer").
 
-## Reihenfolge der Schritte
+### 3. Frontend
 
-1. Du klickst auf den "E-Mail-Domain einrichten"-Button (kommt nach Plan-Freigabe)
-2. Du fügst die NS-Records bei deinem Domain-Anbieter hinzu (Anleitung wird angezeigt)
-3. Während die DNS-Verifizierung läuft (kann bis zu 72 h dauern, meist <1 h), baue ich bereits Templates + Trigger-Logik – Versand startet automatisch sobald die Domain verifiziert ist
-4. Test: Bestellung mit deiner eigenen E-Mail anlegen, Status durchklicken, E-Mails prüfen
+- **`RoutenplanungPage.tsx`**: 
+  - `emptyForm` um `start_time: "09:00"` erweitern, Input `type="time"` im Dialog.
+  - `handleSave` schickt `start_time` mit.
+- **`RouteBuilder.tsx`** (kompakt):
+  - In `SortableStop` neben den Kennzahlen die ETA aus `stop.eta` rendern (Format `HH:mm`).
+  - `StopRow`-Interface um `eta: string | null` erweitern, im Select abrufen.
+- **Neuer Tab „Routen"** in `SettingsTabs.tsx` + neue Page `src/pages/admin/RouteSettingsPage.tsx` mit Formular für `stop_duration_minutes` (Lesen/Schreiben aus `route_settings`). Route in `App.tsx` registrieren: `/admin/einstellungen/routen`.
+- **CSV-Export** und **Druckansicht** (RouteDruckPage): ETA-Spalte ergänzen (kurz prüfen, ob nötig — falls nicht angefragt, nur CSV).
+
+### 4. Live-Neuberechnung ohne Optimierung
+
+Ändert der Nutzer nur die Startzeit oder die Stopp-Dauer ohne neu zu optimieren, werden ETAs clientseitig im RouteBuilder „on the fly" gerendert (Formel oben), damit sich Änderungen sofort widerspiegeln. Die DB-Werte (`route_stops.eta`) gelten nach dem nächsten „Optimieren" als verbindlich.
+
+## Nicht enthalten
+
+- Kein Pro-Stop-Override der Stopp-Dauer (nur global).
+- Keine Pausen-/Mittagsfenster.
+- Keine Benachrichtigung der Empfänger mit ETA.
