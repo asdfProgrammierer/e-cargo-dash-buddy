@@ -15,6 +15,7 @@ import { Plus, MapPin, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { RouteBuilder } from "@/components/admin/RouteBuilder";
 import { RoutesOverviewMap } from "@/components/admin/RoutesOverviewMap";
 import { NewOrdersTable, type NewOrderRow } from "@/components/admin/NewOrdersTable";
+import { Switch } from "@/components/ui/switch";
 
 interface Driver { id: string; name: string; }
 interface Vehicle { id: string; kennzeichen: string; }
@@ -53,6 +54,7 @@ const RoutenplanungPage = () => {
   const [selectedNewOrders, setSelectedNewOrders] = useState<Set<string>>(new Set());
   const [showNewOnMap, setShowNewOnMap] = useState(false);
   const [focusedOrderId, setFocusedOrderId] = useState<string | null>(null);
+  const [hiddenRoutes, setHiddenRoutes] = useState<Set<string>>(new Set());
 
   const selectedId = searchParams.get("route");
 
@@ -143,6 +145,23 @@ const RoutenplanungPage = () => {
 
   const routesForDate = routes.filter((r) => r.datum === date);
 
+  // When the date changes, drop a selected route that doesn't belong to the new day
+  useEffect(() => {
+    if (!selectedId) return;
+    if (!routesForDate.some((r) => r.id === selectedId)) {
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, routes]);
+
+  const toggleRouteHidden = (id: string) => {
+    setHiddenRoutes((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
   return (
     <AdminLayout title="Routenplanung">
       <div className="flex h-[calc(100vh-3.5rem-3rem)] flex-col gap-3 overflow-hidden">
@@ -227,14 +246,17 @@ const RoutenplanungPage = () => {
                   </div>
                 ) : routesForDate.map((r) => {
                   const active = r.id === selectedId;
+                  const isHidden = hiddenRoutes.has(r.id);
                   return (
-                    <button
+                    <div
                       key={r.id}
-                      onClick={() => selectRoute(r.id)}
-                      className={`w-full px-3 py-2 text-left border-b border-border/50 transition-colors duration-fast ease-fast-out hover:bg-surface-muted ${active ? "bg-active-surface" : ""}`}
+                      className={`w-full px-3 py-2 border-b border-border/50 transition-colors duration-fast ease-fast-out hover:bg-surface-muted ${active ? "bg-active-surface" : ""} ${isHidden ? "opacity-60" : ""}`}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
+                        <button
+                          onClick={() => selectRoute(r.id)}
+                          className="min-w-0 flex-1 text-left"
+                        >
                           <div className="flex items-center gap-2">
                             <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
                             <div className="truncate text-body font-medium">{r.name}</div>
@@ -243,8 +265,15 @@ const RoutenplanungPage = () => {
                             {r.drivers?.name ?? "–"}
                             {r.vehicles?.kennzeichen && ` · ${r.vehicles.kennzeichen}`}
                           </div>
+                        </button>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge variant={statusVariant[r.status]} className="text-[10px]">{statusLabels[r.status]}</Badge>
+                          <Switch
+                            checked={!isHidden}
+                            onCheckedChange={() => toggleRouteHidden(r.id)}
+                            title={isHidden ? "Auf Karte anzeigen" : "Auf Karte ausblenden"}
+                          />
                         </div>
-                        <Badge variant={statusVariant[r.status]} className="shrink-0 text-[10px]">{statusLabels[r.status]}</Badge>
                       </div>
                       {active && (
                         <div className="mt-1.5 flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -259,7 +288,7 @@ const RoutenplanungPage = () => {
                           </Button>
                         </div>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </CardContent>
@@ -291,6 +320,7 @@ const RoutenplanungPage = () => {
               highlightRouteId={selectedId}
               refreshKey={refreshKey}
               onSelectRoute={(id) => setSearchParams({ route: id })}
+              hidden={hiddenRoutes}
               newOrders={showNewOnMap ? newOrders : []}
               selectedNewOrderIds={selectedNewOrders}
               onNewOrderClick={handleNewOrderPinClick}
