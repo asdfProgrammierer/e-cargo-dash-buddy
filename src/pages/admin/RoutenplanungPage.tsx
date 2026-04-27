@@ -116,9 +116,9 @@ const RoutenplanungPage = () => {
         <TabsContent value="list">
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
         {/* LEFT: Routes list */}
-        <Card className="h-fit">
-          <div className="flex items-center justify-between p-3 border-b">
-            <div className="text-sm text-muted-foreground">{routes.length} Routen</div>
+        <Card className="h-fit shadow-card">
+          <div className="flex items-center justify-between px-4 h-11 border-b border-border/50">
+            <div className="text-caption tabular-nums text-muted-foreground">{routes.length} Routen</div>
             <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm(emptyForm); } }}>
               <DialogTrigger asChild>
                 <Button size="sm"><Plus className="mr-1 h-4 w-4" />Neu</Button>
@@ -164,26 +164,26 @@ const RoutenplanungPage = () => {
             </Dialog>
           </div>
           <ScrollArea className="h-[75vh]">
-            <CardContent className="p-2 space-y-1">
+            <CardContent className="p-0">
               {loading ? (
-                <div className="p-4 text-sm text-muted-foreground">Lade...</div>
+                <div className="p-4 text-caption text-muted-foreground">Lade...</div>
               ) : routes.length === 0 ? (
-                <div className="p-6 text-center text-sm text-muted-foreground">Keine Routen. Erstelle eine neue.</div>
+                <div className="p-6 text-center text-caption text-muted-foreground">Keine Routen. Erstelle eine neue.</div>
               ) : routes.map((r) => {
                 const active = r.id === selectedId;
                 return (
                   <button
                     key={r.id}
                     onClick={() => selectRoute(r.id)}
-                    className={`w-full rounded-md border p-2 text-left transition hover:bg-accent ${active ? "border-primary bg-accent" : ""}`}
+                    className={`w-full px-3 py-2.5 text-left border-b border-border/50 transition-colors duration-fast ease-fast-out hover:bg-surface-muted ${active ? "bg-active-surface" : ""}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
-                          <div className="truncate text-sm font-medium">{r.name}</div>
+                          <div className="truncate text-body font-medium">{r.name}</div>
                         </div>
-                        <div className="mt-1 text-xs text-muted-foreground truncate">
+                        <div className="mt-0.5 text-caption text-muted-foreground tabular-nums truncate">
                           {new Date(r.datum).toLocaleDateString("de-DE")}
                           {r.drivers?.name && ` · ${r.drivers.name}`}
                           {r.vehicles?.kennzeichen && ` · ${r.vehicles.kennzeichen}`}
