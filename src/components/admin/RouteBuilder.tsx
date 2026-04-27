@@ -365,9 +365,9 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
 
   if (compact) {
     return (
-      <div className="space-y-4">
-        <Card>
-          <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
+      <div className="h-full flex flex-col min-h-0">
+        <Card className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <CardHeader className="pb-3 flex-row items-center justify-between space-y-0 shrink-0">
             <CardTitle className="text-base">Stops ({stops.length})</CardTitle>
             <div className="flex items-center gap-1">
               <AddStopsDialog routeId={routeId} existingOrderIds={stops.map((s) => s.order_id)} open={addOpen} onOpenChange={setAddOpen} onAdded={load} />
@@ -375,8 +375,8 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
               <Button variant="ghost" size="icon" onClick={exportCsv} title="CSV-Export"><Download className="h-4 w-4" /></Button>
             </div>
           </CardHeader>
-          <CardContent className="px-0 pb-2">
-            <div className="px-4 pb-3 grid grid-cols-2 gap-2">
+          <CardContent className="px-0 pb-2 flex-1 min-h-0 flex flex-col">
+            <div className="px-4 pb-3 grid grid-cols-2 gap-2 shrink-0">
               <Select value={startDepot?.id ?? ""} onValueChange={(v) => updateDepot("start", v)}>
                 <SelectTrigger className="h-8 text-caption"><SelectValue placeholder="Start-Depot" /></SelectTrigger>
                 <SelectContent>
@@ -404,7 +404,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
             </div>
 
             {vehicle && (
-              <div className="mx-4 mb-2 rounded-md border border-border/50 p-2 space-y-1">
+              <div className="mx-4 mb-2 rounded-md border border-border/50 p-2 space-y-1 shrink-0">
                 <div className="flex items-center justify-between text-caption">
                   <span className="text-muted-foreground">Auslastung {vehicle.kennzeichen}</span>
                   <span className={overCapacity ? "text-destructive font-medium tabular-nums" : "font-medium tabular-nums"}>
@@ -416,15 +416,15 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
             )}
 
             {loading ? (
-              <div className="px-4 text-caption text-muted-foreground">Lade…</div>
+              <div className="px-4 text-caption text-muted-foreground shrink-0">Lade…</div>
             ) : stops.length === 0 ? (
-              <div className="mx-4 rounded-md border border-dashed p-6 text-center text-caption text-muted-foreground">
+              <div className="mx-4 rounded-md border border-dashed p-6 text-center text-caption text-muted-foreground shrink-0">
                 Noch keine Stops. Wähle unten rechts Bestellungen aus und füge sie hinzu.
               </div>
             ) : (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-                  <ScrollArea className="max-h-[40vh]">
+                  <ScrollArea className="flex-1 min-h-0">
                     <div className="border-y border-border/50">
                       {stops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} />)}
                     </div>
