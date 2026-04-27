@@ -72,6 +72,12 @@ const STATUS_COLOR = {
   uebersprungen: "text-warning",
 } as const;
 
+const STATUS_DOT: Record<StopRow["status"], string> = {
+  offen: "bg-muted-foreground/40",
+  erledigt: "bg-success shadow-[0_0_8px_hsl(var(--success)/0.4)]",
+  uebersprungen: "bg-warning shadow-[0_0_8px_hsl(var(--warning)/0.4)]",
+};
+
 function SortableStop({ stop, index, onRemove, onCycleStatus }: {
   stop: StopRow; index: number;
   onRemove: (id: string) => void;
@@ -79,38 +85,49 @@ function SortableStop({ stop, index, onRemove, onCycleStatus }: {
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stop.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
-  const Icon = STATUS_ICON[stop.status];
   return (
-    <div ref={setNodeRef} style={style} className="flex items-center gap-2 rounded-md border bg-card p-2">
-      <button {...attributes} {...listeners} className="cursor-grab text-muted-foreground hover:text-foreground" aria-label="Verschieben">
-        <GripVertical className="h-4 w-4" />
-      </button>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="group flex items-center gap-3 px-3 py-2 bg-card hover:bg-surface-muted transition-colors duration-fast ease-fast-out border-b border-border/50 last:border-b-0"
+    >
       <button
-        onClick={() => onCycleStatus(stop.id, stop.status)}
-        className={`flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground transition ${stop.status === "erledigt" ? "opacity-50 line-through" : ""}`}
-        title="Status wechseln"
+        {...attributes}
+        {...listeners}
+        className="cursor-grab text-muted-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-fast"
+        aria-label="Verschieben"
       >
-        {index + 1}
+        <GripVertical className="h-3.5 w-3.5" />
       </button>
-      <div className="min-w-0 flex-1">
-        <div className={`truncate text-sm font-medium ${stop.status === "erledigt" ? "line-through text-muted-foreground" : ""}`}>
+      <span className="text-[10px] font-bold tabular-nums text-muted-foreground w-5 text-right shrink-0">
+        {String(index + 1).padStart(2, "0")}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className={`text-body font-medium truncate ${stop.status === "erledigt" ? "line-through text-muted-foreground" : "text-foreground"}`}>
           {stop.orders.empfaenger_name}
+        </p>
+        <div className="flex items-center gap-2 text-caption text-muted-foreground tabular-nums truncate">
+          <span className="truncate">{stop.orders.auftrags_nr} · {stop.orders.empfaenger_plz} {stop.orders.empfaenger_stadt}</span>
         </div>
-        <div className="truncate text-xs text-muted-foreground">
-          {stop.orders.auftrags_nr} · {stop.orders.empfaenger_plz} {stop.orders.empfaenger_stadt}
-        </div>
-        <div className="text-xs text-muted-foreground flex items-center gap-2">
-          <span>{stop.orders.pakete} Paket(e) · {Number(stop.orders.gewicht).toFixed(1)} kg</span>
+        <div className="text-caption text-muted-foreground tabular-nums truncate">
+          {stop.orders.pakete} Paket(e) · {Number(stop.orders.gewicht).toFixed(1)} kg
           {(stop.leg_distance_m != null || stop.leg_duration_s != null) && (
-            <span>· {formatDistance(stop.leg_distance_m)} · {formatDuration(stop.leg_duration_s)}</span>
+            <> · {formatDistance(stop.leg_distance_m)} · {formatDuration(stop.leg_duration_s)}</>
           )}
         </div>
       </div>
-      <button onClick={() => onCycleStatus(stop.id, stop.status)} className={`${STATUS_COLOR[stop.status]}`} title={stop.status}>
-        <Icon className="h-4 w-4" />
-      </button>
-      <Button variant="ghost" size="icon" onClick={() => onRemove(stop.id)}>
-        <Trash2 className="h-4 w-4 text-destructive" />
+      <button
+        onClick={() => onCycleStatus(stop.id, stop.status)}
+        title={`Status: ${stop.status} (klicken zum Wechseln)`}
+        className={`h-2 w-2 rounded-full shrink-0 ${STATUS_DOT[stop.status]}`}
+      />
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => onRemove(stop.id)}
+        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity duration-fast"
+      >
+        <Trash2 className="h-3.5 w-3.5 text-destructive" />
       </Button>
     </div>
   );
@@ -424,25 +441,25 @@ export function RouteBuilder({ routeId }: RouteBuilderProps) {
             <CardTitle className="text-base">Stops ({stops.length})</CardTitle>
             <AddStopsDialog routeId={routeId} existingOrderIds={stops.map((s) => s.order_id)} open={addOpen} onOpenChange={setAddOpen} onAdded={load} />
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-0 pb-2">
             {loading ? (
-              <div className="text-sm text-muted-foreground">Lade...</div>
+              <div className="px-4 text-sm text-muted-foreground">Lade...</div>
             ) : stops.length === 0 ? (
-              <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+              <div className="mx-4 rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
                 Noch keine Stops. Füge Bestellungen hinzu.
               </div>
             ) : (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-2">
+                  <div className="border-y border-border/50">
                     {stops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} />)}
                   </div>
                 </SortableContext>
               </DndContext>
             )}
             {stops.length > 0 && (
-              <div className="mt-2 text-xs text-muted-foreground">
-                Tipp: Auf die Nummer klicken, um Status zu wechseln (offen → erledigt → übersprungen).
+              <div className="mt-2 px-4 text-caption text-muted-foreground">
+                Tipp: Auf den Status-Punkt klicken, um zwischen offen → erledigt → übersprungen zu wechseln.
               </div>
             )}
           </CardContent>

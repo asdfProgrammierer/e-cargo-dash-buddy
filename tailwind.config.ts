@@ -13,12 +13,23 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["'Public Sans'", "system-ui", "-apple-system", "sans-serif"],
+      },
+      fontSize: {
+        caption: ["12px", { lineHeight: "16px" }],
+        body: ["14px", { lineHeight: "20px" }],
+        subhead: ["18px", { lineHeight: "24px" }],
+        heading: ["24px", { lineHeight: "32px", fontWeight: "600" }],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        "surface-muted": "hsl(var(--surface-muted))",
+        "active-surface": "hsl(var(--active-surface))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
@@ -74,6 +85,17 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      boxShadow: {
+        card: "0 0 0 1px rgba(0,0,0,.04), 0 2px 4px rgba(0,0,0,.02), 0 8px 16px rgba(0,0,0,.04)",
+        marker: "0 2px 8px rgba(0,0,0,0.15)",
+      },
+      transitionTimingFunction: {
+        "fast-out": "cubic-bezier(0.16, 1, 0.3, 1)",
+      },
+      transitionDuration: {
+        fast: "150ms",
+        panel: "300ms",
       },
       keyframes: {
         "accordion-down": {
