@@ -237,7 +237,7 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
         if (o.lat == null || o.lng == null) return;
         const isSel = selectedNewOrderIds?.has(o.id);
         const el = document.createElement("div");
-        el.className = "flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold border-2 cursor-pointer transition-transform";
+        el.className = "flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold border-2 cursor-pointer";
         el.style.backgroundColor = "hsl(var(--background))";
         el.style.borderColor = isSel ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))";
         el.style.color = isSel ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))";
