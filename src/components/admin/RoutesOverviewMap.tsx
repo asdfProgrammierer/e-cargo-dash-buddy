@@ -134,11 +134,19 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
         },
         layers: [{ id: "basemap", type: "raster", source: "basemap" }],
       },
-      center: [7.4653, 51.5136],
-      zoom: 10,
+      center: [7.207495, 51.492174], // Default depot (Bochum) — overridden by data when loaded
+      zoom: 12,
     });
     map.addControl(new maplibregl.NavigationControl(), "top-right");
     mapRef.current = map;
+
+    // As soon as we know the actual default depot, recenter
+    supabase.from("depots").select("lat, lng").eq("active", true).eq("is_default", true).maybeSingle()
+      .then(({ data }) => {
+        if (!mapRef.current || !data?.lat || !data?.lng) return;
+        mapRef.current.jumpTo({ center: [Number(data.lng), Number(data.lat)], zoom: 12 });
+      });
+
     return () => { map.remove(); mapRef.current = null; };
   }, []);
 
@@ -218,8 +226,15 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
         });
       });
 
-      if (hasPoint) {
+      const defaultDepot = depots.find((d) => d.is_default && d.lat != null && d.lng != null)
+        ?? depots.find((d) => d.lat != null && d.lng != null);
+      const hasRouteContent = routes.some((r) => !hidden.has(r.id) && (r.geometry || stops.some((s) => s.route_id === r.id && s.orders?.lat != null)));
+
+      if (hasRouteContent && hasPoint) {
         try { map.fitBounds(bounds, { padding: 60, maxZoom: 13, duration: 600 }); } catch { /* noop */ }
+      } else if (defaultDepot) {
+        // No routes for this date → center on the default depot
+        map.flyTo({ center: [Number(defaultDepot.lng), Number(defaultDepot.lat)], zoom: 12, duration: 600 });
       }
     };
     if (map.loaded()) apply();
