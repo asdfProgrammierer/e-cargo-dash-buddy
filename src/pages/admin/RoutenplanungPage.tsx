@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { Plus, MapPin, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { RouteBuilder } from "@/components/admin/RouteBuilder";
 import { RoutesOverviewMap } from "@/components/admin/RoutesOverviewMap";
-import { NewOrdersTable } from "@/components/admin/NewOrdersTable";
+import { NewOrdersTable, type NewOrderRow } from "@/components/admin/NewOrdersTable";
 
 interface Driver { id: string; name: string; }
 interface Vehicle { id: string; kennzeichen: string; }
@@ -47,6 +47,13 @@ const RoutenplanungPage = () => {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // Lifted "new orders" state shared between map + table
+  const [newOrders, setNewOrders] = useState<NewOrderRow[]>([]);
+  const [newOrdersLoading, setNewOrdersLoading] = useState(true);
+  const [selectedNewOrders, setSelectedNewOrders] = useState<Set<string>>(new Set());
+  const [showNewOnMap, setShowNewOnMap] = useState(false);
+  const [focusedOrderId, setFocusedOrderId] = useState<string | null>(null);
+
   const selectedId = searchParams.get("route");
 
   const load = async () => {
@@ -67,6 +74,31 @@ const RoutenplanungPage = () => {
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+  const loadNewOrders = async () => {
+    setNewOrdersLoading(true);
+    const { data, error } = await supabase
+      .from("orders")
+      .select("id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, pakete, gewicht, lat, lng, created_at")
+      .eq("status", "neu")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error) { toast.error("Bestellungen konnten nicht geladen werden"); setNewOrdersLoading(false); return; }
+    setNewOrders((data as NewOrderRow[]) ?? []);
+    setSelectedNewOrders(new Set());
+    setNewOrdersLoading(false);
+  };
+
+  useEffect(() => { loadNewOrders(); }, [refreshKey]);
+
+  const handleNewOrderPinClick = (id: string) => {
+    setFocusedOrderId(id);
+    setSelectedNewOrders((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const bumpRefresh = () => setRefreshKey((k) => k + 1);
 
@@ -113,8 +145,9 @@ const RoutenplanungPage = () => {
 
   return (
     <AdminLayout title="Routenplanung">
+      <div className="flex h-[calc(100vh-3.5rem-3rem)] flex-col gap-3 overflow-hidden">
       {/* Toolbar */}
-      <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-2">
           <Label className="text-caption text-muted-foreground">Datum</Label>
           <Input
@@ -175,16 +208,16 @@ const RoutenplanungPage = () => {
       </div>
 
       {/* 4-Quadrant Layout: Left (Routes + Stops) | Right (Map + New Orders) */}
-      <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-3 flex-1 min-h-0 overflow-hidden">
         {/* LEFT COLUMN */}
-        <div className="flex flex-col gap-3 min-h-0">
+        <div className="flex flex-col gap-3 min-h-0 overflow-hidden">
           {/* Routes (top) */}
-          <Card className="shadow-card flex flex-col">
+          <Card className="shadow-card flex flex-col shrink-0">
             <div className="flex items-center justify-between px-4 h-10 border-b border-border/50">
               <span className="text-body font-medium">Routen</span>
               <span className="text-caption tabular-nums text-muted-foreground">{routesForDate.length}</span>
             </div>
-            <ScrollArea className="h-[32vh]">
+            <ScrollArea className="h-[30vh]">
               <CardContent className="p-0">
                 {loading ? (
                   <div className="p-4 text-caption text-muted-foreground">Lade…</div>
@@ -234,7 +267,7 @@ const RoutenplanungPage = () => {
           </Card>
 
           {/* Stops of selected route (bottom) */}
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-hidden">
             {selectedId ? (
               <RouteBuilder key={selectedId + ":" + refreshKey} routeId={selectedId} compact />
             ) : (
@@ -249,25 +282,39 @@ const RoutenplanungPage = () => {
         </div>
 
         {/* RIGHT COLUMN */}
-        <div className="flex flex-col gap-3 min-h-0">
+        <div className="flex flex-col gap-3 min-h-0 overflow-hidden">
           {/* Map (top, large) */}
-          <div className="h-[55vh]">
+          <div className="flex-[3] min-h-0">
             <RoutesOverviewMap
               date={date}
               mapOnly
               highlightRouteId={selectedId}
               refreshKey={refreshKey}
               onSelectRoute={(id) => setSearchParams({ route: id })}
+              newOrders={showNewOnMap ? newOrders : []}
+              selectedNewOrderIds={selectedNewOrders}
+              onNewOrderClick={handleNewOrderPinClick}
             />
           </div>
 
           {/* New orders table (bottom) */}
-          <NewOrdersTable
-            routeId={selectedId}
-            refreshKey={refreshKey}
-            onAssigned={bumpRefresh}
-          />
+          <div className="flex-[2] min-h-0">
+            <NewOrdersTable
+              routeId={selectedId}
+              refreshKey={refreshKey}
+              onAssigned={bumpRefresh}
+              orders={newOrders}
+              loading={newOrdersLoading}
+              onReload={loadNewOrders}
+              selected={selectedNewOrders}
+              setSelected={setSelectedNewOrders}
+              showOnMap={showNewOnMap}
+              setShowOnMap={setShowNewOnMap}
+              focusedOrderId={focusedOrderId}
+            />
+          </div>
         </div>
+      </div>
       </div>
     </AdminLayout>
   );
