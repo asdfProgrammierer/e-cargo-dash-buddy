@@ -212,12 +212,12 @@ const RoutenplanungPage = () => {
         {/* LEFT COLUMN */}
         <div className="flex flex-col gap-3 min-h-0 overflow-hidden">
           {/* Routes (top) */}
-          <Card className="shadow-card flex flex-col shrink-0">
+          <Card className="shadow-card flex flex-col flex-[1] min-h-0 overflow-hidden">
             <div className="flex items-center justify-between px-4 h-10 border-b border-border/50">
               <span className="text-body font-medium">Routen</span>
               <span className="text-caption tabular-nums text-muted-foreground">{routesForDate.length}</span>
             </div>
-            <ScrollArea className="h-[30vh]">
+            <ScrollArea className="flex-1 min-h-0">
               <CardContent className="p-0">
                 {loading ? (
                   <div className="p-4 text-caption text-muted-foreground">Lade…</div>
@@ -267,7 +267,7 @@ const RoutenplanungPage = () => {
           </Card>
 
           {/* Stops of selected route (bottom) */}
-          <div className="flex-1 min-h-0 overflow-hidden">
+          <div className="flex-[2] min-h-0 overflow-hidden">
             {selectedId ? (
               <RouteBuilder key={selectedId + ":" + refreshKey} routeId={selectedId} compact />
             ) : (
