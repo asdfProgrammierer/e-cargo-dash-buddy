@@ -216,6 +216,23 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
   const overCapacity = vehicle && vehicle.kapazitaet_kg > 0 && totals.gewicht > Number(vehicle.kapazitaet_kg);
   const capacityPct = vehicle && vehicle.kapazitaet_kg > 0 ? Math.min(100, (totals.gewicht / Number(vehicle.kapazitaet_kg)) * 100) : 0;
 
+  // Compute display stops with a live-ETA fallback when leg_duration_s is known
+  // but eta has not been persisted yet. Persisted eta wins.
+  const displayStops = useMemo<StopRow[]>(() => {
+    if (!route?.datum) return stops;
+    const startTime = (route.start_time ?? "09:00").slice(0, 5);
+    const base = new Date(`${route.datum}T${startTime}:00`);
+    if (isNaN(base.getTime())) return stops;
+    let cursor = base.getTime();
+    return stops.map((s) => {
+      if (s.leg_duration_s == null) return s;
+      cursor += s.leg_duration_s * 1000;
+      const eta = s.eta ?? new Date(cursor).toISOString();
+      cursor += stopDurationMin * 60 * 1000;
+      return { ...s, eta };
+    });
+  }, [stops, route, stopDurationMin]);
+
   // Init map
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
