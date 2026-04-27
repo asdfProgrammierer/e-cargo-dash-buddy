@@ -177,15 +177,23 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
     const [r, s, d] = await Promise.all([
       supabase.from("routes").select("*").eq("id", routeId).single(),
       supabase.from("route_stops")
-        .select("id, route_id, order_id, position, leg_distance_m, leg_duration_s, status, orders(id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, gewicht, lat, lng, status, notizen)")
+        .select("id, route_id, order_id, position, leg_distance_m, leg_duration_s, eta, status, orders(id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, gewicht, lat, lng, status, notizen)")
         .eq("route_id", routeId)
         .order("position", { ascending: true }),
       supabase.from("depots").select("id, name, lat, lng, is_default").eq("active", true).order("name"),
     ]);
     const routeData = r.data as unknown as RouteRow | null;
     setRoute(routeData);
-    setStops((s.data as unknown as StopRow[]) ?? []);
+    const stopRows = (s.data as unknown as StopRow[]) ?? [];
+    setStops(stopRows);
     setDepots((d.data as Depot[]) ?? []);
+    // Load global stop duration (best-effort)
+    const { data: settings } = await supabase
+      .from("route_settings")
+      .select("stop_duration_minutes")
+      .eq("id", 1)
+      .maybeSingle();
+    setStopDurationMin(settings?.stop_duration_minutes ?? 4);
     if (routeData?.vehicle_id) {
       const { data: v } = await supabase.from("vehicles").select("id, kennzeichen, kapazitaet_kg").eq("id", routeData.vehicle_id).maybeSingle();
       setVehicle(v as Vehicle | null);
