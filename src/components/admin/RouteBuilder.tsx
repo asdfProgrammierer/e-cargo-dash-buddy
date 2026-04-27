@@ -301,8 +301,13 @@ export function RouteBuilder({ routeId }: RouteBuilderProps) {
   };
 
   const removeStop = async (stopId: string) => {
+    const stop = stops.find((s) => s.id === stopId);
     const { error } = await supabase.from("route_stops").delete().eq("id", stopId);
     if (error) { toast.error("Stop konnte nicht entfernt werden"); return; }
+    // Reset order status back to "neu" when removed from route
+    if (stop?.order_id) {
+      await supabase.from("orders").update({ status: "neu" }).eq("id", stop.order_id);
+    }
     setStops((prev) => prev.filter((s) => s.id !== stopId));
   };
 
