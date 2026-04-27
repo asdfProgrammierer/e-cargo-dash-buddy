@@ -515,9 +515,12 @@ function AddStopsDialog({ routeId, existingOrderIds, open, onOpenChange, onAdded
 
   const add = async () => {
     if (selected.size === 0) return;
-    const rows = Array.from(selected).map((order_id, i) => ({ route_id: routeId, order_id, position: i + 1 }));
+    const ids = Array.from(selected);
+    const rows = ids.map((order_id, i) => ({ route_id: routeId, order_id, position: i + 1 }));
     const { error } = await supabase.from("route_stops").insert(rows);
     if (error) { toast.error("Stops konnten nicht hinzugefügt werden"); return; }
+    // Move selected orders to "in_bearbeitung" so they leave the "Neu" pool
+    await supabase.from("orders").update({ status: "in_bearbeitung" }).in("id", ids);
     toast.success(`${rows.length} Stop(s) hinzugefügt`);
     onOpenChange(false);
     onAdded();
