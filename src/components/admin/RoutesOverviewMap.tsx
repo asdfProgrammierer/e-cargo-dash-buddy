@@ -236,15 +236,24 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
       newOrders.forEach((o) => {
         if (o.lat == null || o.lng == null) return;
         const isSel = selectedNewOrderIds?.has(o.id);
+        const fill = isSel ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))";
+        const stroke = "hsl(var(--background))";
+        const size = isSel ? 32 : 26;
         const el = document.createElement("div");
-        el.className = "flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold border-2 cursor-pointer";
-        el.style.backgroundColor = "hsl(var(--background))";
-        el.style.borderColor = isSel ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))";
-        el.style.color = isSel ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))";
-        if (isSel) el.style.boxShadow = "0 0 0 3px hsl(var(--primary) / 0.25)";
-        el.textContent = "N";
+        el.style.cursor = "pointer";
+        el.style.transformOrigin = "center bottom";
+        el.style.filter = isSel
+          ? "drop-shadow(0 3px 5px hsl(var(--primary) / 0.45))"
+          : "drop-shadow(0 2px 3px rgba(0,0,0,0.25))";
         el.title = `${o.auftrags_nr} · ${o.empfaenger_name}`;
-        const m = new maplibregl.Marker({ element: el })
+        // Classic teardrop map pin (anchor: bottom tip)
+        el.innerHTML = `
+          <svg width="${size}" height="${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 1.5c-4.42 0-8 3.58-8 8 0 5.5 8 13 8 13s8-7.5 8-13c0-4.42-3.58-8-8-8z"
+                  fill="${fill}" stroke="${stroke}" stroke-width="1.5" stroke-linejoin="round"/>
+            <circle cx="12" cy="9.5" r="3" fill="${stroke}"/>
+          </svg>`;
+        const m = new maplibregl.Marker({ element: el, anchor: "bottom" })
           .setLngLat([Number(o.lng), Number(o.lat)])
           .addTo(map);
         el.addEventListener("click", (e) => { e.stopPropagation(); onNewOrderClick?.(o.id); });
