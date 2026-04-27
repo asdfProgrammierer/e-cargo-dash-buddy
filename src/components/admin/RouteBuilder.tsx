@@ -26,6 +26,7 @@ interface RouteRow {
   vehicle_id: string | null;
   total_distance_m: number | null; total_duration_s: number | null;
   geometry: GeoJSON.Geometry | null; optimized_at: string | null;
+  start_time: string | null;
 }
 interface OrderRow {
   id: string; auftrags_nr: string; empfaenger_name: string; empfaenger_adresse: string | null;
@@ -38,6 +39,7 @@ interface OrderRow {
 interface StopRow {
   id: string; route_id: string; order_id: string; position: number;
   leg_distance_m: number | null; leg_duration_s: number | null;
+  eta: string | null;
   status: "offen" | "erledigt" | "uebersprungen";
   orders: OrderRow;
 }
@@ -59,6 +61,13 @@ function formatDistance(m: number | null) {
   if (m == null) return "–";
   if (m < 1000) return `${m} m`;
   return `${(m / 1000).toFixed(1)} km`;
+}
+
+function formatTime(iso: string | null) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
 }
 
 const STATUS_ICON = {
@@ -116,6 +125,14 @@ function SortableStop({ stop, index, onRemove, onCycleStatus }: {
           )}
         </div>
       </div>
+      {formatTime(stop.eta) && (
+        <span
+          className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary tabular-nums"
+          title="Geschätzte Ankunftszeit"
+        >
+          {formatTime(stop.eta)}
+        </span>
+      )}
       <button
         onClick={() => onCycleStatus(stop.id, stop.status)}
         title={`Status: ${stop.status} (klicken zum Wechseln)`}
@@ -148,6 +165,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
   const [optimizing, setOptimizing] = useState(false);
   const [profile, setProfile] = useState<Profile>("driving-car");
   const [addOpen, setAddOpen] = useState(false);
+  const [stopDurationMin, setStopDurationMin] = useState<number>(4);
 
   const mapRef = useRef<maplibregl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -160,15 +178,23 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
     const [r, s, d] = await Promise.all([
       supabase.from("routes").select("*").eq("id", routeId).single(),
       supabase.from("route_stops")
-        .select("id, route_id, order_id, position, leg_distance_m, leg_duration_s, status, orders(id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, gewicht, lat, lng, status, notizen)")
+        .select("id, route_id, order_id, position, leg_distance_m, leg_duration_s, eta, status, orders(id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, gewicht, lat, lng, status, notizen)")
         .eq("route_id", routeId)
         .order("position", { ascending: true }),
       supabase.from("depots").select("id, name, lat, lng, is_default").eq("active", true).order("name"),
     ]);
     const routeData = r.data as unknown as RouteRow | null;
     setRoute(routeData);
-    setStops((s.data as unknown as StopRow[]) ?? []);
+    const stopRows = (s.data as unknown as StopRow[]) ?? [];
+    setStops(stopRows);
     setDepots((d.data as Depot[]) ?? []);
+    // Load global stop duration (best-effort)
+    const { data: settings } = await supabase
+      .from("route_settings")
+      .select("stop_duration_minutes")
+      .eq("id", 1)
+      .maybeSingle();
+    setStopDurationMin(settings?.stop_duration_minutes ?? 4);
     if (routeData?.vehicle_id) {
       const { data: v } = await supabase.from("vehicles").select("id, kennzeichen, kapazitaet_kg").eq("id", routeData.vehicle_id).maybeSingle();
       setVehicle(v as Vehicle | null);
@@ -189,6 +215,23 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
   }, [stops]);
   const overCapacity = vehicle && vehicle.kapazitaet_kg > 0 && totals.gewicht > Number(vehicle.kapazitaet_kg);
   const capacityPct = vehicle && vehicle.kapazitaet_kg > 0 ? Math.min(100, (totals.gewicht / Number(vehicle.kapazitaet_kg)) * 100) : 0;
+
+  // Compute display stops with a live-ETA fallback when leg_duration_s is known
+  // but eta has not been persisted yet. Persisted eta wins.
+  const displayStops = useMemo<StopRow[]>(() => {
+    if (!route?.datum) return stops;
+    const startTime = (route.start_time ?? "09:00").slice(0, 5);
+    const base = new Date(`${route.datum}T${startTime}:00`);
+    if (isNaN(base.getTime())) return stops;
+    let cursor = base.getTime();
+    return stops.map((s) => {
+      if (s.leg_duration_s == null) return s;
+      cursor += s.leg_duration_s * 1000;
+      const eta = s.eta ?? new Date(cursor).toISOString();
+      cursor += stopDurationMin * 60 * 1000;
+      return { ...s, eta };
+    });
+  }, [stops, route, stopDurationMin]);
 
   // Init map
   useEffect(() => {
@@ -342,13 +385,14 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
   };
 
   const exportCsv = () => {
-    const header = ["Position", "Auftragsnr", "Name", "Telefon", "Adresse", "PLZ", "Stadt", "Pakete", "Gewicht_kg", "Etappe_km", "Etappe_min", "Status", "Notiz"];
-    const rows = stops.map((s, i) => [
+    const header = ["Position", "Auftragsnr", "Name", "Telefon", "Adresse", "PLZ", "Stadt", "Pakete", "Gewicht_kg", "Etappe_km", "Etappe_min", "ETA", "Status", "Notiz"];
+    const rows = displayStops.map((s, i) => [
       i + 1, s.orders.auftrags_nr, s.orders.empfaenger_name, s.orders.empfaenger_telefon ?? "",
       s.orders.empfaenger_adresse ?? "", s.orders.empfaenger_plz ?? "", s.orders.empfaenger_stadt,
       s.orders.pakete, Number(s.orders.gewicht).toFixed(2),
       s.leg_distance_m != null ? (s.leg_distance_m / 1000).toFixed(2) : "",
       s.leg_duration_s != null ? Math.round(s.leg_duration_s / 60) : "",
+      formatTime(s.eta) ?? "",
       s.status, (s.orders.notizen ?? "").replace(/[\r\n;]/g, " "),
     ]);
     const csv = [header, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\n");
@@ -426,7 +470,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
                 <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                   <ScrollArea className="flex-1 min-h-0">
                     <div className="border-y border-border/50">
-                      {stops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} />)}
+                      {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} />)}
                     </div>
                   </ScrollArea>
                 </SortableContext>
@@ -532,7 +576,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                   <div className="border-y border-border/50">
-                    {stops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} />)}
+                    {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} />)}
                   </div>
                 </SortableContext>
               </DndContext>

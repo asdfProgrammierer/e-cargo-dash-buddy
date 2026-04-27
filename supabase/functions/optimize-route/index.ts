@@ -57,6 +57,14 @@ Deno.serve(async (req) => {
       .single();
     if (routeErr || !route) return json({ error: "Route nicht gefunden" }, 404);
 
+    // Load global stop duration (Pufferzeit pro Stopp)
+    const { data: settings } = await admin
+      .from("route_settings")
+      .select("stop_duration_minutes")
+      .eq("id", 1)
+      .maybeSingle();
+    const stopDurationSec = ((settings?.stop_duration_minutes as number | undefined) ?? 4) * 60;
+
     // Resolve start/end depot (fallback: default depot)
     let startDepotId = route.start_depot_id as string | null;
     let endDepotId = route.end_depot_id as string | null;
@@ -159,20 +167,32 @@ Deno.serve(async (req) => {
     // Update positions + leg metrics
     // segments[i] = leg from coords[i] to coords[i+1]; leg for stop i corresponds to segments[i] (depot->stop1, stop1->stop2,..)
     let position = 1;
+    // Build cursor for ETA: Routendatum + Startzeit (lokal interpretiert)
+    const startTime = (route.start_time as string | null)?.slice(0, 5) ?? "09:00";
+    const baseIso = `${route.datum as string}T${startTime}:00`;
+    let cursorMs = new Date(baseIso).getTime();
+    if (isNaN(cursorMs)) cursorMs = Date.now();
     for (const step of jobSteps) {
       const job = jobs.find((j) => j.id === step.job)!;
       const stopId = job.description!;
       const seg = segments?.[position - 1];
+      if (seg) cursorMs += seg.duration * 1000;
+      const etaIso = new Date(cursorMs).toISOString();
       await admin.from("route_stops").update({
         position,
         leg_distance_m: seg ? Math.round(seg.distance) : null,
         leg_duration_s: seg ? Math.round(seg.duration) : null,
+        eta: etaIso,
       }).eq("id", stopId);
+      // Service-Zeit am Stopp einrechnen
+      cursorMs += stopDurationSec * 1000;
       position += 1;
     }
 
     const totalDist = segments?.reduce((a, s) => a + s.distance, 0) ?? route0.distance ?? 0;
-    const totalDur = segments?.reduce((a, s) => a + s.duration, 0) ?? route0.duration ?? 0;
+    const drivingDur = segments?.reduce((a, s) => a + s.duration, 0) ?? route0.duration ?? 0;
+    // Gesamtdauer = Fahrzeit + Service-Zeit aller Stopps
+    const totalDur = drivingDur + jobSteps.length * stopDurationSec;
 
     await admin.from("routes").update({
       start_depot_id: startDepotId,

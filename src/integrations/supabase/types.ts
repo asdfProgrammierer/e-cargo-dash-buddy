@@ -574,6 +574,24 @@ export type Database = {
         }
         Relationships: []
       }
+      route_settings: {
+        Row: {
+          id: number
+          stop_duration_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          stop_duration_minutes?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          stop_duration_minutes?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       route_stops: {
         Row: {
           created_at: string
@@ -643,6 +661,7 @@ export type Database = {
           notizen: string | null
           optimized_at: string | null
           start_depot_id: string | null
+          start_time: string
           status: Database["public"]["Enums"]["route_status"]
           total_distance_m: number | null
           total_duration_s: number | null
@@ -660,6 +679,7 @@ export type Database = {
           notizen?: string | null
           optimized_at?: string | null
           start_depot_id?: string | null
+          start_time?: string
           status?: Database["public"]["Enums"]["route_status"]
           total_distance_m?: number | null
           total_duration_s?: number | null
@@ -677,6 +697,7 @@ export type Database = {
           notizen?: string | null
           optimized_at?: string | null
           start_depot_id?: string | null
+          start_time?: string
           status?: Database["public"]["Enums"]["route_status"]
           total_distance_m?: number | null
           total_duration_s?: number | null
