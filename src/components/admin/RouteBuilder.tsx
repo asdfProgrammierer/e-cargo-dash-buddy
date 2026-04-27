@@ -165,6 +165,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
   const [optimizing, setOptimizing] = useState(false);
   const [profile, setProfile] = useState<Profile>("driving-car");
   const [addOpen, setAddOpen] = useState(false);
+  const [stopDurationMin, setStopDurationMin] = useState<number>(4);
 
   const mapRef = useRef<maplibregl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
