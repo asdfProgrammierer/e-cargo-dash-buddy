@@ -218,8 +218,15 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
         });
       });
 
-      if (hasPoint) {
+      const defaultDepot = depots.find((d) => d.is_default && d.lat != null && d.lng != null)
+        ?? depots.find((d) => d.lat != null && d.lng != null);
+      const hasRouteContent = routes.some((r) => !hidden.has(r.id) && (r.geometry || stops.some((s) => s.route_id === r.id && s.orders?.lat != null)));
+
+      if (hasRouteContent && hasPoint) {
         try { map.fitBounds(bounds, { padding: 60, maxZoom: 13, duration: 600 }); } catch { /* noop */ }
+      } else if (defaultDepot) {
+        // No routes for this date → center on the default depot
+        map.flyTo({ center: [Number(defaultDepot.lng), Number(defaultDepot.lat)], zoom: 12, duration: 600 });
       }
     };
     if (map.loaded()) apply();
