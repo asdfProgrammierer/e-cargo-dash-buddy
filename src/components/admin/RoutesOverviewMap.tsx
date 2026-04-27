@@ -85,6 +85,8 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
   const mapRef = useRef<maplibregl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  const popupRef = useRef<maplibregl.Popup | null>(null);
+  const pinnedRef = useRef<boolean>(false);
 
   const colorByRoute = useMemo(() => {
     const m: Record<string, string> = {};
@@ -146,6 +148,12 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
     map.addControl(new maplibregl.NavigationControl(), "top-right");
     mapRef.current = map;
 
+    // Close hover popup when clicking elsewhere on the map
+    map.on("click", () => {
+      pinnedRef.current = false;
+      popupRef.current?.remove();
+    });
+
     // As soon as we know the actual default depot, recenter
     supabase.from("depots").select("lat, lng").eq("active", true).eq("is_default", true).maybeSingle()
       .then(({ data }) => {
@@ -155,6 +163,33 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
 
     return () => { map.remove(); mapRef.current = null; };
   }, []);
+
+  /** Show a small popup near a marker. Returns the popup so callers can pin it. */
+  const showPopup = (lngLat: [number, number], html: string) => {
+    const map = mapRef.current;
+    if (!map) return null;
+    if (popupRef.current) popupRef.current.remove();
+    const p = new maplibregl.Popup({
+      offset: 16,
+      closeButton: false,
+      closeOnClick: false,
+      className: "ovr-hover-popup",
+    })
+      .setLngLat(lngLat)
+      .setHTML(html)
+      .addTo(map);
+    popupRef.current = p;
+    return p;
+  };
+
+  const hidePopupIfNotPinned = () => {
+    if (pinnedRef.current) return;
+    popupRef.current?.remove();
+    popupRef.current = null;
+  };
+
+  const escapeHtml = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
   // Render layers + markers
   useEffect(() => {
@@ -213,6 +248,7 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
           const o = s.orders!;
           const done = s.status === "erledigt";
           const skip = s.status === "uebersprungen";
+          const stopStatusLabel = done ? "Erledigt" : skip ? "Übersprungen" : "Offen";
           const el = document.createElement("div");
           el.className = "flex h-6 w-6 items-center justify-center rounded-full text-white text-[10px] font-bold border-2 border-white shadow cursor-pointer";
           el.style.backgroundColor = done ? "hsl(142 71% 35%)" : skip ? "hsl(38 92% 45%)" : color;
@@ -221,10 +257,21 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
           el.textContent = String(idx + 1);
           const m = new maplibregl.Marker({ element: el })
             .setLngLat([Number(o.lng), Number(o.lat)])
-            .setPopup(new maplibregl.Popup({ offset: 14 }).setHTML(
-              `<strong>${r.name}</strong><br/>${idx + 1}. ${o.empfaenger_name}<br/><span style="color:#666">${o.auftrags_nr} · ${o.empfaenger_stadt}</span>`
-            ))
             .addTo(map);
+          const stopHtml = `
+            <div style="font-family: inherit; min-width: 180px;">
+              <div style="font-size: 10px; color: hsl(var(--muted-foreground)); text-transform: uppercase; letter-spacing: 0.04em;">${escapeHtml(r.name)} · #${idx + 1}</div>
+              <div style="font-weight: 600; margin-top: 2px;">${escapeHtml(o.auftrags_nr)}</div>
+              <div style="margin-top: 2px;">${escapeHtml(o.empfaenger_name)}</div>
+              <div style="display: inline-block; margin-top: 6px; padding: 1px 6px; border-radius: 4px; font-size: 10px; background: hsl(var(--muted)); color: hsl(var(--muted-foreground));">${stopStatusLabel}</div>
+            </div>`;
+          el.addEventListener("mouseenter", () => { showPopup([Number(o.lng), Number(o.lat)], stopHtml); });
+          el.addEventListener("mouseleave", () => { hidePopupIfNotPinned(); });
+          el.addEventListener("click", (e) => {
+            e.stopPropagation();
+            pinnedRef.current = true;
+            showPopup([Number(o.lng), Number(o.lat)], stopHtml);
+          });
           el.addEventListener("dblclick", (e) => { e.stopPropagation(); onSelectRoute?.(r.id); });
           markersRef.current.push(m);
           bounds.extend([Number(o.lng), Number(o.lat)]);
@@ -245,7 +292,6 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
         el.style.filter = isSel
           ? "drop-shadow(0 3px 5px hsl(var(--primary) / 0.45))"
           : "drop-shadow(0 2px 3px rgba(0,0,0,0.25))";
-        el.title = `${o.auftrags_nr} · ${o.empfaenger_name}`;
         // Classic teardrop map pin (anchor: bottom tip)
         el.innerHTML = `
           <svg width="${size}" height="${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -256,7 +302,22 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
         const m = new maplibregl.Marker({ element: el, anchor: "bottom" })
           .setLngLat([Number(o.lng), Number(o.lat)])
           .addTo(map);
-        el.addEventListener("click", (e) => { e.stopPropagation(); onNewOrderClick?.(o.id); });
+        const newHtml = `
+          <div style="font-family: inherit; min-width: 180px;">
+            <div style="font-size: 10px; color: hsl(var(--muted-foreground)); text-transform: uppercase; letter-spacing: 0.04em;">Neue Sendung</div>
+            <div style="font-weight: 600; margin-top: 2px;">${escapeHtml(o.auftrags_nr)}</div>
+            <div style="margin-top: 2px;">${escapeHtml(o.empfaenger_name)}</div>
+            <div style="font-size: 11px; color: hsl(var(--muted-foreground)); margin-top: 2px;">${escapeHtml(o.empfaenger_stadt)}</div>
+            <div style="display: inline-block; margin-top: 6px; padding: 1px 6px; border-radius: 4px; font-size: 10px; background: hsl(var(--primary) / 0.15); color: hsl(var(--primary));">Neu</div>
+          </div>`;
+        el.addEventListener("mouseenter", () => { showPopup([Number(o.lng), Number(o.lat)], newHtml); });
+        el.addEventListener("mouseleave", () => { hidePopupIfNotPinned(); });
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          pinnedRef.current = true;
+          showPopup([Number(o.lng), Number(o.lat)], newHtml);
+          onNewOrderClick?.(o.id);
+        });
         markersRef.current.push(m);
         bounds.extend([Number(o.lng), Number(o.lat)]);
         hasPoint = true;
