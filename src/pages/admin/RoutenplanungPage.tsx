@@ -251,6 +251,22 @@ const RoutenplanungPage = () => {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Start-Ort</Label>
+                  <Select value={form.start_depot_id} onValueChange={(v) => setForm({ ...form, start_depot_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Depot wählen" /></SelectTrigger>
+                    <SelectContent>{depots.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}{d.is_default ? " ★" : ""}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Ziel-Ort</Label>
+                  <Select value={form.end_depot_id} onValueChange={(v) => setForm({ ...form, end_depot_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Depot wählen" /></SelectTrigger>
+                    <SelectContent>{depots.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}{d.is_default ? " ★" : ""}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div><Label>Datum</Label><Input type="date" value={form.datum} onChange={(e) => setForm({ ...form, datum: e.target.value })} /></div>
                 <div>
                   <Label>Startzeit</Label>
