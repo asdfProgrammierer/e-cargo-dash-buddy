@@ -438,36 +438,25 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
             <CardTitle className="text-base">Stops ({stops.length})</CardTitle>
             <div className="flex items-center gap-1">
               <AddStopsDialog routeId={routeId} existingOrderIds={stops.map((s) => s.order_id)} open={addOpen} onOpenChange={setAddOpen} onAdded={load} />
-              <Button variant="ghost" size="icon" onClick={openPrint} title="Drucken"><Printer className="h-4 w-4" /></Button>
-              <Button variant="ghost" size="icon" onClick={exportCsv} title="CSV-Export"><Download className="h-4 w-4" /></Button>
-            </div>
-          </CardHeader>
-          <CardContent className="px-0 pb-2 flex-1 min-h-0 flex flex-col">
-            <div className="px-4 pb-3 grid grid-cols-2 gap-2 shrink-0">
-              <Select value={startDepot?.id ?? ""} onValueChange={(v) => updateDepot("start", v)}>
-                <SelectTrigger className="h-8 text-caption"><SelectValue placeholder="Start-Depot" /></SelectTrigger>
-                <SelectContent>
-                  {depots.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}{d.is_default ? " ★" : ""}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={endDepot?.id ?? ""} onValueChange={(v) => updateDepot("end", v)}>
-                <SelectTrigger className="h-8 text-caption"><SelectValue placeholder="Ziel-Depot" /></SelectTrigger>
-                <SelectContent>
-                  {depots.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}{d.is_default ? " ★" : ""}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={profile} onValueChange={(v) => setProfile(v as Profile)}>
-                <SelectTrigger className="h-8 text-caption"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cycling-electric"><div className="flex items-center gap-2"><Zap className="h-3 w-3" />{PROFILE_LABEL["cycling-electric"]}</div></SelectItem>
-                  <SelectItem value="cycling-regular"><div className="flex items-center gap-2"><Bike className="h-3 w-3" />{PROFILE_LABEL["cycling-regular"]}</div></SelectItem>
-                  <SelectItem value="driving-car"><div className="flex items-center gap-2"><Car className="h-3 w-3" />{PROFILE_LABEL["driving-car"]}</div></SelectItem>
-                </SelectContent>
-              </Select>
-              <Button size="sm" className="h-8" onClick={optimize} disabled={optimizing || stops.length < 2}>
+              <Button size="sm" variant="outline" onClick={optimize} disabled={optimizing || stops.length < 2}>
                 <Sparkles className="mr-1 h-3.5 w-3.5" />
                 {optimizing ? "Optimiere…" : "Optimieren"}
               </Button>
+              <Button size="sm" variant="outline" onClick={openPrint} title="PDF-Druck">
+                <Printer className="mr-1 h-3.5 w-3.5" />PDF
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="px-0 pb-2 flex-1 min-h-0 flex flex-col">
+            <div className="px-4 pb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted-foreground shrink-0">
+              <span><span className="text-foreground font-medium">Start:</span> {startDepot?.name ?? "–"}</span>
+              <span><span className="text-foreground font-medium">Ziel:</span> {endDepot?.name ?? "–"}</span>
+              {vehicle && (
+                <span className="inline-flex items-center gap-1">
+                  {profile === "driving-car" ? <Car className="h-3 w-3" /> : profile === "cycling-electric" ? <Zap className="h-3 w-3" /> : <Bike className="h-3 w-3" />}
+                  {vehicle.kennzeichen} · {PROFILE_LABEL[profile]}
+                </span>
+              )}
             </div>
 
             {vehicle && (
