@@ -323,7 +323,7 @@ const RoutenplanungPage = () => {
       </div>
 
       {/* 4-Quadrant Layout: Left (Routes + Stops) | Right (Map + New Orders) */}
-      <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-3 flex-1 min-h-0 overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-[520px_1fr] gap-3 flex-1 min-h-0 overflow-hidden">
         {/* LEFT COLUMN */}
         <div className="flex flex-col gap-3 min-h-0 overflow-hidden">
           {/* Routes (top) */}
