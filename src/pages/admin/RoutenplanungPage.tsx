@@ -174,7 +174,7 @@ const RoutenplanungPage = () => {
         }
       }
     }
-    setOpen(false); setEditId(null); setForm(emptyForm); load();
+    setOpen(false); setEditId(null); setForm(buildEmptyForm(date)); load();
   };
 
   const handleDelete = async (id: string) => {
@@ -364,9 +364,9 @@ const RoutenplanungPage = () => {
         >
           <Printer className="mr-1 h-4 w-4" />Drucken
         </Button>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm({ ...emptyForm, datum: date }); setPendingAssignIds(null); } }}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm(buildEmptyForm(date)); setPendingAssignIds(null); } }}>
           <DialogTrigger asChild>
-            <Button size="sm" onClick={() => setForm({ ...emptyForm, datum: date })}>
+            <Button size="sm" onClick={() => setForm(buildEmptyForm(date))}>
               <Plus className="mr-1 h-4 w-4" />Neue Route
             </Button>
           </DialogTrigger>
@@ -625,7 +625,7 @@ const RoutenplanungPage = () => {
               onCreateNewRoute={() => {
                 setPendingAssignIds(Array.from(selectedNewOrders));
                 setEditId(null);
-                setForm({ ...emptyForm, datum: date });
+                setForm(buildEmptyForm(date));
                 setOpen(true);
               }}
               onSelectRoute={(id) => setSearchParams({ route: id })}
