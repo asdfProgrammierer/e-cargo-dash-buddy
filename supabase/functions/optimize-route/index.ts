@@ -204,10 +204,9 @@ Deno.serve(async (req) => {
 
     // Update positions + leg metrics
     let position = 1;
-    // Build cursor for ETA: Routendatum + Startzeit (lokal interpretiert)
+    // Build cursor for ETA: Routendatum + Startzeit als Europe/Berlin lokal interpretieren
     const startTime = (route.start_time as string | null)?.slice(0, 5) ?? "09:00";
-    const baseIso = `${route.datum as string}T${startTime}:00`;
-    let cursorMs = new Date(baseIso).getTime();
+    let cursorMs = berlinLocalToUtcMs(route.datum as string, startTime);
     if (isNaN(cursorMs)) cursorMs = Date.now();
     for (const step of jobSteps) {
       const job = jobs.find((j) => j.id === step.job)!;
@@ -262,4 +261,32 @@ function json(body: unknown, status: number) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+// Interpret a "YYYY-MM-DD" + "HH:mm" pair as Europe/Berlin local time and
+// return the corresponding UTC milliseconds. Handles CET/CEST automatically.
+function berlinLocalToUtcMs(dateStr: string, timeStr: string): number {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const [hh, mm] = timeStr.split(":").map(Number);
+  // Start with the wall-clock interpreted as UTC, then correct by the actual
+  // Europe/Berlin offset at that instant.
+  const utcGuess = Date.UTC(y, (m ?? 1) - 1, d ?? 1, hh ?? 0, mm ?? 0, 0);
+  const offsetMin = berlinOffsetMinutes(new Date(utcGuess));
+  return utcGuess - offsetMin * 60_000;
+}
+
+function berlinOffsetMinutes(at: Date): number {
+  // Format the instant as Berlin wall-clock parts and diff against the same parts as UTC.
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Berlin",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false,
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(at).map((p) => [p.type, p.value]));
+  const asUtc = Date.UTC(
+    Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+    Number(parts.hour) % 24, Number(parts.minute), Number(parts.second),
+  );
+  return Math.round((asUtc - at.getTime()) / 60_000);
 }
