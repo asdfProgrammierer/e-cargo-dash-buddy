@@ -447,7 +447,7 @@ const RoutenplanungPage = () => {
       for (let p = 1; p <= totalPages; p++) {
         doc.setPage(p);
         // Erase old footer area
-        doc.setFillColor(255);
+        doc.setFillColor(255, 255, 255);
         doc.rect(0, pageH - 10, pageW, 10, "F");
         doc.setFontSize(8);
         doc.setTextColor(120);
