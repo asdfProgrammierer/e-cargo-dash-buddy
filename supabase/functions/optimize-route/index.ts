@@ -210,23 +210,23 @@ Deno.serve(async (req) => {
       return json({ error: "Optimierung unvollständig (Anzahl Stopps)" }, 500);
     }
 
-    // Validierung: gepinnte Stopps müssen ihre ursprüngliche Position behalten
-    const originalPositions = new Map(valid.map((s) => [s.id, s.position] as const));
-    const pinnedIds = new Set(pinned.map((s) => s.id));
-    const newPositions = new Map(orderedStopIds.map((id, idx) => [id, idx + 1] as const));
-    const violations: { id: string; expected: number; got: number }[] = [];
-    for (const id of pinnedIds) {
-      const expected = originalPositions.get(id);
-      const got = newPositions.get(id);
-      if (expected !== got) {
-        violations.push({ id, expected: expected ?? -1, got: got ?? -1 });
-      }
-    }
-    if (violations.length > 0) {
-      console.error("Pinned stops moved during optimization", violations);
+    // Validierung: gepinnte Stopps müssen ihre RELATIVE Reihenfolge behalten.
+    // (Die absolute Position ändert sich segmentweise, je nachdem wie viele
+    // freie Stopps in den Segmenten davor einsortiert wurden – das ist gewollt.)
+    const pinnedOriginalOrder = pinned
+      .slice()
+      .sort((a, b) => a.position - b.position)
+      .map((s) => s.id);
+    const pinnedNewOrder = orderedStopIds.filter((id) => pinnedOriginalOrder.includes(id));
+    const orderOk = pinnedOriginalOrder.length === pinnedNewOrder.length &&
+      pinnedOriginalOrder.every((id, i) => pinnedNewOrder[i] === id);
+    if (!orderOk) {
+      console.error("Pinned stops reordered during optimization", {
+        before: pinnedOriginalOrder,
+        after: pinnedNewOrder,
+      });
       return json({
-        error: "Optimierung würde fixierte Stopps verschieben",
-        violations,
+        error: "Optimierung würde die Reihenfolge fixierter Stopps verändern",
       }, 500);
     }
 
