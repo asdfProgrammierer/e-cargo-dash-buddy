@@ -19,7 +19,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } 
 import { CSS } from "@dnd-kit/utilities";
 
 interface Depot { id: string; name: string; lat: number | null; lng: number | null; is_default: boolean; }
-interface Vehicle { id: string; kennzeichen: string; kapazitaet_kg: number; }
+interface Vehicle { id: string; kennzeichen: string; kapazitaet_kg: number; typ: string | null; }
 interface RouteRow {
   id: string; name: string; datum: string; status: string; notizen: string | null;
   start_depot_id: string | null; end_depot_id: string | null;
@@ -50,6 +50,16 @@ const PROFILE_LABEL: Record<Profile, string> = {
   "cycling-regular": "Fahrrad",
   "driving-car": "Auto/Van",
 };
+
+function profileFromVehicleType(typ: string | null | undefined): Profile {
+  switch (typ) {
+    case "lastenrad": return "cycling-electric";
+    case "e_van":
+    case "transporter":
+    case "sonstige":
+    default: return "driving-car";
+  }
+}
 
 function formatDuration(s: number | null) {
   if (s == null) return "–";
@@ -183,7 +193,6 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
   const [optimizing, setOptimizing] = useState(false);
-  const [profile, setProfile] = useState<Profile>("driving-car");
   const [addOpen, setAddOpen] = useState(false);
   const [stopDurationMin, setStopDurationMin] = useState<number>(4);
 
@@ -216,7 +225,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
       .maybeSingle();
     setStopDurationMin(settings?.stop_duration_minutes ?? 4);
     if (routeData?.vehicle_id) {
-      const { data: v } = await supabase.from("vehicles").select("id, kennzeichen, kapazitaet_kg").eq("id", routeData.vehicle_id).maybeSingle();
+      const { data: v } = await supabase.from("vehicles").select("id, kennzeichen, kapazitaet_kg, typ").eq("id", routeData.vehicle_id).maybeSingle();
       setVehicle(v as Vehicle | null);
     } else {
       setVehicle(null);
@@ -227,6 +236,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
 
   const startDepot = useMemo(() => depots.find((x) => x.id === route?.start_depot_id) ?? depots.find((x) => x.is_default) ?? null, [depots, route]);
   const endDepot = useMemo(() => depots.find((x) => x.id === route?.end_depot_id) ?? startDepot, [depots, route, startDepot]);
+  const profile: Profile = useMemo(() => profileFromVehicleType(vehicle?.typ), [vehicle]);
 
   const totals = useMemo(() => {
     const pakete = stops.reduce((a, s) => a + (s.orders.pakete ?? 0), 0);
@@ -381,16 +391,9 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
     setStops((prev) => prev.map((s) => s.id === stopId ? { ...s, status: next } : s));
   };
 
-  const updateDepot = async (which: "start" | "end", value: string) => {
-    const patch = which === "start" ? { start_depot_id: value } : { end_depot_id: value };
-    const { error } = await supabase.from("routes").update(patch).eq("id", routeId);
-    if (error) { toast.error("Depot konnte nicht gespeichert werden"); return; }
-    setRoute((r) => (r ? { ...r, ...patch } as RouteRow : r));
-  };
-
   const optimize = async () => {
     if (stops.length < 2) { toast.error("Mindestens 2 Stops nötig"); return; }
-    if (!startDepot?.lat || !endDepot?.lat) { toast.error("Bitte Start- und Ziel-Depot wählen (mit Koordinaten)"); return; }
+    if (!startDepot?.lat || !endDepot?.lat) { toast.error("Start-/Ziel-Depot fehlt – bitte in der Route hinterlegen"); return; }
     setOptimizing(true);
     const { data, error } = await supabase.functions.invoke("optimize-route", {
       body: { routeId, profile },
