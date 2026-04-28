@@ -601,6 +601,7 @@ export type Database = {
           leg_duration_s: number | null
           notiz: string | null
           order_id: string
+          pinned: boolean
           position: number
           route_id: string
           status: Database["public"]["Enums"]["route_stop_status"]
@@ -614,6 +615,7 @@ export type Database = {
           leg_duration_s?: number | null
           notiz?: string | null
           order_id: string
+          pinned?: boolean
           position?: number
           route_id: string
           status?: Database["public"]["Enums"]["route_stop_status"]
@@ -627,6 +629,7 @@ export type Database = {
           leg_duration_s?: number | null
           notiz?: string | null
           order_id?: string
+          pinned?: boolean
           position?: number
           route_id?: string
           status?: Database["public"]["Enums"]["route_stop_status"]
