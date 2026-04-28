@@ -459,14 +459,11 @@ const RoutenplanungPage = () => {
                 </div>
                 <Button
                   className="w-full"
-                  disabled={!printRouteId}
-                  onClick={() => {
-                    if (!printRouteId) return;
-                    window.open(`/admin/routen/${printRouteId}/druck`, "_blank");
-                    setPrintOpen(false);
-                  }}
+                  disabled={!printRouteId || printing}
+                  onClick={() => printRouteId && generateRoutePdf(printRouteId)}
                 >
-                  <Printer className="mr-2 h-4 w-4" />PDF öffnen
+                  <Printer className="mr-2 h-4 w-4" />
+                  {printing ? "Erstelle PDF..." : "PDF herunterladen"}
                 </Button>
               </>
             )}
