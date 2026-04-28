@@ -382,7 +382,19 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
       toast.error("Fixierter Stopp kann nicht verschoben werden – erst Fixierung lösen");
       return;
     }
-    const reordered = arrayMove(stops, oldIdx, newIdx).map((s, i) => ({ ...s, position: i + 1 }));
+    const freeStops = stops.filter((s) => !s.pinned);
+    const oldFreeIdx = freeStops.findIndex((s) => s.id === e.active.id);
+    const overFreeIdx = freeStops.findIndex((s) => s.id === e.over!.id);
+    const newFreeIdx = overFreeIdx >= 0
+      ? overFreeIdx
+      : stops.slice(0, newIdx).filter((s) => !s.pinned).length;
+    const reorderedFree = arrayMove(freeStops, oldFreeIdx, newFreeIdx);
+    let freeCursor = 0;
+    const reordered = stops.map((s, i) => {
+      if (s.pinned) return { ...s, position: i + 1 };
+      const next = reorderedFree[freeCursor++];
+      return { ...next, position: i + 1 };
+    });
     // Validate: pinned stops must keep their exact saved position
     const pinnedMoved = reordered.some((s) => {
       if (!s.pinned) return false;
