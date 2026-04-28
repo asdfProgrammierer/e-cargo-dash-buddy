@@ -604,6 +604,10 @@ export type Database = {
       route_stops: {
         Row: {
           created_at: string
+          delivered_at: string | null
+          delivery_mode: string | null
+          delivery_note: string | null
+          delivery_recipient: string | null
           eta: string | null
           id: string
           leg_distance_m: number | null
@@ -613,11 +617,16 @@ export type Database = {
           pinned: boolean
           position: number
           route_id: string
+          signature_url: string | null
           status: Database["public"]["Enums"]["route_stop_status"]
           updated_at: string
         }
         Insert: {
           created_at?: string
+          delivered_at?: string | null
+          delivery_mode?: string | null
+          delivery_note?: string | null
+          delivery_recipient?: string | null
           eta?: string | null
           id?: string
           leg_distance_m?: number | null
@@ -627,11 +636,16 @@ export type Database = {
           pinned?: boolean
           position?: number
           route_id: string
+          signature_url?: string | null
           status?: Database["public"]["Enums"]["route_stop_status"]
           updated_at?: string
         }
         Update: {
           created_at?: string
+          delivered_at?: string | null
+          delivery_mode?: string | null
+          delivery_note?: string | null
+          delivery_recipient?: string | null
           eta?: string | null
           id?: string
           leg_distance_m?: number | null
@@ -641,6 +655,7 @@ export type Database = {
           pinned?: boolean
           position?: number
           route_id?: string
+          signature_url?: string | null
           status?: Database["public"]["Enums"]["route_stop_status"]
           updated_at?: string
         }
