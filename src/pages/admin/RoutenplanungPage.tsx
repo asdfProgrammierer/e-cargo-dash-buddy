@@ -16,6 +16,8 @@ import { RouteBuilder } from "@/components/admin/RouteBuilder";
 import { RoutesOverviewMap } from "@/components/admin/RoutesOverviewMap";
 import { NewOrdersTable, type NewOrderRow } from "@/components/admin/NewOrdersTable";
 import { Switch } from "@/components/ui/switch";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface Driver { id: string; name: string; }
 interface Vehicle { id: string; kennzeichen: string; }
@@ -67,6 +69,7 @@ const RoutenplanungPage = () => {
   // Print dialog state: pick one of the planned/active routes for the day
   const [printOpen, setPrintOpen] = useState(false);
   const [printRouteId, setPrintRouteId] = useState<string | null>(null);
+  const [printing, setPrinting] = useState(false);
 
   const selectedId = searchParams.get("route");
 
