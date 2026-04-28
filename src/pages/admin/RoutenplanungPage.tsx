@@ -73,6 +73,14 @@ const RoutenplanungPage = () => {
 
   const selectedId = searchParams.get("route");
 
+  const defaultDepotId = useMemo(() => depots.find((x) => x.is_default)?.id ?? depots[0]?.id ?? "", [depots]);
+  const buildEmptyForm = (datum: string) => ({
+    ...emptyForm,
+    datum,
+    start_depot_id: defaultDepotId,
+    end_depot_id: defaultDepotId,
+  });
+
   const load = async () => {
     const [r, d, v, dep] = await Promise.all([
       supabase.from("routes").select("*, drivers(id,name), vehicles(id,kennzeichen)").order("datum", { ascending: false }),
