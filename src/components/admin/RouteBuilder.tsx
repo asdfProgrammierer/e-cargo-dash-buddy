@@ -5,21 +5,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { MapPin, Plus, Sparkles, Trash2, GripVertical, Bike, Car, Zap, Printer, Download, AlertTriangle, CheckCircle2, SkipForward, Circle } from "lucide-react";
+import { MapPin, Plus, Sparkles, Trash2, GripVertical, Bike, Car, Zap, Printer, AlertTriangle, CheckCircle2, SkipForward, Circle } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 interface Depot { id: string; name: string; lat: number | null; lng: number | null; is_default: boolean; }
-interface Vehicle { id: string; kennzeichen: string; kapazitaet_kg: number; }
+interface Vehicle { id: string; kennzeichen: string; kapazitaet_kg: number; typ: string | null; }
 interface RouteRow {
   id: string; name: string; datum: string; status: string; notizen: string | null;
   start_depot_id: string | null; end_depot_id: string | null;
@@ -50,6 +48,16 @@ const PROFILE_LABEL: Record<Profile, string> = {
   "cycling-regular": "Fahrrad",
   "driving-car": "Auto/Van",
 };
+
+function profileFromVehicleType(typ: string | null | undefined): Profile {
+  switch (typ) {
+    case "lastenrad": return "cycling-electric";
+    case "e_van":
+    case "transporter":
+    case "sonstige":
+    default: return "driving-car";
+  }
+}
 
 function formatDuration(s: number | null) {
   if (s == null) return "–";
@@ -183,7 +191,6 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
   const [optimizing, setOptimizing] = useState(false);
-  const [profile, setProfile] = useState<Profile>("driving-car");
   const [addOpen, setAddOpen] = useState(false);
   const [stopDurationMin, setStopDurationMin] = useState<number>(4);
 
@@ -216,7 +223,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
       .maybeSingle();
     setStopDurationMin(settings?.stop_duration_minutes ?? 4);
     if (routeData?.vehicle_id) {
-      const { data: v } = await supabase.from("vehicles").select("id, kennzeichen, kapazitaet_kg").eq("id", routeData.vehicle_id).maybeSingle();
+      const { data: v } = await supabase.from("vehicles").select("id, kennzeichen, kapazitaet_kg, typ").eq("id", routeData.vehicle_id).maybeSingle();
       setVehicle(v as Vehicle | null);
     } else {
       setVehicle(null);
@@ -227,6 +234,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
 
   const startDepot = useMemo(() => depots.find((x) => x.id === route?.start_depot_id) ?? depots.find((x) => x.is_default) ?? null, [depots, route]);
   const endDepot = useMemo(() => depots.find((x) => x.id === route?.end_depot_id) ?? startDepot, [depots, route, startDepot]);
+  const profile: Profile = useMemo(() => profileFromVehicleType(vehicle?.typ), [vehicle]);
 
   const totals = useMemo(() => {
     const pakete = stops.reduce((a, s) => a + (s.orders.pakete ?? 0), 0);
@@ -381,16 +389,9 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
     setStops((prev) => prev.map((s) => s.id === stopId ? { ...s, status: next } : s));
   };
 
-  const updateDepot = async (which: "start" | "end", value: string) => {
-    const patch = which === "start" ? { start_depot_id: value } : { end_depot_id: value };
-    const { error } = await supabase.from("routes").update(patch).eq("id", routeId);
-    if (error) { toast.error("Depot konnte nicht gespeichert werden"); return; }
-    setRoute((r) => (r ? { ...r, ...patch } as RouteRow : r));
-  };
-
   const optimize = async () => {
     if (stops.length < 2) { toast.error("Mindestens 2 Stops nötig"); return; }
-    if (!startDepot?.lat || !endDepot?.lat) { toast.error("Bitte Start- und Ziel-Depot wählen (mit Koordinaten)"); return; }
+    if (!startDepot?.lat || !endDepot?.lat) { toast.error("Start-/Ziel-Depot fehlt – bitte in der Route hinterlegen"); return; }
     setOptimizing(true);
     const { data, error } = await supabase.functions.invoke("optimize-route", {
       body: { routeId, profile },
@@ -404,27 +405,6 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
     load();
   };
 
-  const exportCsv = () => {
-    const header = ["Position", "Auftragsnr", "Name", "Telefon", "Adresse", "PLZ", "Stadt", "Pakete", "Gewicht_kg", "Etappe_km", "Etappe_min", "ETA", "Status", "Notiz"];
-    const rows = displayStops.map((s, i) => [
-      i + 1, s.orders.auftrags_nr, s.orders.empfaenger_name, s.orders.empfaenger_telefon ?? "",
-      s.orders.empfaenger_adresse ?? "", s.orders.empfaenger_plz ?? "", s.orders.empfaenger_stadt,
-      s.orders.pakete, Number(s.orders.gewicht).toFixed(2),
-      s.leg_distance_m != null ? (s.leg_distance_m / 1000).toFixed(2) : "",
-      s.leg_duration_s != null ? Math.round(s.leg_duration_s / 60) : "",
-      formatTime(s.eta) ?? "",
-      s.status, (s.orders.notizen ?? "").replace(/[\r\n;]/g, " "),
-    ]);
-    const csv = [header, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\n");
-    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `route-${route?.name ?? routeId}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const openPrint = () => window.open(`/admin/routen/${routeId}/druck`, "_blank");
 
   if (compact) {
@@ -435,36 +415,25 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
             <CardTitle className="text-base">Stops ({stops.length})</CardTitle>
             <div className="flex items-center gap-1">
               <AddStopsDialog routeId={routeId} existingOrderIds={stops.map((s) => s.order_id)} open={addOpen} onOpenChange={setAddOpen} onAdded={load} />
-              <Button variant="ghost" size="icon" onClick={openPrint} title="Drucken"><Printer className="h-4 w-4" /></Button>
-              <Button variant="ghost" size="icon" onClick={exportCsv} title="CSV-Export"><Download className="h-4 w-4" /></Button>
-            </div>
-          </CardHeader>
-          <CardContent className="px-0 pb-2 flex-1 min-h-0 flex flex-col">
-            <div className="px-4 pb-3 grid grid-cols-2 gap-2 shrink-0">
-              <Select value={startDepot?.id ?? ""} onValueChange={(v) => updateDepot("start", v)}>
-                <SelectTrigger className="h-8 text-caption"><SelectValue placeholder="Start-Depot" /></SelectTrigger>
-                <SelectContent>
-                  {depots.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}{d.is_default ? " ★" : ""}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={endDepot?.id ?? ""} onValueChange={(v) => updateDepot("end", v)}>
-                <SelectTrigger className="h-8 text-caption"><SelectValue placeholder="Ziel-Depot" /></SelectTrigger>
-                <SelectContent>
-                  {depots.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}{d.is_default ? " ★" : ""}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={profile} onValueChange={(v) => setProfile(v as Profile)}>
-                <SelectTrigger className="h-8 text-caption"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cycling-electric"><div className="flex items-center gap-2"><Zap className="h-3 w-3" />{PROFILE_LABEL["cycling-electric"]}</div></SelectItem>
-                  <SelectItem value="cycling-regular"><div className="flex items-center gap-2"><Bike className="h-3 w-3" />{PROFILE_LABEL["cycling-regular"]}</div></SelectItem>
-                  <SelectItem value="driving-car"><div className="flex items-center gap-2"><Car className="h-3 w-3" />{PROFILE_LABEL["driving-car"]}</div></SelectItem>
-                </SelectContent>
-              </Select>
-              <Button size="sm" className="h-8" onClick={optimize} disabled={optimizing || stops.length < 2}>
+              <Button size="sm" variant="outline" onClick={optimize} disabled={optimizing || stops.length < 2}>
                 <Sparkles className="mr-1 h-3.5 w-3.5" />
                 {optimizing ? "Optimiere…" : "Optimieren"}
               </Button>
+              <Button size="sm" variant="outline" onClick={openPrint} title="PDF-Druck">
+                <Printer className="mr-1 h-3.5 w-3.5" />PDF
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="px-0 pb-2 flex-1 min-h-0 flex flex-col">
+            <div className="px-4 pb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted-foreground shrink-0">
+              <span><span className="text-foreground font-medium">Start:</span> {startDepot?.name ?? "–"}</span>
+              <span><span className="text-foreground font-medium">Ziel:</span> {endDepot?.name ?? "–"}</span>
+              {vehicle && (
+                <span className="inline-flex items-center gap-1">
+                  {profile === "driving-car" ? <Car className="h-3 w-3" /> : profile === "cycling-electric" ? <Zap className="h-3 w-3" /> : <Bike className="h-3 w-3" />}
+                  {vehicle.kennzeichen} · {PROFILE_LABEL[profile]}
+                </span>
+              )}
             </div>
 
             {vehicle && (
@@ -510,39 +479,20 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
           <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Einstellungen</CardTitle>
             <div className="flex gap-1">
-              <Button variant="ghost" size="icon" onClick={openPrint} title="Drucken"><Printer className="h-4 w-4" /></Button>
-              <Button variant="ghost" size="icon" onClick={exportCsv} title="CSV-Export"><Download className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={openPrint} title="PDF-Druck"><Printer className="h-4 w-4" /></Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div>
-              <Label className="text-xs">Start-Depot</Label>
-              <Select value={startDepot?.id ?? ""} onValueChange={(v) => updateDepot("start", v)}>
-                <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
-                <SelectContent>
-                  {depots.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}{d.is_default ? " (Standard)" : ""}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Ziel-Depot</Label>
-              <Select value={endDepot?.id ?? ""} onValueChange={(v) => updateDepot("end", v)}>
-                <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
-                <SelectContent>
-                  {depots.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}{d.is_default ? " (Standard)" : ""}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Fahrzeugprofil</Label>
-              <Select value={profile} onValueChange={(v) => setProfile(v as Profile)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cycling-electric"><div className="flex items-center gap-2"><Zap className="h-3 w-3" />{PROFILE_LABEL["cycling-electric"]}</div></SelectItem>
-                  <SelectItem value="cycling-regular"><div className="flex items-center gap-2"><Bike className="h-3 w-3" />{PROFILE_LABEL["cycling-regular"]}</div></SelectItem>
-                  <SelectItem value="driving-car"><div className="flex items-center gap-2"><Car className="h-3 w-3" />{PROFILE_LABEL["driving-car"]}</div></SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="rounded-md border p-2 text-xs space-y-1">
+              <div className="flex justify-between"><span className="text-muted-foreground">Start</span><span className="font-medium">{startDepot?.name ?? "–"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Ziel</span><span className="font-medium">{endDepot?.name ?? "–"}</span></div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Fahrzeug</span>
+                <span className="font-medium inline-flex items-center gap-1">
+                  {profile === "driving-car" ? <Car className="h-3 w-3" /> : profile === "cycling-electric" ? <Zap className="h-3 w-3" /> : <Bike className="h-3 w-3" />}
+                  {vehicle ? `${vehicle.kennzeichen} · ${PROFILE_LABEL[profile]}` : PROFILE_LABEL[profile]}
+                </span>
+              </div>
             </div>
             <Button className="w-full" onClick={optimize} disabled={optimizing || stops.length < 2}>
               <Sparkles className="mr-2 h-4 w-4" />

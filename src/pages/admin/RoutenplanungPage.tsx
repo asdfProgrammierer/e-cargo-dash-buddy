@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 
 interface Driver { id: string; name: string; }
 interface Vehicle { id: string; kennzeichen: string; }
+interface Depot { id: string; name: string; is_default: boolean; }
 interface Route {
   id: string;
   name: string;
@@ -28,13 +29,15 @@ interface Route {
   start_time: string;
   status: "geplant" | "aktiv" | "abgeschlossen";
   notizen: string | null;
+  start_depot_id: string | null;
+  end_depot_id: string | null;
   drivers?: Driver | null;
   vehicles?: Vehicle | null;
 }
 
 const statusLabels: Record<string, string> = { geplant: "Geplant", aktiv: "Aktiv", abgeschlossen: "Abgeschlossen" };
 const statusVariant: Record<string, "default" | "secondary" | "outline"> = { geplant: "secondary", aktiv: "default", abgeschlossen: "outline" };
-const emptyForm = { name: "", driver_id: "", vehicle_id: "", datum: new Date().toISOString().slice(0, 10), start_time: "09:00", status: "geplant" as Route["status"], notizen: "" };
+const emptyForm = { name: "", driver_id: "", vehicle_id: "", start_depot_id: "", end_depot_id: "", datum: new Date().toISOString().slice(0, 10), start_time: "09:00", status: "geplant" as Route["status"], notizen: "" };
 
 const RoutenplanungPage = () => {
   const navigate = useNavigate();
@@ -42,6 +45,7 @@ const RoutenplanungPage = () => {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [depots, setDepots] = useState<Depot[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -63,15 +67,17 @@ const RoutenplanungPage = () => {
   const selectedId = searchParams.get("route");
 
   const load = async () => {
-    const [r, d, v] = await Promise.all([
+    const [r, d, v, dep] = await Promise.all([
       supabase.from("routes").select("*, drivers(id,name), vehicles(id,kennzeichen)").order("datum", { ascending: false }),
       supabase.from("drivers").select("id, name").eq("status", "aktiv"),
       supabase.from("vehicles").select("id, kennzeichen").eq("status", "verfuegbar"),
+      supabase.from("depots").select("id, name, is_default").eq("active", true).order("name"),
     ]);
     const list = (r.data as Route[]) ?? [];
     setRoutes(list);
     setDrivers((d.data as Driver[]) ?? []);
     setVehicles((v.data as Vehicle[]) ?? []);
+    setDepots((dep.data as Depot[]) ?? []);
     setLoading(false);
     // auto-select first if none selected
     if (!selectedId && list.length > 0) {
@@ -110,6 +116,9 @@ const RoutenplanungPage = () => {
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error("Name ist erforderlich"); return; }
+    const defaultDepot = depots.find((x) => x.is_default)?.id ?? depots[0]?.id ?? null;
+    const startDepot = form.start_depot_id || defaultDepot;
+    const endDepot = form.end_depot_id || startDepot;
     const payload = {
       name: form.name,
       driver_id: form.driver_id || null,
@@ -118,6 +127,8 @@ const RoutenplanungPage = () => {
       start_time: form.start_time || "09:00",
       status: form.status,
       notizen: form.notizen || null,
+      start_depot_id: startDepot,
+      end_depot_id: endDepot,
     };
     if (editId) {
       const { error } = await supabase.from("routes").update(payload).eq("id", editId);
@@ -161,7 +172,17 @@ const RoutenplanungPage = () => {
 
   const openEdit = (r: Route) => {
     setEditId(r.id);
-    setForm({ name: r.name, driver_id: r.driver_id ?? "", vehicle_id: r.vehicle_id ?? "", datum: r.datum, start_time: (r.start_time ?? "09:00").slice(0, 5), status: r.status, notizen: r.notizen ?? "" });
+    setForm({
+      name: r.name,
+      driver_id: r.driver_id ?? "",
+      vehicle_id: r.vehicle_id ?? "",
+      start_depot_id: r.start_depot_id ?? "",
+      end_depot_id: r.end_depot_id ?? "",
+      datum: r.datum,
+      start_time: (r.start_time ?? "09:00").slice(0, 5),
+      status: r.status,
+      notizen: r.notizen ?? "",
+    });
     setOpen(true);
   };
 
@@ -226,6 +247,22 @@ const RoutenplanungPage = () => {
                   <Select value={form.vehicle_id} onValueChange={(v) => setForm({ ...form, vehicle_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
                     <SelectContent>{vehicles.map((v) => <SelectItem key={v.id} value={v.id}>{v.kennzeichen}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Start-Ort</Label>
+                  <Select value={form.start_depot_id} onValueChange={(v) => setForm({ ...form, start_depot_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Depot wählen" /></SelectTrigger>
+                    <SelectContent>{depots.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}{d.is_default ? " ★" : ""}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Ziel-Ort</Label>
+                  <Select value={form.end_depot_id} onValueChange={(v) => setForm({ ...form, end_depot_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Depot wählen" /></SelectTrigger>
+                    <SelectContent>{depots.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}{d.is_default ? " ★" : ""}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </div>
