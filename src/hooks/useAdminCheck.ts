@@ -3,10 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 
 export function useAdminCheck() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
+    // Wait for auth to finish restoring the session before deciding.
+    if (loading) {
+      setIsAdmin(null);
+      return;
+    }
     if (!user) {
       setIsAdmin(false);
       return;
@@ -18,7 +23,7 @@ export function useAdminCheck() {
       .eq("role", "admin")
       .maybeSingle()
       .then(({ data }) => setIsAdmin(!!data));
-  }, [user]);
+  }, [user, loading]);
 
   return isAdmin;
 }

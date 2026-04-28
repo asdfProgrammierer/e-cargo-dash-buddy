@@ -1,53 +1,40 @@
-## Ziel
+# Problem
 
-Beim Planen einer Route lässt sich eine **Startzeit** angeben. Daraus wird für jeden Stopp eine **ETA** berechnet — basierend auf der Fahrzeit (`leg_duration_s`) zwischen den Stopps **plus** einer konfigurierbaren **Stopp-Dauer** (Standard 4 Min), die jeder Stopp für Paketsuche/Übergabe braucht. Die Stopp-Dauer wird zentral in den Einstellungen gepflegt.
+Wenn du in der Routenplanung auf **Drucken** klickst, öffnet sich `/admin/routen/:id/druck` in einem neuen Tab (`window.open(..., "_blank")`). Statt der Druckansicht landest du im Händler-Dashboard (`/`).
 
-## Was der Nutzer sieht
+# Ursache
 
-1. **Route bearbeiten/anlegen** (Dialog auf `/admin/routen`): neues Feld **„Startzeit"** (`time`, Default 09:00) neben Datum.
-2. **Stops-Liste** (RouteBuilder, kompakt): pro Stopp wird die **Ankunftszeit (ETA)** angezeigt, z. B. `09:14`. Wenn keine Optimierung gelaufen ist und keine `leg_duration_s` vorhanden sind, bleibt das Feld leer.
-3. **Einstellungen → neuer Tab „Routen"**: Eingabefeld **„Stopp-Dauer (Minuten)"**, Default 4. Wird global gespeichert. Änderung wirkt sich auf neu berechnete ETAs aus.
-4. **Optimieren-Button**: berechnet ETAs neu (Startzeit + kumulierte Fahrzeit + n × Stopp-Dauer).
+In `src/App.tsx` schützt `AdminRoute` die Druckseite. Es prüft die Admin-Rolle über den Hook `useAdminCheck`:
 
-## Technische Umsetzung
+```ts
+// useAdminCheck
+if (!user) { setIsAdmin(false); return; }
+```
 
-### 1. Datenbank (Migration)
+Im neuen Tab ist die App-Instanz frisch. Der `AuthContext` braucht einen Tick, um die Session aus dem Storage wiederherzustellen — `user` ist also kurz `null`. Genau in diesem Moment setzt `useAdminCheck` `isAdmin = false`, und `AdminRoute` redirected sofort:
 
-- `routes`: neue Spalte `start_time time NOT NULL DEFAULT '09:00'`.
-- Neue Tabelle `route_settings` (Singleton, RLS admin-only):
-  - `id int PK default 1` (CHECK id = 1)
-  - `stop_duration_minutes int NOT NULL DEFAULT 4`
-  - `updated_at timestamptz default now()`
-- `route_stops.eta` ist schon vorhanden (`timestamptz`) — wird befüllt.
+```ts
+if (!isAdmin) return <Navigate to="/" replace />;
+```
 
-### 2. Edge Function `optimize-route`
+Ergebnis: du landest am Händler-Dashboard, obwohl du Admin bist.
 
-Nach dem Berechnen von `leg_duration_s` pro Stop:
-- Lade `routes.datum` + `routes.start_time` + `route_settings.stop_duration_minutes`.
-- Setze `cursor = datum + start_time` (UTC-konvertiert).
-- Iteriere Stops in optimierter Reihenfolge:
-  - `cursor += leg_duration_s` → `eta` für diesen Stop.
-  - Schreibe `eta` in `route_stops`.
-  - `cursor += stop_duration_minutes * 60` (Service-Zeit nach Ankunft).
-- `routes.total_duration_s` = Fahrzeit + (n × Stopp-Dauer), damit „Fahrzeit gesamt" realistisch bleibt (alternativ separates `total_service_s` — wir bleiben bei einem Wert und benennen Anzeige in „Gesamtdauer").
+Zusätzlich nutzt `AdminRoute` aktuell nicht das `loading`-Flag aus `useAuth` korrekt zusammen mit `useAdminCheck` — es wartet nur, solange `loading` ODER `isAdmin === null`. Da der Hook im "kein user"-Fall `isAdmin = false` setzt (statt `null` zu lassen, bis Auth fertig ist), greift die Wartelogik nicht.
 
-### 3. Frontend
+# Fix
 
-- **`RoutenplanungPage.tsx`**: 
-  - `emptyForm` um `start_time: "09:00"` erweitern, Input `type="time"` im Dialog.
-  - `handleSave` schickt `start_time` mit.
-- **`RouteBuilder.tsx`** (kompakt):
-  - In `SortableStop` neben den Kennzahlen die ETA aus `stop.eta` rendern (Format `HH:mm`).
-  - `StopRow`-Interface um `eta: string | null` erweitern, im Select abrufen.
-- **Neuer Tab „Routen"** in `SettingsTabs.tsx` + neue Page `src/pages/admin/RouteSettingsPage.tsx` mit Formular für `stop_duration_minutes` (Lesen/Schreiben aus `route_settings`). Route in `App.tsx` registrieren: `/admin/einstellungen/routen`.
-- **CSV-Export** und **Druckansicht** (RouteDruckPage): ETA-Spalte ergänzen (kurz prüfen, ob nötig — falls nicht angefragt, nur CSV).
+Zwei kleine Änderungen, die das Problem sauber beheben:
 
-### 4. Live-Neuberechnung ohne Optimierung
+### 1. `src/hooks/useAdminCheck.ts`
+Den Hook am `loading`-Zustand des `AuthContext` orientieren, damit er nicht voreilig `false` zurückgibt:
 
-Ändert der Nutzer nur die Startzeit oder die Stopp-Dauer ohne neu zu optimieren, werden ETAs clientseitig im RouteBuilder „on the fly" gerendert (Formel oben), damit sich Änderungen sofort widerspiegeln. Die DB-Werte (`route_stops.eta`) gelten nach dem nächsten „Optimieren" als verbindlich.
+- Solange `loading === true` (Auth noch nicht fertig) → `isAdmin` bleibt `null`.
+- Erst wenn Auth fertig geladen ist und es wirklich keinen User gibt → `isAdmin = false`.
+- Wenn ein User vorhanden ist → wie bisher die `user_roles`-Abfrage.
 
-## Nicht enthalten
+### 2. (optional, defensiv) `src/App.tsx` — `AdminRoute`
+Reihenfolge so anpassen, dass nicht weitergeleitet wird, solange Auth noch lädt — bereits weitgehend korrekt, aber die Bedingung `isAdmin === null` deckt nach dem Fix oben den Race-Fall sauber ab. Keine weitere Änderung nötig, sobald der Hook korrigiert ist.
 
-- Kein Pro-Stop-Override der Stopp-Dauer (nur global).
-- Keine Pausen-/Mittagsfenster.
-- Keine Benachrichtigung der Empfänger mit ETA.
+# Ergebnis
+
+Wenn der Druck-Button die PDF-Ansicht in einem neuen Tab öffnet, wartet `AdminRoute` jetzt auf den Auth-Restore und erkennt dich korrekt als Admin. Du landest direkt auf der Druckseite statt am Händler-Dashboard.
