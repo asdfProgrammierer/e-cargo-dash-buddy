@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Plus, MapPin, Pencil, Trash2, ExternalLink } from "lucide-react";
+import { Plus, MapPin, Pencil, Trash2, ExternalLink, Printer } from "lucide-react";
 import { RouteBuilder } from "@/components/admin/RouteBuilder";
 import { RoutesOverviewMap } from "@/components/admin/RoutesOverviewMap";
 import { NewOrdersTable, type NewOrderRow } from "@/components/admin/NewOrdersTable";
@@ -63,6 +63,10 @@ const RoutenplanungPage = () => {
   // When creating a new route from "Zur Route", remember the selected ids
   // so we can auto-assign them after the route is saved.
   const [pendingAssignIds, setPendingAssignIds] = useState<string[] | null>(null);
+
+  // Print dialog state: pick one of the planned/active routes for the day
+  const [printOpen, setPrintOpen] = useState(false);
+  const [printRouteId, setPrintRouteId] = useState<string | null>(null);
 
   const selectedId = searchParams.get("route");
 
@@ -189,6 +193,7 @@ const RoutenplanungPage = () => {
   const selectRoute = (id: string) => setSearchParams({ route: id });
 
   const routesForDate = routes.filter((r) => r.datum === date);
+  const printableRoutes = routesForDate.filter((r) => r.status === "geplant" || r.status === "aktiv");
 
   // When the date changes, drop a selected route that doesn't belong to the new day
   useEffect(() => {
@@ -224,6 +229,19 @@ const RoutenplanungPage = () => {
             {routesForDate.length} Routen
           </Badge>
         </div>
+        <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            setPrintRouteId(printableRoutes.length > 0 ? (selectedId && printableRoutes.some((r) => r.id === selectedId) ? selectedId : printableRoutes[0].id) : null);
+            setPrintOpen(true);
+          }}
+          disabled={printableRoutes.length === 0}
+          title={printableRoutes.length === 0 ? "Keine geplanten/aktiven Routen für dieses Datum" : "Route als PDF drucken"}
+        >
+          <Printer className="mr-1 h-4 w-4" />Drucken
+        </Button>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm({ ...emptyForm, datum: date }); setPendingAssignIds(null); } }}>
           <DialogTrigger asChild>
             <Button size="sm" onClick={() => setForm({ ...emptyForm, datum: date })}>
@@ -320,7 +338,54 @@ const RoutenplanungPage = () => {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+
+      {/* Print route picker */}
+      <Dialog open={printOpen} onOpenChange={setPrintOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Route drucken</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-caption text-muted-foreground">
+              Wähle eine geplante oder aktive Route. Es öffnet sich eine druckfertige PDF-Ansicht mit allen Stops in Reihenfolge für den Fahrer.
+            </p>
+            {printableRoutes.length === 0 ? (
+              <div className="rounded-md border border-dashed p-6 text-center text-caption text-muted-foreground">
+                Keine geplanten oder aktiven Routen für dieses Datum.
+              </div>
+            ) : (
+              <>
+                <div>
+                  <Label className="text-caption">Route</Label>
+                  <Select value={printRouteId ?? ""} onValueChange={(v) => setPrintRouteId(v)}>
+                    <SelectTrigger><SelectValue placeholder="Route auswählen" /></SelectTrigger>
+                    <SelectContent>
+                      {printableRoutes.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.name} · {statusLabels[r.status]}
+                          {r.drivers?.name ? ` · ${r.drivers.name}` : ""}
+                          {r.vehicles?.kennzeichen ? ` · ${r.vehicles.kennzeichen}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  className="w-full"
+                  disabled={!printRouteId}
+                  onClick={() => {
+                    if (!printRouteId) return;
+                    window.open(`/admin/routen/${printRouteId}/druck`, "_blank");
+                    setPrintOpen(false);
+                  }}
+                >
+                  <Printer className="mr-2 h-4 w-4" />PDF öffnen
+                </Button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* 4-Quadrant Layout: Left (Routes + Stops) | Right (Map + New Orders) */}
       <div className="grid grid-cols-1 lg:grid-cols-[520px_1fr] gap-3 flex-1 min-h-0 overflow-hidden">
