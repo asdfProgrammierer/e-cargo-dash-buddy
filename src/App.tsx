@@ -30,6 +30,11 @@ import NotFound from "./pages/NotFound";
 import UnsubscribePage from "./pages/UnsubscribePage";
 import TrackingPage from "./pages/TrackingPage";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
+import { useDriverCheck } from "@/hooks/useDriverCheck";
+import DriverLoginPage from "./pages/driver/DriverLoginPage";
+import DriverHomePage from "./pages/driver/DriverHomePage";
+import DriverRouteDetailPage from "./pages/driver/DriverRouteDetailPage";
+import DriverProfilePage from "./pages/driver/DriverProfilePage";
 
 const queryClient = new QueryClient();
 
@@ -78,6 +83,21 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function DriverRoute({ children }: { children: React.ReactNode }) {
+  const { session, loading } = useAuth();
+  const { isDriver } = useDriverCheck();
+  if (loading || isDriver === null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+  if (!session) return <Navigate to="/fahrer/login" replace />;
+  if (!isDriver) return <Navigate to="/fahrer/login" replace />;
+  return <>{children}</>;
+}
+
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
@@ -105,6 +125,10 @@ const AppRoutes = () => (
     <Route path="/admin/einstellungen/depots" element={<AdminRoute><DepotsPage /></AdminRoute>} />
     <Route path="/admin/einstellungen/routen" element={<AdminRoute><RouteSettingsPage /></AdminRoute>} />
     <Route path="/admin/liefergebiet" element={<Navigate to="/admin/einstellungen/liefergebiet" replace />} />
+    <Route path="/fahrer/login" element={<DriverLoginPage />} />
+    <Route path="/fahrer" element={<DriverRoute><DriverHomePage /></DriverRoute>} />
+    <Route path="/fahrer/route/:id" element={<DriverRoute><DriverRouteDetailPage /></DriverRoute>} />
+    <Route path="/fahrer/profil" element={<DriverRoute><DriverProfilePage /></DriverRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
