@@ -210,7 +210,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  const load = async () => {
+  const load = async (): Promise<StopRow[]> => {
     setLoading(true);
     const [r, s, d] = await Promise.all([
       supabase.from("routes").select("*").eq("id", routeId).single(),
@@ -239,6 +239,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
       setVehicle(null);
     }
     setLoading(false);
+    return stopRows;
   };
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [routeId]);
 
@@ -382,13 +383,14 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
       return;
     }
     const reordered = arrayMove(stops, oldIdx, newIdx).map((s, i) => ({ ...s, position: i + 1 }));
-    // Validate: pinned stops must keep their RELATIVE order to each other
-    const pinnedBefore = stops.filter((s) => s.pinned).map((s) => s.id);
-    const pinnedAfter = reordered.filter((s) => s.pinned).map((s) => s.id);
-    const orderChanged = pinnedBefore.length !== pinnedAfter.length ||
-      pinnedBefore.some((id, i) => pinnedAfter[i] !== id);
-    if (orderChanged) {
-      toast.error("Verschieben würde die Reihenfolge fixierter Stopps verändern");
+    // Validate: pinned stops must keep their exact saved position
+    const pinnedMoved = reordered.some((s) => {
+      if (!s.pinned) return false;
+      const before = stops.find((old) => old.id === s.id);
+      return before != null && before.position !== s.position;
+    });
+    if (pinnedMoved) {
+      toast.error("Verschieben würde eine fixierte Positionsnummer verändern");
       return;
     }
     setStops(reordered);
@@ -432,10 +434,11 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
   };
 
   const optimize = async () => {
-    if (stops.length < 2) { toast.error("Mindestens 2 Stops nötig"); return; }
+    const latestStops = await load();
+    if (latestStops.length < 2) { toast.error("Mindestens 2 Stops nötig"); return; }
     if (!startDepot?.lat || !endDepot?.lat) { toast.error("Start-/Ziel-Depot fehlt – bitte in der Route hinterlegen"); return; }
     // Snapshot der gepinnten Positionen, um nach Optimierung zu validieren
-    const pinnedSnapshot = stops.filter((s) => s.pinned).map((s) => ({ id: s.id, position: s.position }));
+    const pinnedSnapshot = latestStops.filter((s) => s.pinned).map((s) => ({ id: s.id, position: s.position }));
     setOptimizing(true);
     const { data, error } = await supabase.functions.invoke("optimize-route", {
       body: { routeId, profile },
@@ -462,7 +465,10 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
       }
     }
     // Karte neu laden: resize + Geometrie/Marker werden via Effekt aktualisiert
-    setTimeout(() => mapRef.current?.resize(), 150);
+    setTimeout(() => {
+      mapRef.current?.resize();
+      mapRef.current?.triggerRepaint();
+    }, 150);
   };
 
 
