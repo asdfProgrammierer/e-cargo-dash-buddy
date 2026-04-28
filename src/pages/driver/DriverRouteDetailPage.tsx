@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight, PenLine } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { SignaturePad, type SignaturePadHandle } from "@/components/driver/SignaturePad";
+import { buildOrderPdfBlob } from "@/lib/orderPdf";
+import type { Order } from "@/types/order";
 
 interface Stop {
   id: string;
@@ -112,12 +114,28 @@ const DriverRouteDetailPage = () => {
     const { data, error } = await supabase.functions.invoke("driver-update-stop-status", {
       body: { stop_id: stopId, status, ...payload },
     });
-    setSubmitting(false);
     if (error || (data as any)?.error) {
+      setSubmitting(false);
       toast.error((data as any)?.error ?? "Fehler beim Speichern");
       return;
     }
-    toast.success(status === "erledigt" ? "Als zugestellt markiert" : "Als nicht zugestellt markiert");
+
+    // After a successful delivery, generate & archive the signed delivery-note PDF
+    let archived = false;
+    if (status === "erledigt") {
+      const orderId = stops.find((s) => s.id === stopId)?.order?.id;
+      if (orderId) {
+        archived = await archiveDeliveryNote(stopId, orderId);
+      }
+    }
+    setSubmitting(false);
+    if (status === "erledigt") {
+      toast.success(
+        archived ? "Zugestellt · Lieferschein archiviert" : "Als zugestellt markiert",
+      );
+    } else {
+      toast.success("Als nicht zugestellt markiert");
+    }
     setActiveStop(null);
     setDeliverStop(null);
     setExtraNote("");
@@ -125,6 +143,63 @@ const DriverRouteDetailPage = () => {
     setDeliveryRecipient("");
     setDeliveryMode("persoenlich");
     load();
+  };
+
+  const archiveDeliveryNote = async (stopId: string, orderId: string): Promise<boolean> => {
+    try {
+      // Load full order data needed for the PDF
+      const { data: o, error: oErr } = await supabase
+        .from("orders")
+        .select(
+          "id, auftrags_nr, absender_name, absender_adresse, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_email, empfaenger_telefon, pakete, gewicht, package_length_cm, package_width_cm, package_height_cm, status, notizen, created_at",
+        )
+        .eq("id", orderId)
+        .maybeSingle();
+      if (oErr || !o) return false;
+
+      const order: Order = {
+        id: o.id,
+        auftragsNr: o.auftrags_nr,
+        absenderName: o.absender_name,
+        absenderAdresse: o.absender_adresse ?? "",
+        empfaengerName: o.empfaenger_name,
+        empfaengerAdresse: o.empfaenger_adresse ?? "",
+        empfaengerPlz: o.empfaenger_plz ?? "",
+        empfaengerStadt: o.empfaenger_stadt,
+        empfaengerEmail: o.empfaenger_email ?? undefined,
+        empfaengerTelefon: o.empfaenger_telefon ?? undefined,
+        pakete: o.pakete,
+        gewicht: Number(o.gewicht),
+        packageLengthCm: o.package_length_cm ? Number(o.package_length_cm) : undefined,
+        packageWidthCm: o.package_width_cm ? Number(o.package_width_cm) : undefined,
+        packageHeightCm: o.package_height_cm ? Number(o.package_height_cm) : undefined,
+        status: o.status as Order["status"],
+        erstelltAm: new Date(o.created_at).toLocaleDateString("de-DE"),
+        notizen: o.notizen ?? undefined,
+      };
+
+      const blob = await buildOrderPdfBlob(order);
+      const path = `orders/${orderId}/${stopId}-${Date.now()}.pdf`;
+      const { error: upErr } = await supabase.storage
+        .from("delivery-notes")
+        .upload(path, blob, { contentType: "application/pdf", upsert: true });
+      if (upErr) {
+        console.error("delivery-note upload failed", upErr);
+        return false;
+      }
+      const { error: updErr } = await supabase
+        .from("route_stops")
+        .update({ delivery_note_pdf_url: path })
+        .eq("id", stopId);
+      if (updErr) {
+        console.error("delivery-note url save failed", updErr);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.error("archiveDeliveryNote error", e);
+      return false;
+    }
   };
 
   const openDeliverSheet = (s: Stop) => {

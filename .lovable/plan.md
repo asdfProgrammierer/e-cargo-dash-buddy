@@ -1,115 +1,47 @@
-
-# Fahrer-App (Phase 1) – Plan
-
 ## Ziel
-Eine separate, mobil-optimierte Oberfläche für Fahrer, ausgeliefert als **echte native Android-App via Capacitor**. Fahrer melden sich mit **Username + PIN** an und sehen ihre für heute (und kommende Tage) zugewiesenen Routen mit allen Stopps.
+Sobald der Fahrer eine Zustellung mit Unterschrift bestätigt, soll der Lieferschein automatisch als PDF neu generiert, mit der gespeicherten Signatur verknüpft und im Storage abgelegt werden – ohne dass jemand manuell auf "PDF herunterladen" klicken muss.
 
----
+## Vorgehen
 
-## 1. Login-Konzept (Username + PIN)
+### 1. Storage-Bucket für Lieferscheine
+- Neuen privaten Bucket `delivery-notes` anlegen.
+- RLS-Policies analog zu `delivery-signatures`:
+  - Admins: voller Zugriff
+  - Fahrer: Lese-/Schreibzugriff auf Lieferscheine ihrer Routen-Stopps
+  - Händler: Lesezugriff auf Lieferscheine ihrer eigenen Aufträge
 
-Supabase Auth benötigt intern eine E-Mail. Wir verstecken das vor dem Fahrer:
+### 2. Datenbank
+- Spalte `delivery_note_pdf_url TEXT` zu `route_stops` hinzufügen (Pfad im Bucket).
+- Migration über das Migration-Tool.
 
-- Admin legt im **Fahrer-Bereich** zusätzliche Felder an: `Username` (z.B. `max.mueller`) und `PIN` (4–6 Ziffern, beim Anlegen/Reset einmalig sichtbar).
-- Im Hintergrund wird ein Supabase-Auth-User mit Pseudo-E-Mail `<username>@drivers.e-cargo.local` und dem PIN als Passwort erstellt.
-- Der Fahrer-User bekommt die neue Rolle `driver` (in `user_roles`).
-- Im Login-Screen der Fahrer-App gibt es nur zwei Felder: **Username** und **PIN**. Die App setzt intern die Pseudo-E-Mail zusammen und ruft `signInWithPassword` auf.
-- Admin kann jederzeit **PIN zurücksetzen** (neuer PIN wird einmalig angezeigt) und den Fahrer **deaktivieren** (Auth-User wird gesperrt + `drivers.status = inaktiv`).
+### 3. PDF-Generierung als wiederverwendbares Modul
+- `src/lib/orderPdf.ts` refactoren: bestehende Logik in eine reine Funktion `buildOrderPdf(order): Promise<jsPDF>` extrahieren, die das `jsPDF`-Objekt zurückgibt.
+- `downloadOrderPdf(order)` ruft `buildOrderPdf` + `doc.save()` auf (kein Verhaltensbruch für bestehende Aufrufer).
+- Neue Funktion `buildOrderPdfBlob(order): Promise<Blob>` exportieren – wird vom Edge-Flow konsumiert.
 
-Sicherheitshinweise:
-- PIN wird nirgends im Klartext gespeichert (nur Supabase-Auth-Hash).
-- Bruteforce-Schutz: nach z.B. 5 Fehlversuchen 60s Sperre (clientseitig + serverseitige Rate-Limit-Funktion in einer Edge Function).
+### 4. Edge Function `driver-update-stop-status` erweitern
+Direkt nach erfolgreichem Signatur-Upload + DB-Update:
+- Auftrag laden (`orders` + `order_status_history` + `route_stops`).
+- Lieferschein als PDF serverseitig erzeugen mit **jsPDF via esm.sh** (`https://esm.sh/jspdf@2.5.1` + `https://esm.sh/qrcode@1.5.3`). Dieselbe Layout-Logik wie im Frontend, gekapselt in einer geteilten Helper-Datei `supabase/functions/_shared/delivery-note-pdf.ts`.
+  - Hinweis: Die Layout-Logik wird einmalig vom Frontend-Modul ins `_shared`-Modul portiert, damit Server + Client identische Lieferscheine erzeugen. (Frontend importiert weiterhin lokal, Server nutzt den geteilten Helper.)
+- Signatur-PNG aus Storage laden und als Base64 ins PDF einbetten (`addImage`).
+- PDF nach `delivery-notes/orders/<order_id>/<stop_id>-<timestamp>.pdf` hochladen (`upsert: true`).
+- Pfad in `route_stops.delivery_note_pdf_url` speichern.
+- Fehler beim PDF-Schritt nur loggen, **nicht** den gesamten Stopp-Update-Call fehlschlagen lassen (Zustellung muss erfasst bleiben, auch wenn PDF-Build hakt).
 
----
+### 5. Frontend-Anpassung Lieferschein-Download
+- `downloadOrderPdf` prüft zuerst `route_stops.delivery_note_pdf_url`. Wenn vorhanden → diese Datei aus dem Storage laden und herunterladen (so bekommen Händler/Admin exakt das PDF, das mit der Unterschrift archiviert wurde).
+- Fallback: PDF wie bisher live generieren (für Aufträge ohne PoD).
 
-## 2. Datenmodell-Änderungen
+### 6. Kein UI-Eingriff für den Fahrer
+- Bestätigungs-Sheet bleibt unverändert. Nach erfolgreichem Submit zeigt der Toast zusätzlich „Lieferschein archiviert" an.
 
-**`drivers` Tabelle erweitern:**
-- `username` (text, unique, lowercase, regex `^[a-z0-9._-]{3,32}$`)
-- `auth_user_id` (uuid, nullable) – Verknüpfung zum Supabase-Auth-User
-- `last_login_at` (timestamptz, nullable)
+## Technische Details
+- Edge-Function-Imports: `jspdf` und `qrcode` aus esm.sh (CDN, keine Build-Pipeline nötig in Deno).
+- Service-Role-Client lädt Signatur via `storage.from('delivery-signatures').download(path)` → ArrayBuffer → Base64 für `addImage`.
+- Upload als `Uint8Array` mit `contentType: 'application/pdf'`.
+- Migration setzt nur die neue Spalte + Bucket + Policies; bestehende Daten unberührt.
+- Types werden automatisch nach Migration aktualisiert.
 
-**Neue Rolle in `app_role` Enum:** `driver`
-
-**RLS-Anpassungen:**
-- `routes`: neue Policy „Driver kann eigene Routen sehen" → `driver_id` über `drivers.auth_user_id = auth.uid()`
-- `route_stops`: neue Policy „Driver kann Stopps eigener Routen sehen + Status updaten"
-- `orders`: read-only Policy für verknüpfte Orders der eigenen Route
-- `depots`: read-only für Driver (nur Start/Ziel der eigenen Routen)
-- Helper-Function `is_route_driver(_route_id uuid)` (security definer)
-
----
-
-## 3. Edge Functions
-
-- **`driver-create-credentials`** (admin only): legt Auth-User an, setzt initialen PIN, schreibt `auth_user_id` in `drivers`.
-- **`driver-reset-pin`** (admin only): generiert neuen 6-stelligen PIN, updated Passwort, gibt PIN einmalig zurück.
-- **`driver-update-stop-status`** (driver only): markiert Stopp als `erledigt` / `uebersprungen` (mit Grund), aktualisiert die zugehörige Order auf `zugestellt` / `nicht_zugestellt`, triggert die bestehenden Email-Templates.
-- Rate-Limit-Wrapper für Login-Versuche (optional Phase 1.5).
-
----
-
-## 4. UI – Admin-Seite (Erweiterung `/admin/fahrer`)
-
-Im Fahrer-Dialog zusätzlich:
-- Feld **Username** (Pflicht für Login-Aktivierung)
-- Button **„Login aktivieren"** → erzeugt Credentials, zeigt PIN einmalig in modalem Dialog mit „Kopieren"
-- Button **„PIN zurücksetzen"** → neuer PIN, einmalig anzeigen
-- Statusanzeige: „Login aktiv" / „Kein Login" + `last_login_at`
-
----
-
-## 5. UI – Fahrer-App (neue Routen `/fahrer/*`)
-
-Eigenes, mobile-first Layout (kein AdminSidebar):
-
-- **`/fahrer/login`** – Username + PIN (Numpad-Tastatur), Logo, „Eingeloggt bleiben"
-- **`/fahrer`** – Heutige Route(n) als große Karten: Routenname, Datum, Startzeit, Anzahl Stopps, Fortschrittsbalken (x/y erledigt). Tab/Switch für „Heute" / „Kommende"
-- **`/fahrer/route/:id`** – Stopp-Liste in optimierter Reihenfolge:
-  - Pro Stopp: Position, Name, Adresse, Telefon (klickbar `tel:`), ETA, Paketanzahl, Notiz
-  - Status-Badge (offen / erledigt / nicht zugestellt)
-  - Buttons: **„Navigieren"** (Deep-Link `geo:lat,lng?q=adresse` → Android wählt Maps-App), **„Zugestellt"**, **„Nicht zugestellt"** (öffnet Sheet mit Grund-Auswahl)
-  - Sticky Footer: Fortschritt + „Route abschließen" wenn alle erledigt
-- **`/fahrer/profil`** – Name, Logout, App-Version
-
-Zugriffsschutz: `DriverRoute`-Wrapper analog zu `AdminRoute`, prüft `driver`-Rolle.
-
----
-
-## 6. Native App via Capacitor
-
-```text
-[Web-Build /fahrer/*] → [Capacitor wrap] → [Android Studio] → [APK/AAB]
-                                                                  ↓
-                                                       Verteilung an Fahrer
-                                                       (Direktinstall oder Play Store)
-```
-
-Schritte:
-1. Capacitor + Plugins installieren (`@capacitor/core`, `@capacitor/cli`, `@capacitor/android`, `@capacitor/app`, `@capacitor/preferences` für Session-Persistenz).
-2. `capacitor.config.ts` mit `appId: app.lovable.eb7a8883e02647dc82bb300906e3fa89`, `appName: e-cargo-driver`.
-3. App-Icon & Splash-Screen mit e-cargo-Branding (Sage/Emerald + Leaf-Logo).
-4. `main.tsx`: Wenn auf Capacitor (`Capacitor.isNativePlatform()`) → direkt zu `/fahrer/login` redirecten, Admin-Routen sind in der Android-App nicht erreichbar.
-5. Anleitung für dich: GitHub-Export → `npm install` → `npx cap add android` → `npm run build` → `npx cap sync` → `npx cap open android` → in Android Studio APK bauen.
-
-Hinweis: Eine echte App-Datei (.apk) wird **nicht** in Lovable selbst erzeugt – das passiert lokal in Android Studio (kostenlos). Der Build-Prozess wird einmalig eingerichtet, danach reicht jeweils `git pull && npm run build && npx cap sync` für Updates.
-
----
-
-## 7. Reihenfolge der Umsetzung (in dieser PR)
-
-1. DB-Migration: `drivers` erweitern, `app_role` um `driver`, RLS-Policies, Helper-Function.
-2. Edge Functions: `driver-create-credentials`, `driver-reset-pin`, `driver-update-stop-status`.
-3. Admin-UI: `/admin/fahrer` um Username/PIN-Verwaltung erweitern.
-4. Fahrer-UI: Layout, `/fahrer/login`, `/fahrer`, `/fahrer/route/:id`, `/fahrer/profil`.
-5. Routing & Guards (`DriverRoute`, Capacitor-Redirect).
-6. Capacitor-Setup + Branding + Anleitung.
-
----
-
-## Was später (Phase 2) sinnvoll wäre
-- Push-Notifications bei neuer Route (FCM via Capacitor)
-- Foto-Upload als Zustellnachweis
-- Unterschrift auf dem Display
-- Offline-Modus (Service Worker / Capacitor Storage)
-- iOS-Build (gleicher Capacitor-Code, nur `npx cap add ios`)
+## Ergebnis
+Beim Tippen auf „Bestätigen" im Übergabe-Sheet wird die Unterschrift hochgeladen, der Stopp/Order auf „zugestellt" gesetzt **und** ein finaler Lieferschein als PDF mit eingebetteter Signatur im Backend abgelegt. Spätere PDF-Downloads liefern exakt diese archivierte Version.
