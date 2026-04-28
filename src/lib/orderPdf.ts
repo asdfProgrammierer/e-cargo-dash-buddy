@@ -97,7 +97,7 @@ function statusLabel(status: string) {
   return STATUS_LABELS[status as OrderStatus] ?? status;
 }
 
-export async function downloadOrderPdf(order: Order) {
+export async function buildOrderPdf(order: Order): Promise<jsPDF> {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -506,5 +506,41 @@ export async function downloadOrderPdf(order: Order) {
     doc.setTextColor(0);
   }
 
+  return doc;
+}
+
+export async function buildOrderPdfBlob(order: Order): Promise<Blob> {
+  const doc = await buildOrderPdf(order);
+  return doc.output("blob");
+}
+
+async function downloadArchivedDeliveryNote(order: Order): Promise<boolean> {
+  const { data: stop } = await supabase
+    .from("route_stops")
+    .select("delivery_note_pdf_url")
+    .eq("order_id", order.id)
+    .not("delivery_note_pdf_url", "is", null)
+    .order("delivered_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const path = (stop as { delivery_note_pdf_url?: string } | null)?.delivery_note_pdf_url;
+  if (!path) return false;
+  const { data, error } = await supabase.storage.from("delivery-notes").download(path);
+  if (error || !data) return false;
+  const url = URL.createObjectURL(data);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `auftrag-${order.auftragsNr}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  return true;
+}
+
+export async function downloadOrderPdf(order: Order) {
+  // Prefer the archived (signed) PDF generated when the driver completed the stop
+  if (await downloadArchivedDeliveryNote(order)) return;
+  const doc = await buildOrderPdf(order);
   doc.save(`auftrag-${order.auftragsNr}.pdf`);
 }
