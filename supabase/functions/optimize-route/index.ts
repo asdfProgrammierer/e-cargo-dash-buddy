@@ -262,6 +262,39 @@ Deno.serve(async (req) => {
         legDurations[i] = routeSegments[i].duration ?? 0;
         legDistances[i] = routeSegments[i].distance ?? 0;
       }
+    } else {
+      console.warn("ORS segments mismatch", {
+        expected: legCount,
+        got: routeSegments?.length ?? 0,
+      });
+      // Fallback: pro Leg einzeln über Directions abfragen
+      for (let i = 0; i < legCount; i++) {
+        const a = coords[i];
+        const b = coords[i + 1];
+        try {
+          const legRes = await fetch(`https://api.openrouteservice.org/v2/directions/${profile}`, {
+            method: "POST",
+            headers: {
+              Authorization: apiKey,
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            body: JSON.stringify({ coordinates: [a, b], instructions: false }),
+          });
+          if (!legRes.ok) {
+            console.error("Leg fallback failed", i, await legRes.text());
+            continue;
+          }
+          const legJson = await legRes.json();
+          const summary = legJson?.routes?.[0]?.summary;
+          if (summary) {
+            legDurations[i] = summary.duration ?? 0;
+            legDistances[i] = summary.distance ?? 0;
+          }
+        } catch (e) {
+          console.error("Leg fallback error", i, e);
+        }
+      }
     }
 
     // Update positions + leg metrics
