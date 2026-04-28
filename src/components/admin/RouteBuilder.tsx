@@ -405,7 +405,6 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
     load();
   };
 
-  const openPrint = () => window.open(`/admin/routen/${routeId}/druck`, "_blank");
 
   if (compact) {
     return (
