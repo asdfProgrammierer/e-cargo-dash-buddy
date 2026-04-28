@@ -93,65 +93,131 @@ Deno.serve(async (req) => {
     // Load stops + their orders
     const { data: stops } = await admin
       .from("route_stops")
-      .select("id, order_id, orders(id, lat, lng, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt)")
-      .eq("route_id", body.routeId);
+      .select("id, order_id, position, pinned, orders(id, lat, lng, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt)")
+      .eq("route_id", body.routeId)
+      .order("position", { ascending: true });
     if (!stops || stops.length === 0) return json({ error: "Keine Stops vorhanden" }, 400);
 
-    type StopRow = { id: string; order_id: string; orders: { id: string; lat: number | null; lng: number | null } };
+    type StopRow = { id: string; order_id: string; position: number; pinned: boolean; orders: { id: string; lat: number | null; lng: number | null } };
     const valid = (stops as unknown as StopRow[]).filter((s) => s.orders?.lat != null && s.orders?.lng != null);
     if (valid.length === 0) return json({ error: "Keine Stops mit Koordinaten" }, 400);
 
-    // Build ORS optimization payload
-    const jobs = valid.map((s, idx) => ({
-      id: idx + 1,
-      location: [Number(s.orders.lng), Number(s.orders.lat)],
-      // attach our id as description for round-trip
-      description: s.id,
-    }));
-    const vehicles = [{
-      id: 1,
-      profile,
-      start: [Number(startDepot.lng), Number(startDepot.lat)],
-      end: [Number(endDepot.lng), Number(endDepot.lat)],
-    }];
+    // ----- Segmentweise Optimierung mit fixierten Stopps -----
+    // Splitte die Stopps in Segmente, die jeweils zwischen zwei "Ankern" liegen.
+    // Anker sind: Start-Depot, fixierte Stopps (in ihrer aktuellen Reihenfolge), End-Depot.
+    type Anchor =
+      | { kind: "depot"; lng: number; lat: number }
+      | { kind: "stop"; stop: StopRow };
 
-    const optRes = await fetch("https://api.openrouteservice.org/optimization", {
-      method: "POST",
-      headers: {
-        Authorization: apiKey,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({ jobs, vehicles }),
-    });
-    if (!optRes.ok) {
-      const t = await optRes.text();
-      return json({ error: "Optimierung fehlgeschlagen", details: t }, 502);
+    const pinned = valid.filter((s) => s.pinned);
+    const free = valid.filter((s) => !s.pinned);
+
+    const anchors: Anchor[] = [
+      { kind: "depot", lng: Number(startDepot.lng), lat: Number(startDepot.lat) },
+      ...pinned.map((s) => ({ kind: "stop" as const, stop: s })),
+      { kind: "depot", lng: Number(endDepot.lng), lat: Number(endDepot.lat) },
+    ];
+
+    // Verteile die freien Stopps gleichmäßig auf die Segmente (zunächst alle ins erste).
+    // Bessere Heuristik: ordne jeden freien Stop dem nächstgelegenen Segment-Mittelpunkt zu.
+    const anchorLngLat = (a: Anchor): [number, number] =>
+      a.kind === "depot" ? [a.lng, a.lat] : [Number(a.stop.orders.lng), Number(a.stop.orders.lat)];
+
+    const segmentBuckets: StopRow[][] = Array.from({ length: anchors.length - 1 }, () => []);
+    if (segmentBuckets.length === 1) {
+      segmentBuckets[0] = free;
+    } else {
+      for (const f of free) {
+        const fLng = Number(f.orders.lng);
+        const fLat = Number(f.orders.lat);
+        let bestIdx = 0;
+        let bestDist = Infinity;
+        for (let i = 0; i < segmentBuckets.length; i++) {
+          const [aLng, aLat] = anchorLngLat(anchors[i]);
+          const [bLng, bLat] = anchorLngLat(anchors[i + 1]);
+          // Distance from f to segment midpoint (rough heuristic, equirect)
+          const mLng = (aLng + bLng) / 2;
+          const mLat = (aLat + bLat) / 2;
+          const dx = (fLng - mLng) * Math.cos((mLat * Math.PI) / 180);
+          const dy = fLat - mLat;
+          const d = dx * dx + dy * dy;
+          if (d < bestDist) {
+            bestDist = d;
+            bestIdx = i;
+          }
+        }
+        segmentBuckets[bestIdx].push(f);
+      }
     }
-    const optData = await optRes.json();
-    const route0 = optData?.routes?.[0];
-    if (!route0) return json({ error: "Keine Route von ORS" }, 502);
 
-    // ORS optimization returns steps with cumulative arrival/duration in seconds
-    // (relative to vehicle start). We derive per-leg durations from arrival deltas.
-    type OrsStep = {
-      type: string;
-      job?: number;
-      description?: string;
-      arrival?: number;
-      duration?: number;
-      distance?: number;
-    };
-    const allSteps = (route0.steps as OrsStep[]) ?? [];
-    const jobSteps = allSteps.filter((s) => s.type === "job");
+    // Pro Segment: wenn freie Stopps vorhanden, ORS Optimization aufrufen
+    // (Start = Anker[i], End = Anker[i+1], Jobs = bucket[i]).
+    // Sammelt finale geordnete Stopp-IDs.
+    const orderedStopIds: string[] = [];
+
+    for (let i = 0; i < segmentBuckets.length; i++) {
+      const bucket = segmentBuckets[i];
+      if (bucket.length === 0) {
+        // Nur Anker-zu-Anker, kein Job dazwischen.
+        if (anchors[i + 1].kind === "stop") {
+          orderedStopIds.push((anchors[i + 1] as { kind: "stop"; stop: StopRow }).stop.id);
+        }
+        continue;
+      }
+      const [sLng, sLat] = anchorLngLat(anchors[i]);
+      const [eLng, eLat] = anchorLngLat(anchors[i + 1]);
+      const segJobs = bucket.map((s, idx) => ({
+        id: idx + 1,
+        location: [Number(s.orders.lng), Number(s.orders.lat)] as [number, number],
+        description: s.id,
+      }));
+      const segVehicles = [{
+        id: 1,
+        profile,
+        start: [sLng, sLat] as [number, number],
+        end: [eLng, eLat] as [number, number],
+      }];
+      const segRes = await fetch("https://api.openrouteservice.org/optimization", {
+        method: "POST",
+        headers: {
+          Authorization: apiKey,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ jobs: segJobs, vehicles: segVehicles }),
+      });
+      if (!segRes.ok) {
+        const t = await segRes.text();
+        return json({ error: "Optimierung fehlgeschlagen", details: t }, 502);
+      }
+      const segData = await segRes.json();
+      const segRoute = segData?.routes?.[0];
+      if (!segRoute) return json({ error: "Keine Route von ORS (Segment)" }, 502);
+      type OrsStep = { type: string; job?: number; description?: string };
+      const segSteps = ((segRoute.steps as OrsStep[]) ?? []).filter((st) => st.type === "job");
+      for (const st of segSteps) {
+        const job = segJobs.find((j) => j.id === st.job);
+        if (job) orderedStopIds.push(job.description!);
+      }
+      // Nach diesem Segment kommt der Anker (falls Stop)
+      if (anchors[i + 1].kind === "stop") {
+        orderedStopIds.push((anchors[i + 1] as { kind: "stop"; stop: StopRow }).stop.id);
+      }
+    }
+
+    // Sicherheits-Check: alle Stopps drin
+    if (orderedStopIds.length !== valid.length) {
+      return json({ error: "Optimierung unvollständig (Anzahl Stopps)" }, 500);
+    }
+
+    // Map id → StopRow
+    const stopById = new Map(valid.map((s) => [s.id, s] as const));
+    const orderedStops = orderedStopIds.map((id) => stopById.get(id)!);
 
     // Build directions request to get geometry for the actual ordered path
     const coords: [number, number][] = [
       [Number(startDepot.lng), Number(startDepot.lat)],
-      ...jobSteps.map((s) => {
-        const job = jobs.find((j) => j.id === s.job);
-        return job!.location as [number, number];
-      }),
+      ...orderedStops.map((s) => [Number(s.orders.lng), Number(s.orders.lat)] as [number, number]),
       [Number(endDepot.lng), Number(endDepot.lat)],
     ];
 
@@ -173,32 +239,14 @@ Deno.serve(async (req) => {
     const geometry = feat?.geometry ?? null;
     const segments = feat?.properties?.segments as Array<{ distance: number; duration: number }> | undefined;
 
-    // Per-leg durations/distances: prefer directions segments (precise), fallback
-    // to ORS optimization step arrival deltas (which already exclude service time).
-    const legCount = jobSteps.length + 1; // depot->job1, job1->job2, ..., lastJob->depot
+    // Per-leg durations/distances aus Directions ableiten.
+    const legCount = orderedStops.length + 1; // depot->stop1, stop1->stop2, ..., lastStop->depot
     const legDurations: number[] = new Array(legCount).fill(0);
     const legDistances: number[] = new Array(legCount).fill(0);
-
     if (segments && segments.length === legCount) {
       for (let i = 0; i < legCount; i++) {
         legDurations[i] = segments[i].duration ?? 0;
         legDistances[i] = segments[i].distance ?? 0;
-      }
-    } else {
-      // Fallback: derive from optimization steps (arrival is cumulative travel
-      // time in seconds since vehicle start, excluding service time).
-      // Steps order: start, job, job, ..., end.
-      let prevArrival = 0;
-      let legIdx = 0;
-      for (const st of allSteps) {
-        if (st.type === "start") {
-          prevArrival = st.arrival ?? 0;
-          continue;
-        }
-        const arr = st.arrival ?? prevArrival;
-        legDurations[legIdx] = Math.max(0, arr - prevArrival);
-        legIdx += 1;
-        prevArrival = arr;
       }
     }
 
@@ -208,9 +256,7 @@ Deno.serve(async (req) => {
     const startTime = (route.start_time as string | null)?.slice(0, 5) ?? "09:00";
     let cursorMs = berlinLocalToUtcMs(route.datum as string, startTime);
     if (isNaN(cursorMs)) cursorMs = Date.now();
-    for (const step of jobSteps) {
-      const job = jobs.find((j) => j.id === step.job)!;
-      const stopId = job.description!;
+    for (const s of orderedStops) {
       const legDur = legDurations[position - 1] ?? 0;
       const legDist = legDistances[position - 1] ?? 0;
       cursorMs += legDur * 1000;
@@ -220,20 +266,16 @@ Deno.serve(async (req) => {
         leg_distance_m: legDist ? Math.round(legDist) : null,
         leg_duration_s: legDur ? Math.round(legDur) : null,
         eta: etaIso,
-      }).eq("id", stopId);
+      }).eq("id", s.id);
       // Service-Zeit am Stopp einrechnen
       cursorMs += stopDurationSec * 1000;
       position += 1;
     }
 
-    const totalDist = segments && segments.length === legCount
-      ? segments.reduce((a, s) => a + s.distance, 0)
-      : (route0.distance ?? legDistances.reduce((a, b) => a + b, 0));
-    const drivingDur = segments && segments.length === legCount
-      ? segments.reduce((a, s) => a + s.duration, 0)
-      : (route0.duration ?? legDurations.reduce((a, b) => a + b, 0));
+    const totalDist = legDistances.reduce((a, b) => a + b, 0);
+    const drivingDur = legDurations.reduce((a, b) => a + b, 0);
     // Gesamtdauer = Fahrzeit + Service-Zeit aller Stopps
-    const totalDur = drivingDur + jobSteps.length * stopDurationSec;
+    const totalDur = drivingDur + orderedStops.length * stopDurationSec;
 
     await admin.from("routes").update({
       start_depot_id: startDepotId,
@@ -248,7 +290,8 @@ Deno.serve(async (req) => {
       ok: true,
       total_distance_m: Math.round(totalDist),
       total_duration_s: Math.round(totalDur),
-      stops_optimized: jobSteps.length,
+      stops_optimized: free.length,
+      pinned_count: pinned.length,
     }, 200);
   } catch (err) {
     console.error("optimize-route error", err);
