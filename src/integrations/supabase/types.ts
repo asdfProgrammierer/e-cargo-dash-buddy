@@ -215,37 +215,46 @@ export type Database = {
       }
       drivers: {
         Row: {
+          auth_user_id: string | null
           created_at: string
           email: string | null
           fuehrerscheinklasse: string | null
           id: string
+          last_login_at: string | null
           name: string
           notizen: string | null
           status: Database["public"]["Enums"]["driver_status"]
           telefon: string | null
           updated_at: string
+          username: string | null
         }
         Insert: {
+          auth_user_id?: string | null
           created_at?: string
           email?: string | null
           fuehrerscheinklasse?: string | null
           id?: string
+          last_login_at?: string | null
           name: string
           notizen?: string | null
           status?: Database["public"]["Enums"]["driver_status"]
           telefon?: string | null
           updated_at?: string
+          username?: string | null
         }
         Update: {
+          auth_user_id?: string | null
           created_at?: string
           email?: string | null
           fuehrerscheinklasse?: string | null
           id?: string
+          last_login_at?: string | null
           name?: string
           notizen?: string | null
           status?: Database["public"]["Enums"]["driver_status"]
           telefon?: string | null
           updated_at?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -971,6 +980,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      current_driver_id: { Args: never; Returns: string }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -986,6 +996,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_depot_used_by_driver: { Args: { _depot_id: string }; Returns: boolean }
+      is_order_in_driver_route: {
+        Args: { _order_id: string }
+        Returns: boolean
+      }
+      is_route_driver: { Args: { _route_id: string }; Returns: boolean }
+      is_stop_route_driver: { Args: { _stop_id: string }; Returns: boolean }
       move_to_dlq: {
         Args: {
           dlq_name: string
