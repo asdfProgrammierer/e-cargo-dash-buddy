@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -72,6 +72,14 @@ const RoutenplanungPage = () => {
   const [printing, setPrinting] = useState(false);
 
   const selectedId = searchParams.get("route");
+
+  const defaultDepotId = useMemo(() => depots.find((x) => x.is_default)?.id ?? depots[0]?.id ?? "", [depots]);
+  const buildEmptyForm = (datum: string) => ({
+    ...emptyForm,
+    datum,
+    start_depot_id: defaultDepotId,
+    end_depot_id: defaultDepotId,
+  });
 
   const load = async () => {
     const [r, d, v, dep] = await Promise.all([
@@ -166,7 +174,7 @@ const RoutenplanungPage = () => {
         }
       }
     }
-    setOpen(false); setEditId(null); setForm(emptyForm); load();
+    setOpen(false); setEditId(null); setForm(buildEmptyForm(date)); load();
   };
 
   const handleDelete = async (id: string) => {
@@ -356,9 +364,9 @@ const RoutenplanungPage = () => {
         >
           <Printer className="mr-1 h-4 w-4" />Drucken
         </Button>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm({ ...emptyForm, datum: date }); setPendingAssignIds(null); } }}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm(buildEmptyForm(date)); setPendingAssignIds(null); } }}>
           <DialogTrigger asChild>
-            <Button size="sm" onClick={() => setForm({ ...emptyForm, datum: date })}>
+            <Button size="sm" onClick={() => setForm(buildEmptyForm(date))}>
               <Plus className="mr-1 h-4 w-4" />Neue Route
             </Button>
           </DialogTrigger>
@@ -617,7 +625,7 @@ const RoutenplanungPage = () => {
               onCreateNewRoute={() => {
                 setPendingAssignIds(Array.from(selectedNewOrders));
                 setEditId(null);
-                setForm({ ...emptyForm, datum: date });
+                setForm(buildEmptyForm(date));
                 setOpen(true);
               }}
               onSelectRoute={(id) => setSearchParams({ route: id })}
