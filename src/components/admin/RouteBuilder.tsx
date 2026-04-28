@@ -582,35 +582,65 @@ function AddStopsDialog({ routeId, existingOrderIds, open, onOpenChange, onAdded
     if (!open) return;
     setLoading(true);
     setSelected(new Set());
-    supabase
-      .from("orders")
-      .select("id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, gewicht, lat, lng, status, notizen")
-      .in("status", ["neu", "in_bearbeitung"])
-      .not("lat", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(500)
-      .then(({ data }) => {
-        const filtered = ((data as OrderRow[]) ?? []).filter((o) => !existingOrderIds.includes(o.id));
-        setOrders(filtered);
-        setLoading(false);
-      });
-  }, [open, existingOrderIds]);
+    (async () => {
+      // Always re-fetch the current route_stops to avoid stale duplicate checks
+      const [ordersRes, stopsRes] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, gewicht, lat, lng, status, notizen")
+          .in("status", ["neu", "in_bearbeitung"])
+          .not("lat", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(500),
+        supabase.from("route_stops").select("order_id").eq("route_id", routeId),
+      ]);
+      const blocked = new Set<string>([
+        ...existingOrderIds,
+        ...((stopsRes.data as { order_id: string }[] | null) ?? []).map((r) => r.order_id),
+      ]);
+      const filtered = ((ordersRes.data as OrderRow[]) ?? []).filter((o) => !blocked.has(o.id));
+      setOrders(filtered);
+      setLoading(false);
+    })();
+  }, [open, existingOrderIds, routeId]);
 
   const filtered = orders.filter((o) => {
     const q = search.toLowerCase();
     if (!q) return true;
-    return o.auftrags_nr.toLowerCase().includes(q) || o.empfaenger_name.toLowerCase().includes(q) || (o.empfaenger_plz ?? "").includes(q) || o.empfaenger_stadt.toLowerCase().includes(q);
+    return (
+      o.auftrags_nr.toLowerCase().includes(q) ||
+      o.empfaenger_name.toLowerCase().includes(q) ||
+      (o.empfaenger_plz ?? "").includes(q) ||
+      o.empfaenger_stadt.toLowerCase().includes(q) ||
+      (o.empfaenger_adresse ?? "").toLowerCase().includes(q)
+    );
   });
 
   const add = async () => {
     if (selected.size === 0) return;
     const ids = Array.from(selected);
-    const rows = ids.map((order_id, i) => ({ route_id: routeId, order_id, position: i + 1 }));
+    // Final duplicate guard: re-check current stops + max position right before insert
+    const [{ data: existingStops }, { data: maxRow }] = await Promise.all([
+      supabase.from("route_stops").select("order_id").eq("route_id", routeId).in("order_id", ids),
+      supabase.from("route_stops").select("position").eq("route_id", routeId).order("position", { ascending: false }).limit(1).maybeSingle(),
+    ]);
+    const already = new Set(((existingStops as { order_id: string }[] | null) ?? []).map((r) => r.order_id));
+    const toInsert = ids.filter((id) => !already.has(id));
+    const skipped = ids.length - toInsert.length;
+    if (toInsert.length === 0) {
+      toast.info("Alle ausgewählten Bestellungen sind bereits in dieser Route.");
+      return;
+    }
+    const startPos = ((maxRow as { position: number } | null)?.position ?? 0) + 1;
+    const rows = toInsert.map((order_id, i) => ({ route_id: routeId, order_id, position: startPos + i }));
     const { error } = await supabase.from("route_stops").insert(rows);
     if (error) { toast.error("Stops konnten nicht hinzugefügt werden"); return; }
-    // Move selected orders to "in_bearbeitung" so they leave the "Neu" pool
-    await supabase.from("orders").update({ status: "in_bearbeitung" }).in("id", ids);
-    toast.success(`${rows.length} Stop(s) hinzugefügt`);
+    await supabase.from("orders").update({ status: "in_bearbeitung" }).in("id", toInsert);
+    toast.success(
+      skipped > 0
+        ? `${rows.length} Stop(s) hinzugefügt (${skipped} Duplikat(e) übersprungen)`
+        : `${rows.length} Stop(s) hinzugefügt`,
+    );
     onOpenChange(false);
     onAdded();
   };
@@ -623,8 +653,10 @@ function AddStopsDialog({ routeId, existingOrderIds, open, onOpenChange, onAdded
       <DialogContent className="max-w-2xl">
         <DialogHeader><DialogTitle>Bestellungen hinzufügen</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <Input placeholder="Suche: Auftragsnr, Name, PLZ, Stadt..." value={search} onChange={(e) => setSearch(e.target.value)} />
-          <div className="text-xs text-muted-foreground">Nur geocodierte Bestellungen mit Status "Neu" oder "In Bearbeitung" werden angezeigt.</div>
+          <Input placeholder="Suche: Auftragsnr, Name, Adresse, PLZ, Stadt..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <div className="text-xs text-muted-foreground">
+            Nur geocodierte Bestellungen mit Status "Neu" oder "In Bearbeitung". Bereits zugewiesene Bestellungen werden ausgeblendet.
+          </div>
           <ScrollArea className="h-[50vh] rounded-md border">
             {loading ? (
               <div className="p-6 text-sm text-muted-foreground">Lade...</div>
@@ -632,25 +664,50 @@ function AddStopsDialog({ routeId, existingOrderIds, open, onOpenChange, onAdded
               <div className="p-6 text-sm text-muted-foreground text-center">Keine passenden Bestellungen gefunden.</div>
             ) : (
               <div className="divide-y">
-                {filtered.map((o) => (
-                  <label key={o.id} className="flex cursor-pointer items-center gap-3 p-3 hover:bg-accent">
-                    <Checkbox checked={selected.has(o.id)} onCheckedChange={(c) => {
-                      setSelected((prev) => {
-                        const next = new Set(prev);
-                        if (c) next.add(o.id); else next.delete(o.id);
-                        return next;
-                      });
-                    }} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 text-sm font-medium">
-                        <MapPin className="h-3 w-3 text-muted-foreground" />
-                        {o.empfaenger_name}
-                        <span className="text-xs text-muted-foreground">({o.auftrags_nr})</span>
+                {filtered.map((o) => {
+                  const checked = selected.has(o.id);
+                  return (
+                    <label
+                      key={o.id}
+                      className={`flex cursor-pointer items-start gap-3 p-3 transition-colors hover:bg-accent ${checked ? "bg-accent/60" : ""}`}
+                    >
+                      <Checkbox
+                        className="mt-0.5"
+                        checked={checked}
+                        onCheckedChange={(c) => {
+                          setSelected((prev) => {
+                            const next = new Set(prev);
+                            if (c) next.add(o.id); else next.delete(o.id);
+                            return next;
+                          });
+                        }}
+                      />
+                      <div className="min-w-0 flex-1 space-y-0.5">
+                        {/* Row 1: Empfänger */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex min-w-0 items-center gap-1.5 text-sm font-medium">
+                            <span className="truncate">{o.empfaenger_name}</span>
+                          </div>
+                          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+                            {o.auftrags_nr}
+                          </span>
+                        </div>
+                        {/* Row 2: Adresse */}
+                        <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                          <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
+                          <span className="truncate">
+                            {o.empfaenger_adresse ? `${o.empfaenger_adresse}, ` : ""}
+                            {o.empfaenger_plz} {o.empfaenger_stadt}
+                          </span>
+                        </div>
+                        {/* Row 3: Pakete */}
+                        <div className="text-[11px] tabular-nums text-muted-foreground">
+                          {o.pakete} Paket(e) · {Number(o.gewicht).toFixed(1)} kg
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">{o.empfaenger_adresse}, {o.empfaenger_plz} {o.empfaenger_stadt} · {o.pakete} Paket(e), {Number(o.gewicht).toFixed(1)} kg</div>
-                    </div>
-                  </label>
-                ))}
+                    </label>
+                  );
+                })}
               </div>
             )}
           </ScrollArea>
