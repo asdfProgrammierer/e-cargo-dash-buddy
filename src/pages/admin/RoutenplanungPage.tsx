@@ -225,19 +225,33 @@ const RoutenplanungPage = () => {
         });
       }
 
-      const rows = (stops ?? []).map((s: any) => {
+      const body: any[] = [];
+      (stops ?? []).forEach((s: any) => {
         const o = s.orders ?? {};
         const merchant = merchantMap.get(o.user_id) ?? "–";
         const addr = [o.empfaenger_adresse, [o.empfaenger_plz, o.empfaenger_stadt].filter(Boolean).join(" ")]
           .filter(Boolean).join(", ");
-        return [
+        body.push([
           String(s.position),
           o.empfaenger_name ?? "–",
           addr || "–",
           merchant,
           o.empfaenger_telefon ?? "",
           String(o.pakete ?? 1),
-        ];
+        ]);
+        // Driver checkoff row: ☐ Zugestellt   ☐ Nicht zugestellt   Bemerkungen: __________
+        body.push([
+          {
+            content: "☐ Zugestellt        ☐ Nicht zugestellt        Bemerkungen: ______________________________________________________________",
+            colSpan: 6,
+            styles: {
+              fontSize: 9,
+              textColor: [60, 60, 60],
+              fillColor: [248, 250, 248],
+              cellPadding: { top: 3, right: 2, bottom: 5, left: 2 },
+            },
+          },
+        ]);
       });
 
       const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -251,7 +265,7 @@ const RoutenplanungPage = () => {
         `Start: ${route.start_time?.slice(0, 5) ?? "–"}`,
         `Fahrer: ${route.drivers?.name ?? "–"}`,
         `Fahrzeug: ${route.vehicles?.kennzeichen ?? "–"}`,
-        `Stops: ${rows.length}`,
+        `Stops: ${(stops ?? []).length}`,
       ].join("   ·   ");
       doc.text(meta, 14, 22);
       doc.setTextColor(0);
@@ -259,7 +273,7 @@ const RoutenplanungPage = () => {
       autoTable(doc, {
         startY: 28,
         head: [["#", "Empfänger", "Adresse", "Händler", "Telefon", "Pakete"]],
-        body: rows,
+        body,
         styles: { fontSize: 9, cellPadding: 2, valign: "top" },
         headStyles: { fillColor: [34, 139, 87] },
         columnStyles: {
@@ -270,6 +284,8 @@ const RoutenplanungPage = () => {
           4: { cellWidth: 24 },
           5: { cellWidth: 14, halign: "center" },
         },
+        // Avoid splitting a stop and its checkoff row across pages.
+        rowPageBreak: "avoid",
         didDrawPage: (data) => {
           const pageCount = doc.getNumberOfPages();
           const page = data.pageNumber;

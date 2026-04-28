@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { MapPin, Plus, Sparkles, Trash2, GripVertical, Bike, Car, Zap, Printer, AlertTriangle, CheckCircle2, SkipForward, Circle } from "lucide-react";
+import { MapPin, Plus, Sparkles, Trash2, GripVertical, Bike, Car, Zap, AlertTriangle, CheckCircle2, SkipForward, Circle } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -405,7 +405,6 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
     load();
   };
 
-  const openPrint = () => window.open(`/admin/routen/${routeId}/druck`, "_blank");
 
   if (compact) {
     return (
@@ -418,9 +417,6 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
               <Button size="sm" variant="outline" onClick={optimize} disabled={optimizing || stops.length < 2}>
                 <Sparkles className="mr-1 h-3.5 w-3.5" />
                 {optimizing ? "Optimiere…" : "Optimieren"}
-              </Button>
-              <Button size="sm" variant="outline" onClick={openPrint} title="PDF-Druck">
-                <Printer className="mr-1 h-3.5 w-3.5" />PDF
               </Button>
             </div>
           </CardHeader>
@@ -478,9 +474,6 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
         <Card>
           <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Einstellungen</CardTitle>
-            <div className="flex gap-1">
-              <Button variant="ghost" size="icon" onClick={openPrint} title="PDF-Druck"><Printer className="h-4 w-4" /></Button>
-            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="rounded-md border p-2 text-xs space-y-1">
