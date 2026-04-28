@@ -382,11 +382,13 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
       return;
     }
     const reordered = arrayMove(stops, oldIdx, newIdx).map((s, i) => ({ ...s, position: i + 1 }));
-    // Validate: pinned stops must keep their original position
-    const original = new Map(stops.map((s) => [s.id, s.position] as const));
-    const violated = reordered.find((s) => s.pinned && original.get(s.id) !== s.position);
-    if (violated) {
-      toast.error("Verschieben würde einen fixierten Stopp bewegen – Aktion abgebrochen");
+    // Validate: pinned stops must keep their RELATIVE order to each other
+    const pinnedBefore = stops.filter((s) => s.pinned).map((s) => s.id);
+    const pinnedAfter = reordered.filter((s) => s.pinned).map((s) => s.id);
+    const orderChanged = pinnedBefore.length !== pinnedAfter.length ||
+      pinnedBefore.some((id, i) => pinnedAfter[i] !== id);
+    if (orderChanged) {
+      toast.error("Verschieben würde die Reihenfolge fixierter Stopps verändern");
       return;
     }
     setStops(reordered);
