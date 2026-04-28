@@ -206,7 +206,7 @@ const RoutenplanungPage = () => {
 
       const { data: stops, error } = await supabase
         .from("route_stops")
-        .select("position, orders(user_id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete)")
+        .select("position, notiz, orders(user_id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, notizen)")
         .eq("route_id", routeId)
         .order("position", { ascending: true });
       if (error) throw error;
@@ -225,80 +225,236 @@ const RoutenplanungPage = () => {
         });
       }
 
-      const body: any[] = [];
-      (stops ?? []).forEach((s: any) => {
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const marginX = 12;
+      const contentW = pageW - marginX * 2;
+      const dateStr = new Date(route.datum).toLocaleDateString("de-DE");
+      const stopsList = stops ?? [];
+
+      const drawHeader = () => {
+        // Title bar
+        doc.setFillColor(34, 139, 87);
+        doc.rect(0, 0, pageW, 18, "F");
+        doc.setTextColor(255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.text(`Route: ${route.name}`, marginX, 11);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text(dateStr, pageW - marginX, 11, { align: "right" });
+
+        // Meta line
+        doc.setTextColor(60);
+        doc.setFontSize(9);
+        const meta = [
+          `Start ${route.start_time?.slice(0, 5) ?? "–"}`,
+          `Fahrer: ${route.drivers?.name ?? "–"}`,
+          `Fahrzeug: ${route.vehicles?.kennzeichen ?? "–"}`,
+          `${stopsList.length} Stops`,
+        ].join("   ·   ");
+        doc.text(meta, marginX, 24);
+        doc.setTextColor(0);
+      };
+
+      const drawFooter = () => {
+        const pageCount = doc.getNumberOfPages();
+        const page = doc.getCurrentPageInfo().pageNumber;
+        doc.setFontSize(8);
+        doc.setTextColor(120);
+        doc.text(
+          `e-cargo · ${route.name} · ${dateStr}`,
+          marginX,
+          pageH - 6,
+        );
+        doc.text(`Seite ${page} / ${pageCount}`, pageW - marginX, pageH - 6, { align: "right" });
+        doc.setTextColor(0);
+      };
+
+      drawHeader();
+      let cursorY = 30;
+
+      // Pre-compute block heights and draw each stop block.
+      const drawStopBlock = (s: any) => {
         const o = s.orders ?? {};
         const merchant = merchantMap.get(o.user_id) ?? "–";
-        const addr = [o.empfaenger_adresse, [o.empfaenger_plz, o.empfaenger_stadt].filter(Boolean).join(" ")]
-          .filter(Boolean).join(", ");
-        body.push([
-          String(s.position),
-          o.empfaenger_name ?? "–",
-          addr || "–",
-          merchant,
-          o.empfaenger_telefon ?? "",
-          String(o.pakete ?? 1),
-        ]);
-        // Driver checkoff row: ☐ Zugestellt   ☐ Nicht zugestellt   Bemerkungen: __________
-        body.push([
-          {
-            content: "☐ Zugestellt        ☐ Nicht zugestellt        Bemerkungen: ______________________________________________________________",
-            colSpan: 6,
-            styles: {
-              fontSize: 9,
-              textColor: [60, 60, 60],
-              fillColor: [248, 250, 248],
-              cellPadding: { top: 3, right: 2, bottom: 5, left: 2 },
-            },
-          },
-        ]);
-      });
+        const street = o.empfaenger_adresse || "";
+        const cityLine = [o.empfaenger_plz, o.empfaenger_stadt].filter(Boolean).join(" ");
+        const phone = o.empfaenger_telefon || "";
+        const pakete = o.pakete ?? 1;
+        const auftrag = o.auftrags_nr || "";
+        const empf = o.empfaenger_name || "–";
+        const note = (o.notizen || s.notiz || "").toString().trim();
 
-      const doc = new jsPDF({ unit: "mm", format: "a4" });
-      const dateStr = new Date(route.datum).toLocaleDateString("de-DE");
-      doc.setFontSize(16);
-      doc.text(`Route: ${route.name}`, 14, 16);
-      doc.setFontSize(10);
-      doc.setTextColor(90);
-      const meta = [
-        `Datum: ${dateStr}`,
-        `Start: ${route.start_time?.slice(0, 5) ?? "–"}`,
-        `Fahrer: ${route.drivers?.name ?? "–"}`,
-        `Fahrzeug: ${route.vehicles?.kennzeichen ?? "–"}`,
-        `Stops: ${(stops ?? []).length}`,
-      ].join("   ·   ");
-      doc.text(meta, 14, 22);
-      doc.setTextColor(0);
+        // Layout constants
+        const padX = 4;
+        const padY = 4;
+        const numBoxW = 12;
+        const innerLeft = marginX + padX + numBoxW + 3;
+        const innerW = contentW - padX * 2 - numBoxW - 3;
 
-      autoTable(doc, {
-        startY: 28,
-        head: [["#", "Empfänger", "Adresse", "Händler", "Telefon", "Pakete"]],
-        body,
-        styles: { fontSize: 9, cellPadding: 2, valign: "top" },
-        headStyles: { fillColor: [34, 139, 87] },
-        columnStyles: {
-          0: { cellWidth: 10, halign: "center" },
-          1: { cellWidth: 38 },
-          2: { cellWidth: 60 },
-          3: { cellWidth: 38 },
-          4: { cellWidth: 24 },
-          5: { cellWidth: 14, halign: "center" },
-        },
-        // Avoid splitting a stop and its checkoff row across pages.
-        rowPageBreak: "avoid",
-        didDrawPage: (data) => {
-          const pageCount = doc.getNumberOfPages();
-          const page = data.pageNumber;
-          doc.setFontSize(8);
-          doc.setTextColor(120);
-          doc.text(
-            `e-cargo · ${route.name} · ${dateStr} · Seite ${page}/${pageCount}`,
-            14,
-            doc.internal.pageSize.getHeight() - 8,
-          );
+        // Wrap address + note
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        const addrLines = doc.splitTextToSize(
+          [street, cityLine].filter(Boolean).join("\n") || "–",
+          innerW,
+        ) as string[];
+        const noteLines = note
+          ? (doc.splitTextToSize(`Notiz: ${note}`, innerW) as string[])
+          : [];
+
+        // Heights (mm)
+        const headerLineH = 7;     // recipient + auftrag
+        const subLineH = 5;        // merchant
+        const addrLineH = 5;
+        const phonePackLineH = note ? 5 : 5;
+        const noteLineH = 4.5;
+        const checkBlockH = 22;    // checkbox area
+        const blockH =
+          padY +
+          headerLineH +
+          subLineH +
+          addrLines.length * addrLineH +
+          phonePackLineH +
+          (noteLines.length ? noteLines.length * noteLineH + 1 : 0) +
+          checkBlockH +
+          padY;
+
+        // Page break if needed
+        if (cursorY + blockH > pageH - 14) {
+          drawFooter();
+          doc.addPage();
+          drawHeader();
+          cursorY = 30;
+        }
+
+        const top = cursorY;
+
+        // Outer block border
+        doc.setDrawColor(210);
+        doc.setLineWidth(0.3);
+        doc.roundedRect(marginX, top, contentW, blockH, 1.5, 1.5, "S");
+
+        // Number badge
+        doc.setFillColor(34, 139, 87);
+        doc.roundedRect(marginX + padX, top + padY, numBoxW, numBoxW, 1.5, 1.5, "F");
+        doc.setTextColor(255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.text(String(s.position), marginX + padX + numBoxW / 2, top + padY + numBoxW / 2 + 1.5, { align: "center" });
+        doc.setTextColor(0);
+
+        // Recipient + Auftragsnr
+        let y = top + padY + 4.5;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        const empfMaxW = innerW - 45;
+        const empfText = (doc.splitTextToSize(empf, empfMaxW) as string[])[0];
+        doc.text(empfText, innerLeft, y);
+        if (auftrag) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(110);
+          doc.text(auftrag, marginX + contentW - padX, y, { align: "right" });
           doc.setTextColor(0);
-        },
-      });
+        }
+        y += subLineH;
+
+        // Merchant
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(110);
+        doc.text(`Händler: ${merchant}`, innerLeft, y);
+        doc.setTextColor(0);
+        y += addrLineH - 0.5;
+
+        // Address lines
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        addrLines.forEach((line) => {
+          doc.text(line, innerLeft, y);
+          y += addrLineH;
+        });
+
+        // Phone + packages
+        doc.setFontSize(9);
+        doc.setTextColor(80);
+        const phoneText = phone ? `Tel: ${phone}` : "Tel: –";
+        doc.text(phoneText, innerLeft, y);
+        doc.text(`${pakete} Paket${pakete === 1 ? "" : "e"}`, marginX + contentW - padX, y, { align: "right" });
+        doc.setTextColor(0);
+        y += phonePackLineH;
+
+        // Note (optional)
+        if (noteLines.length) {
+          doc.setFontSize(9);
+          doc.setTextColor(150, 90, 0);
+          noteLines.forEach((line) => {
+            doc.text(line, innerLeft, y);
+            y += noteLineH;
+          });
+          doc.setTextColor(0);
+          y += 1;
+        }
+
+        // Separator above checkoff area
+        doc.setDrawColor(225);
+        doc.line(marginX + padX, y, marginX + contentW - padX, y);
+        y += 3;
+
+        // Checkoff: left = two checkboxes stacked, right = "Bemerkungen:" with two lines
+        const checkX = marginX + padX;
+        const boxSize = 4.5;
+        const labelGap = 2.5;
+
+        // Box 1: Zugestellt
+        doc.setDrawColor(80);
+        doc.setLineWidth(0.4);
+        doc.rect(checkX, y, boxSize, boxSize, "S");
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text("Zugestellt", checkX + boxSize + labelGap, y + boxSize - 0.8);
+
+        // Box 2: Nicht zugestellt (under)
+        const y2 = y + boxSize + 3;
+        doc.rect(checkX, y2, boxSize, boxSize, "S");
+        doc.text("Nicht zugestellt", checkX + boxSize + labelGap, y2 + boxSize - 0.8);
+
+        // Right side: Bemerkungen with two lines
+        const remX = marginX + 55;
+        const remW = marginX + contentW - padX - remX;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.text("Bemerkungen:", remX, y + 1);
+        doc.setFont("helvetica", "normal");
+        doc.setDrawColor(160);
+        doc.setLineWidth(0.25);
+        const lineY1 = y + 6;
+        const lineY2 = y + 13;
+        doc.line(remX, lineY1, remX + remW, lineY1);
+        doc.line(remX, lineY2, remX + remW, lineY2);
+
+        cursorY = top + blockH + 3;
+      };
+
+      stopsList.forEach((s: any) => drawStopBlock(s));
+      drawFooter();
+
+      // Update page count placeholder by re-stamping footer on every page
+      const totalPages = doc.getNumberOfPages();
+      for (let p = 1; p <= totalPages; p++) {
+        doc.setPage(p);
+        // Erase old footer area
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, pageH - 10, pageW, 10, "F");
+        doc.setFontSize(8);
+        doc.setTextColor(120);
+        doc.text(`e-cargo · ${route.name} · ${dateStr}`, marginX, pageH - 6);
+        doc.text(`Seite ${p} / ${totalPages}`, pageW - marginX, pageH - 6, { align: "right" });
+        doc.setTextColor(0);
+      }
 
       const safeName = route.name.replace(/[^a-z0-9-_]+/gi, "_");
       doc.save(`Route_${safeName}_${route.datum}.pdf`);
