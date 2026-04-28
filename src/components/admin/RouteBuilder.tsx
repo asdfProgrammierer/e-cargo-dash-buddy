@@ -405,27 +405,6 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
     load();
   };
 
-  const exportCsv = () => {
-    const header = ["Position", "Auftragsnr", "Name", "Telefon", "Adresse", "PLZ", "Stadt", "Pakete", "Gewicht_kg", "Etappe_km", "Etappe_min", "ETA", "Status", "Notiz"];
-    const rows = displayStops.map((s, i) => [
-      i + 1, s.orders.auftrags_nr, s.orders.empfaenger_name, s.orders.empfaenger_telefon ?? "",
-      s.orders.empfaenger_adresse ?? "", s.orders.empfaenger_plz ?? "", s.orders.empfaenger_stadt,
-      s.orders.pakete, Number(s.orders.gewicht).toFixed(2),
-      s.leg_distance_m != null ? (s.leg_distance_m / 1000).toFixed(2) : "",
-      s.leg_duration_s != null ? Math.round(s.leg_duration_s / 60) : "",
-      formatTime(s.eta) ?? "",
-      s.status, (s.orders.notizen ?? "").replace(/[\r\n;]/g, " "),
-    ]);
-    const csv = [header, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\n");
-    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `route-${route?.name ?? routeId}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const openPrint = () => window.open(`/admin/routen/${routeId}/druck`, "_blank");
 
   if (compact) {
