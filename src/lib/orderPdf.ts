@@ -104,10 +104,12 @@ export async function downloadOrderPdf(order: Order) {
   const marginX = 15;
   const contentW = pageW - marginX * 2;
 
-  const [history, qrDataUrl] = await Promise.all([
+  const [history, qrDataUrl, pod] = await Promise.all([
     loadStatusHistory(order.id),
     generateQrDataUrl(order),
+    loadProofOfDelivery(order.id),
   ]);
+  const sigDataUrl = pod?.signature_url ? await loadSignatureDataUrl(pod.signature_url) : null;
 
   // ============ PAGE 1: Auftragsübersicht ============
   let y = 18;
