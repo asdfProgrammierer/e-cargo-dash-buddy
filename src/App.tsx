@@ -40,7 +40,8 @@ const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session, loading, approved } = useAuth();
-  if (loading || (session && approved === null)) {
+  const { isDriver } = useDriverCheck();
+  if (loading || (session && approved === null) || (session && isDriver === null)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -48,6 +49,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
   if (!session) return <Navigate to="/login" replace />;
+  if (isDriver) return <Navigate to="/fahrer" replace />;
   if (approved === false) return <Navigate to="/pending" replace />;
   return <>{children}</>;
 }
