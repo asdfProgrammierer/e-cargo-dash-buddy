@@ -210,6 +210,26 @@ Deno.serve(async (req) => {
       return json({ error: "Optimierung unvollständig (Anzahl Stopps)" }, 500);
     }
 
+    // Validierung: gepinnte Stopps müssen ihre ursprüngliche Position behalten
+    const originalPositions = new Map(valid.map((s) => [s.id, s.position] as const));
+    const pinnedIds = new Set(pinned.map((s) => s.id));
+    const newPositions = new Map(orderedStopIds.map((id, idx) => [id, idx + 1] as const));
+    const violations: { id: string; expected: number; got: number }[] = [];
+    for (const id of pinnedIds) {
+      const expected = originalPositions.get(id);
+      const got = newPositions.get(id);
+      if (expected !== got) {
+        violations.push({ id, expected: expected ?? -1, got: got ?? -1 });
+      }
+    }
+    if (violations.length > 0) {
+      console.error("Pinned stops moved during optimization", violations);
+      return json({
+        error: "Optimierung würde fixierte Stopps verschieben",
+        violations,
+      }, 500);
+    }
+
     // Map id → StopRow
     const stopById = new Map(valid.map((s) => [s.id, s] as const));
     const orderedStops = orderedStopIds.map((id) => stopById.get(id)!);

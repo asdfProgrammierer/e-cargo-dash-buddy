@@ -376,9 +376,27 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
     if (!e.over || e.active.id === e.over.id) return;
     const oldIdx = stops.findIndex((s) => s.id === e.active.id);
     const newIdx = stops.findIndex((s) => s.id === e.over!.id);
+    const moving = stops[oldIdx];
+    if (moving?.pinned) {
+      toast.error("Fixierter Stopp kann nicht verschoben werden – erst Fixierung lösen");
+      return;
+    }
     const reordered = arrayMove(stops, oldIdx, newIdx).map((s, i) => ({ ...s, position: i + 1 }));
+    // Validate: pinned stops must keep their original position
+    const original = new Map(stops.map((s) => [s.id, s.position] as const));
+    const violated = reordered.find((s) => s.pinned && original.get(s.id) !== s.position);
+    if (violated) {
+      toast.error("Verschieben würde einen fixierten Stopp bewegen – Aktion abgebrochen");
+      return;
+    }
     setStops(reordered);
-    await Promise.all(reordered.map((s) => supabase.from("route_stops").update({ position: s.position }).eq("id", s.id)));
+    const { error } = await supabase
+      .from("route_stops")
+      .upsert(reordered.map((s) => ({ id: s.id, route_id: s.route_id, order_id: s.order_id, position: s.position })));
+    if (error) {
+      toast.error("Reihenfolge konnte nicht gespeichert werden");
+      load();
+    }
   };
 
   const removeStop = async (stopId: string) => {
@@ -414,6 +432,8 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
   const optimize = async () => {
     if (stops.length < 2) { toast.error("Mindestens 2 Stops nötig"); return; }
     if (!startDepot?.lat || !endDepot?.lat) { toast.error("Start-/Ziel-Depot fehlt – bitte in der Route hinterlegen"); return; }
+    // Snapshot der gepinnten Positionen, um nach Optimierung zu validieren
+    const pinnedSnapshot = stops.filter((s) => s.pinned).map((s) => ({ id: s.id, position: s.position }));
     setOptimizing(true);
     const { data, error } = await supabase.functions.invoke("optimize-route", {
       body: { routeId, profile },
@@ -424,7 +444,23 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
       return;
     }
     toast.success(`Route optimiert: ${formatDistance((data as { total_distance_m: number }).total_distance_m)} · ${formatDuration((data as { total_duration_s: number }).total_duration_s)}`);
-    load();
+    await load();
+    // Validierung: gepinnte Stopps müssen ihre Position behalten
+    if (pinnedSnapshot.length > 0) {
+      const { data: fresh } = await supabase
+        .from("route_stops")
+        .select("id, position, pinned")
+        .eq("route_id", routeId);
+      const moved = pinnedSnapshot.filter((p) => {
+        const f = (fresh ?? []).find((r) => r.id === p.id);
+        return f && f.position !== p.position;
+      });
+      if (moved.length > 0) {
+        toast.warning(`${moved.length} fixierte(r) Stopp(s) wurde(n) verschoben – bitte prüfen`);
+      }
+    }
+    // Karte neu laden: resize + Geometrie/Marker werden via Effekt aktualisiert
+    setTimeout(() => mapRef.current?.resize(), 150);
   };
 
 
