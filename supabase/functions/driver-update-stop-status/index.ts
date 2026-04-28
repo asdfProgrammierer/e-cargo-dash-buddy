@@ -41,6 +41,17 @@ Deno.serve(async (req) => {
     const stopId: string = body.stop_id;
     const status: string = body.status;
     const reason: string | undefined = body.reason?.trim() || undefined;
+    const deliveryMode: string | undefined = body.delivery_mode?.trim() || undefined;
+    const deliveryNote: string | undefined = body.delivery_note?.trim() || undefined;
+    const deliveryRecipient: string | undefined = body.delivery_recipient?.trim() || undefined;
+    const signatureBase64: string | undefined = body.signature_base64;
+
+    const ALLOWED_MODES = new Set([
+      "persoenlich",
+      "briefkasten",
+      "nachbar",
+      "bemerkung",
+    ]);
 
     if (!stopId || !ALLOWED.has(status)) {
       return new Response(JSON.stringify({ error: "Ungültige Eingabe" }), {
@@ -50,6 +61,12 @@ Deno.serve(async (req) => {
     }
     if (status === "uebersprungen" && !reason) {
       return new Response(JSON.stringify({ error: "Grund ist erforderlich" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (status === "erledigt" && deliveryMode && !ALLOWED_MODES.has(deliveryMode)) {
+      return new Response(JSON.stringify({ error: "Ungültiger Übergabe-Modus" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -80,6 +97,33 @@ Deno.serve(async (req) => {
 
     const stopUpdate: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
     if (reason) stopUpdate.notiz = reason;
+    if (status === "erledigt") {
+      stopUpdate.delivery_mode = deliveryMode ?? "persoenlich";
+      stopUpdate.delivery_note = deliveryNote ?? null;
+      stopUpdate.delivery_recipient = deliveryRecipient ?? null;
+      stopUpdate.delivered_at = new Date().toISOString();
+    }
+
+    // Upload signature if provided (only meaningful for erledigt)
+    let signatureUrl: string | null = null;
+    if (status === "erledigt" && signatureBase64 && stop?.order_id) {
+      try {
+        const cleaned = signatureBase64.replace(/^data:image\/png;base64,/, "");
+        const bytes = Uint8Array.from(atob(cleaned), (c) => c.charCodeAt(0));
+        const path = `stops/${stopId}/orders/${stop.order_id}/${Date.now()}.png`;
+        const { error: upErr } = await admin.storage
+          .from("delivery-signatures")
+          .upload(path, bytes, { contentType: "image/png", upsert: true });
+        if (!upErr) {
+          signatureUrl = path;
+          stopUpdate.signature_url = path;
+        } else {
+          console.error("signature upload failed", upErr);
+        }
+      } catch (e) {
+        console.error("signature decode failed", e);
+      }
+    }
 
     const { error: rsErr } = await admin.from("route_stops").update(stopUpdate).eq("id", stopId);
     if (rsErr) {

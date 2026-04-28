@@ -21,6 +21,14 @@ interface HistoryEntry {
   created_at: string;
 }
 
+interface ProofOfDelivery {
+  delivery_mode: string | null;
+  delivery_note: string | null;
+  delivery_recipient: string | null;
+  signature_url: string | null;
+  delivered_at: string | null;
+}
+
 async function loadStatusHistory(orderId: string): Promise<HistoryEntry[]> {
   const { data, error } = await supabase
     .from("order_status_history")
@@ -30,6 +38,35 @@ async function loadStatusHistory(orderId: string): Promise<HistoryEntry[]> {
   if (error) throw new Error(`Statushistorie konnte nicht geladen werden: ${error.message}`);
   if (!data) return [];
   return data as HistoryEntry[];
+}
+
+async function loadProofOfDelivery(orderId: string): Promise<ProofOfDelivery | null> {
+  const { data } = await supabase
+    .from("route_stops")
+    .select("delivery_mode, delivery_note, delivery_recipient, signature_url, delivered_at")
+    .eq("order_id", orderId)
+    .not("delivered_at", "is", null)
+    .order("delivered_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data as ProofOfDelivery) ?? null;
+}
+
+async function loadSignatureDataUrl(path: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.storage
+      .from("delivery-signatures")
+      .download(path);
+    if (error || !data) return null;
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(data);
+    });
+  } catch {
+    return null;
+  }
 }
 
 async function generateQrDataUrl(order: Order) {
@@ -67,10 +104,12 @@ export async function downloadOrderPdf(order: Order) {
   const marginX = 15;
   const contentW = pageW - marginX * 2;
 
-  const [history, qrDataUrl] = await Promise.all([
+  const [history, qrDataUrl, pod] = await Promise.all([
     loadStatusHistory(order.id),
     generateQrDataUrl(order),
+    loadProofOfDelivery(order.id),
   ]);
+  const sigDataUrl = pod?.signature_url ? await loadSignatureDataUrl(pod.signature_url) : null;
 
   // ============ PAGE 1: Auftragsübersicht ============
   let y = 18;
@@ -373,29 +412,53 @@ export async function downloadOrderPdf(order: Order) {
   doc.setTextColor(0);
   y += 11;
 
-  // Date / time line
+  // Date / time line — pre-fill if proof of delivery exists
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
+  const deliveredDate = pod?.delivered_at ? new Date(pod.delivered_at) : null;
   doc.text("Übernommen am:", marginX, y);
   doc.line(marginX + 32, y + 0.5, marginX + 75, y + 0.5);
+  if (deliveredDate) {
+    doc.text(deliveredDate.toLocaleDateString("de-DE"), marginX + 34, y - 0.5);
+  }
   doc.text("Uhrzeit:", marginX + 85, y);
   doc.line(marginX + 100, y + 0.5, marginX + 130, y + 0.5);
+  if (deliveredDate) {
+    doc.text(
+      deliveredDate.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
+      marginX + 102,
+      y - 0.5,
+    );
+  }
   y += 8;
 
   doc.text("Name (Druckbuchstaben):", marginX, y);
   doc.line(marginX + 48, y + 0.5, pageW - marginX, y + 0.5);
+  if (pod?.delivery_recipient) {
+    doc.text(pod.delivery_recipient, marginX + 50, y - 0.5);
+  }
   y += 8;
 
-  // Checkboxes
-  const drawCheckbox = (cx: number, cy: number, label: string) => {
+  // Checkboxes — auto-mark based on delivery_mode
+  const mode = pod?.delivery_mode ?? null;
+  const drawCheckbox = (cx: number, cy: number, label: string, checked = false) => {
     doc.setDrawColor(0);
     doc.rect(cx, cy - 3, 3.5, 3.5, "S");
+    if (checked) {
+      doc.setFont("helvetica", "bold");
+      doc.text("X", cx + 0.6, cy);
+      doc.setFont("helvetica", "normal");
+    }
     doc.text(label, cx + 5, cy);
   };
-  drawCheckbox(marginX, y, "Persönlich übergeben");
-  drawCheckbox(marginX + 60, y, "An Nachbarn");
-  drawCheckbox(marginX + 100, y, "Ablageort:");
-  doc.line(marginX + 120, y + 0.5, pageW - marginX, y + 0.5);
+  drawCheckbox(marginX, y, "Persönlich übergeben", mode === "persoenlich");
+  drawCheckbox(marginX + 50, y, "Briefkasten", mode === "briefkasten");
+  drawCheckbox(marginX + 85, y, "An Nachbarn", mode === "nachbar");
+  drawCheckbox(marginX + 120, y, "Bemerkung:", mode === "bemerkung");
+  doc.line(marginX + 145, y + 0.5, pageW - marginX, y + 0.5);
+  if (mode === "bemerkung" && pod?.delivery_note) {
+    doc.text(pod.delivery_note.slice(0, 40), marginX + 147, y - 0.5);
+  }
   y += 10;
 
   // Signature box
@@ -406,6 +469,13 @@ export async function downloadOrderPdf(order: Order) {
   doc.setTextColor(110);
   doc.text("UNTERSCHRIFT EMPFÄNGER", marginX + 3, y + 5);
   doc.setTextColor(0);
+  if (sigDataUrl) {
+    try {
+      doc.addImage(sigDataUrl, "PNG", marginX + 3, y + 6, contentW - 6, 20);
+    } catch (e) {
+      console.warn("Konnte Unterschrift nicht ins PDF einbetten", e);
+    }
+  }
   y += 32;
 
   // Bemerkungen Fahrer
