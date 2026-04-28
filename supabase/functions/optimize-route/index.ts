@@ -132,9 +132,18 @@ Deno.serve(async (req) => {
     const route0 = optData?.routes?.[0];
     if (!route0) return json({ error: "Keine Route von ORS" }, 502);
 
-    // Order steps that are jobs
-    const jobSteps = (route0.steps as Array<{ type: string; job?: number; description?: string }>)
-      .filter((s) => s.type === "job");
+    // ORS optimization returns steps with cumulative arrival/duration in seconds
+    // (relative to vehicle start). We derive per-leg durations from arrival deltas.
+    type OrsStep = {
+      type: string;
+      job?: number;
+      description?: string;
+      arrival?: number;
+      duration?: number;
+      distance?: number;
+    };
+    const allSteps = (route0.steps as OrsStep[]) ?? [];
+    const jobSteps = allSteps.filter((s) => s.type === "job");
 
     // Build directions request to get geometry for the actual ordered path
     const coords: [number, number][] = [
@@ -164,8 +173,36 @@ Deno.serve(async (req) => {
     const geometry = feat?.geometry ?? null;
     const segments = feat?.properties?.segments as Array<{ distance: number; duration: number }> | undefined;
 
+    // Per-leg durations/distances: prefer directions segments (precise), fallback
+    // to ORS optimization step arrival deltas (which already exclude service time).
+    const legCount = jobSteps.length + 1; // depot->job1, job1->job2, ..., lastJob->depot
+    const legDurations: number[] = new Array(legCount).fill(0);
+    const legDistances: number[] = new Array(legCount).fill(0);
+
+    if (segments && segments.length === legCount) {
+      for (let i = 0; i < legCount; i++) {
+        legDurations[i] = segments[i].duration ?? 0;
+        legDistances[i] = segments[i].distance ?? 0;
+      }
+    } else {
+      // Fallback: derive from optimization steps (arrival is cumulative travel
+      // time in seconds since vehicle start, excluding service time).
+      // Steps order: start, job, job, ..., end.
+      let prevArrival = 0;
+      let legIdx = 0;
+      for (const st of allSteps) {
+        if (st.type === "start") {
+          prevArrival = st.arrival ?? 0;
+          continue;
+        }
+        const arr = st.arrival ?? prevArrival;
+        legDurations[legIdx] = Math.max(0, arr - prevArrival);
+        legIdx += 1;
+        prevArrival = arr;
+      }
+    }
+
     // Update positions + leg metrics
-    // segments[i] = leg from coords[i] to coords[i+1]; leg for stop i corresponds to segments[i] (depot->stop1, stop1->stop2,..)
     let position = 1;
     // Build cursor for ETA: Routendatum + Startzeit (lokal interpretiert)
     const startTime = (route.start_time as string | null)?.slice(0, 5) ?? "09:00";
@@ -175,13 +212,14 @@ Deno.serve(async (req) => {
     for (const step of jobSteps) {
       const job = jobs.find((j) => j.id === step.job)!;
       const stopId = job.description!;
-      const seg = segments?.[position - 1];
-      if (seg) cursorMs += seg.duration * 1000;
+      const legDur = legDurations[position - 1] ?? 0;
+      const legDist = legDistances[position - 1] ?? 0;
+      cursorMs += legDur * 1000;
       const etaIso = new Date(cursorMs).toISOString();
       await admin.from("route_stops").update({
         position,
-        leg_distance_m: seg ? Math.round(seg.distance) : null,
-        leg_duration_s: seg ? Math.round(seg.duration) : null,
+        leg_distance_m: legDist ? Math.round(legDist) : null,
+        leg_duration_s: legDur ? Math.round(legDur) : null,
         eta: etaIso,
       }).eq("id", stopId);
       // Service-Zeit am Stopp einrechnen
@@ -189,8 +227,12 @@ Deno.serve(async (req) => {
       position += 1;
     }
 
-    const totalDist = segments?.reduce((a, s) => a + s.distance, 0) ?? route0.distance ?? 0;
-    const drivingDur = segments?.reduce((a, s) => a + s.duration, 0) ?? route0.duration ?? 0;
+    const totalDist = segments && segments.length === legCount
+      ? segments.reduce((a, s) => a + s.distance, 0)
+      : (route0.distance ?? legDistances.reduce((a, b) => a + b, 0));
+    const drivingDur = segments && segments.length === legCount
+      ? segments.reduce((a, s) => a + s.duration, 0)
+      : (route0.duration ?? legDurations.reduce((a, b) => a + b, 0));
     // Gesamtdauer = Fahrzeit + Service-Zeit aller Stopps
     const totalDur = drivingDur + jobSteps.length * stopDurationSec;
 
