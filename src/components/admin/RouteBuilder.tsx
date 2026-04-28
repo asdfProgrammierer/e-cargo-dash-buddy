@@ -70,6 +70,26 @@ function formatTime(iso: string | null) {
   return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
 }
 
+// Interpret "YYYY-MM-DD" + "HH:mm" as Europe/Berlin local time and return UTC ms.
+function berlinLocalToUtcMs(dateStr: string, timeStr: string): number {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const [hh, mm] = timeStr.split(":").map(Number);
+  const utcGuess = Date.UTC(y, (m ?? 1) - 1, d ?? 1, hh ?? 0, mm ?? 0, 0);
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Berlin",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false,
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(new Date(utcGuess)).map((p) => [p.type, p.value]));
+  const asUtc = Date.UTC(
+    Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+    Number(parts.hour) % 24, Number(parts.minute), Number(parts.second),
+  );
+  const offsetMin = Math.round((asUtc - utcGuess) / 60_000);
+  return utcGuess - offsetMin * 60_000;
+}
+
 const STATUS_ICON = {
   offen: Circle,
   erledigt: CheckCircle2,
