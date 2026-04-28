@@ -10,6 +10,14 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Plus, Search, RefreshCw, AlertCircle } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export interface NewOrderRow {
   id: string; auftrags_nr: string; empfaenger_name: string;
@@ -17,6 +25,12 @@ export interface NewOrderRow {
   pakete: number; gewicht: number;
   lat: number | null; lng: number | null;
   created_at: string;
+}
+
+export interface RouteOption {
+  id: string;
+  name: string;
+  status: string;
 }
 
 interface Props {
@@ -34,12 +48,19 @@ interface Props {
   showOnMap: boolean;
   setShowOnMap: (v: boolean) => void;
   focusedOrderId: string | null;
+  /** Routes available for the currently selected date. */
+  routesForDate: RouteOption[];
+  /** Open the "create new route" dialog in the parent. */
+  onCreateNewRoute: () => void;
+  /** Set the active route in the parent (URL search param). */
+  onSelectRoute: (id: string) => void;
 }
 
 export function NewOrdersTable({
   routeId, refreshKey, onAssigned,
   orders, loading, onReload, selected, setSelected,
   showOnMap, setShowOnMap, focusedOrderId,
+  routesForDate, onCreateNewRoute, onSelectRoute,
 }: Props) {
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
@@ -72,8 +93,7 @@ export function NewOrdersTable({
     setSelected(next);
   };
 
-  const addToRoute = async () => {
-    if (!routeId) { toast.error("Bitte links eine Route auswählen"); return; }
+  const addToRoute = async (targetRouteId: string) => {
     const ids = Array.from(selected);
     if (ids.length === 0) return;
     setAdding(true);
@@ -81,12 +101,12 @@ export function NewOrdersTable({
     const { data: existing } = await supabase
       .from("route_stops")
       .select("position")
-      .eq("route_id", routeId)
+      .eq("route_id", targetRouteId)
       .order("position", { ascending: false })
       .limit(1);
     const startPos = ((existing?.[0]?.position as number | undefined) ?? 0) + 1;
 
-    const rows = ids.map((order_id, i) => ({ route_id: routeId, order_id, position: startPos + i }));
+    const rows = ids.map((order_id, i) => ({ route_id: targetRouteId, order_id, position: startPos + i }));
     const { error } = await supabase.from("route_stops").insert(rows);
     if (error) { toast.error("Stops konnten nicht hinzugefügt werden"); setAdding(false); return; }
 
@@ -95,6 +115,7 @@ export function NewOrdersTable({
     toast.success(`${ids.length} Sendung(en) zur Route hinzugefügt`);
     setAdding(false);
     setSelected(new Set());
+    onSelectRoute(targetRouteId);
     onAssigned?.();
     onReload();
   };
@@ -131,16 +152,37 @@ export function NewOrdersTable({
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onReload} title="Aktualisieren">
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
-          <Button
-            size="sm"
-            className="h-8"
-            onClick={addToRoute}
-            disabled={!routeId || selected.size === 0 || adding}
-            title={!routeId ? "Bitte zuerst Route wählen" : ""}
-          >
-            <Plus className="mr-1 h-3.5 w-3.5" />
-            Zur Route ({selected.size})
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm"
+                className="h-8"
+                disabled={selected.size === 0 || adding}
+              >
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                Zur Route ({selected.size})
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel>Bestehende Route</DropdownMenuLabel>
+              {routesForDate.length === 0 ? (
+                <div className="px-2 py-1.5 text-caption text-muted-foreground">
+                  Keine Routen für dieses Datum.
+                </div>
+              ) : (
+                routesForDate.map((r) => (
+                  <DropdownMenuItem key={r.id} onSelect={() => addToRoute(r.id)}>
+                    <span className="truncate">{r.name}</span>
+                  </DropdownMenuItem>
+                ))
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => onCreateNewRoute()}>
+                <Plus className="mr-2 h-3.5 w-3.5" />
+                Neue Route erstellen…
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

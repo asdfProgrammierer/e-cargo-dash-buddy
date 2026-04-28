@@ -56,6 +56,9 @@ const RoutenplanungPage = () => {
   const [showNewOnMap, setShowNewOnMap] = useState(false);
   const [focusedOrderId, setFocusedOrderId] = useState<string | null>(null);
   const [hiddenRoutes, setHiddenRoutes] = useState<Set<string>>(new Set());
+  // When creating a new route from "Zur Route", remember the selected ids
+  // so we can auto-assign them after the route is saved.
+  const [pendingAssignIds, setPendingAssignIds] = useState<string[] | null>(null);
 
   const selectedId = searchParams.get("route");
 
@@ -124,7 +127,26 @@ const RoutenplanungPage = () => {
       const { data, error } = await supabase.from("routes").insert(payload).select().single();
       if (error) { toast.error("Fehler beim Erstellen"); return; }
       toast.success("Route erstellt");
-      if (data) setSearchParams({ route: (data as Route).id });
+      const newRoute = data as Route | null;
+      if (newRoute) {
+        setSearchParams({ route: newRoute.id });
+        // If user came from "Zur Route → Neue Route erstellen", assign selected orders now.
+        if (pendingAssignIds && pendingAssignIds.length > 0) {
+          const rows = pendingAssignIds.map((order_id, i) => ({
+            route_id: newRoute.id, order_id, position: i + 1,
+          }));
+          const { error: assignErr } = await supabase.from("route_stops").insert(rows);
+          if (assignErr) {
+            toast.error("Stops konnten nicht hinzugefügt werden");
+          } else {
+            await supabase.from("orders").update({ status: "in_bearbeitung" }).in("id", pendingAssignIds);
+            toast.success(`${pendingAssignIds.length} Sendung(en) zur neuen Route hinzugefügt`);
+            setSelectedNewOrders(new Set());
+            bumpRefresh();
+          }
+          setPendingAssignIds(null);
+        }
+      }
     }
     setOpen(false); setEditId(null); setForm(emptyForm); load();
   };
@@ -181,7 +203,7 @@ const RoutenplanungPage = () => {
             {routesForDate.length} Routen
           </Badge>
         </div>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm({ ...emptyForm, datum: date }); } }}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm({ ...emptyForm, datum: date }); setPendingAssignIds(null); } }}>
           <DialogTrigger asChild>
             <Button size="sm" onClick={() => setForm({ ...emptyForm, datum: date })}>
               <Plus className="mr-1 h-4 w-4" />Neue Route
@@ -346,6 +368,14 @@ const RoutenplanungPage = () => {
               showOnMap={showNewOnMap}
               setShowOnMap={setShowNewOnMap}
               focusedOrderId={focusedOrderId}
+              routesForDate={routesForDate.map((r) => ({ id: r.id, name: r.name, status: r.status }))}
+              onCreateNewRoute={() => {
+                setPendingAssignIds(Array.from(selectedNewOrders));
+                setEditId(null);
+                setForm({ ...emptyForm, datum: date });
+                setOpen(true);
+              }}
+              onSelectRoute={(id) => setSearchParams({ route: id })}
             />
           </div>
         </div>
