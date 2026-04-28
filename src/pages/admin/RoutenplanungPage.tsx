@@ -206,14 +206,28 @@ const RoutenplanungPage = () => {
 
       const { data: stops, error } = await supabase
         .from("route_stops")
-        .select("position, orders(auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, profiles!orders_user_id_fkey(firma_name, ansprechpartner))")
+        .select("position, orders(user_id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete)")
         .eq("route_id", routeId)
         .order("position", { ascending: true });
       if (error) throw error;
 
+      const userIds = Array.from(
+        new Set((stops ?? []).map((s: any) => s.orders?.user_id).filter(Boolean)),
+      );
+      let merchantMap = new Map<string, string>();
+      if (userIds.length > 0) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("user_id, firma_name, ansprechpartner")
+          .in("user_id", userIds);
+        (profs ?? []).forEach((p: any) => {
+          merchantMap.set(p.user_id, p.firma_name || p.ansprechpartner || "–");
+        });
+      }
+
       const rows = (stops ?? []).map((s: any) => {
         const o = s.orders ?? {};
-        const merchant = o.profiles?.firma_name || o.profiles?.ansprechpartner || "–";
+        const merchant = merchantMap.get(o.user_id) ?? "–";
         const addr = [o.empfaenger_adresse, [o.empfaenger_plz, o.empfaenger_stadt].filter(Boolean).join(" ")]
           .filter(Boolean).join(", ");
         return [
