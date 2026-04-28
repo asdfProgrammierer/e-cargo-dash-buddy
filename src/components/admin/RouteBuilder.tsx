@@ -502,39 +502,20 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
           <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Einstellungen</CardTitle>
             <div className="flex gap-1">
-              <Button variant="ghost" size="icon" onClick={openPrint} title="Drucken"><Printer className="h-4 w-4" /></Button>
-              <Button variant="ghost" size="icon" onClick={exportCsv} title="CSV-Export"><Download className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={openPrint} title="PDF-Druck"><Printer className="h-4 w-4" /></Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div>
-              <Label className="text-xs">Start-Depot</Label>
-              <Select value={startDepot?.id ?? ""} onValueChange={(v) => updateDepot("start", v)}>
-                <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
-                <SelectContent>
-                  {depots.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}{d.is_default ? " (Standard)" : ""}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Ziel-Depot</Label>
-              <Select value={endDepot?.id ?? ""} onValueChange={(v) => updateDepot("end", v)}>
-                <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
-                <SelectContent>
-                  {depots.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}{d.is_default ? " (Standard)" : ""}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Fahrzeugprofil</Label>
-              <Select value={profile} onValueChange={(v) => setProfile(v as Profile)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cycling-electric"><div className="flex items-center gap-2"><Zap className="h-3 w-3" />{PROFILE_LABEL["cycling-electric"]}</div></SelectItem>
-                  <SelectItem value="cycling-regular"><div className="flex items-center gap-2"><Bike className="h-3 w-3" />{PROFILE_LABEL["cycling-regular"]}</div></SelectItem>
-                  <SelectItem value="driving-car"><div className="flex items-center gap-2"><Car className="h-3 w-3" />{PROFILE_LABEL["driving-car"]}</div></SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="rounded-md border p-2 text-xs space-y-1">
+              <div className="flex justify-between"><span className="text-muted-foreground">Start</span><span className="font-medium">{startDepot?.name ?? "–"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Ziel</span><span className="font-medium">{endDepot?.name ?? "–"}</span></div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Fahrzeug</span>
+                <span className="font-medium inline-flex items-center gap-1">
+                  {profile === "driving-car" ? <Car className="h-3 w-3" /> : profile === "cycling-electric" ? <Zap className="h-3 w-3" /> : <Bike className="h-3 w-3" />}
+                  {vehicle ? `${vehicle.kennzeichen} · ${PROFILE_LABEL[profile]}` : PROFILE_LABEL[profile]}
+                </span>
+              </div>
             </div>
             <Button className="w-full" onClick={optimize} disabled={optimizing || stops.length < 2}>
               <Sparkles className="mr-2 h-4 w-4" />
