@@ -434,7 +434,7 @@ const RoutenplanungPage = () => {
           <DialogHeader><DialogTitle>Route drucken</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <p className="text-caption text-muted-foreground">
-              Wähle eine geplante oder aktive Route. Es öffnet sich eine druckfertige PDF-Ansicht mit allen Stops in Reihenfolge für den Fahrer.
+              Wähle eine geplante oder aktive Route. Es wird eine PDF mit allen Stops in Reihenfolge (Nr, Empfänger, Adresse, Händler) heruntergeladen.
             </p>
             {printableRoutes.length === 0 ? (
               <div className="rounded-md border border-dashed p-6 text-center text-caption text-muted-foreground">
