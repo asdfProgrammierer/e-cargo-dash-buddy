@@ -412,29 +412,53 @@ export async function downloadOrderPdf(order: Order) {
   doc.setTextColor(0);
   y += 11;
 
-  // Date / time line
+  // Date / time line — pre-fill if proof of delivery exists
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
+  const deliveredDate = pod?.delivered_at ? new Date(pod.delivered_at) : null;
   doc.text("Übernommen am:", marginX, y);
   doc.line(marginX + 32, y + 0.5, marginX + 75, y + 0.5);
+  if (deliveredDate) {
+    doc.text(deliveredDate.toLocaleDateString("de-DE"), marginX + 34, y - 0.5);
+  }
   doc.text("Uhrzeit:", marginX + 85, y);
   doc.line(marginX + 100, y + 0.5, marginX + 130, y + 0.5);
+  if (deliveredDate) {
+    doc.text(
+      deliveredDate.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
+      marginX + 102,
+      y - 0.5,
+    );
+  }
   y += 8;
 
   doc.text("Name (Druckbuchstaben):", marginX, y);
   doc.line(marginX + 48, y + 0.5, pageW - marginX, y + 0.5);
+  if (pod?.delivery_recipient) {
+    doc.text(pod.delivery_recipient, marginX + 50, y - 0.5);
+  }
   y += 8;
 
-  // Checkboxes
-  const drawCheckbox = (cx: number, cy: number, label: string) => {
+  // Checkboxes — auto-mark based on delivery_mode
+  const mode = pod?.delivery_mode ?? null;
+  const drawCheckbox = (cx: number, cy: number, label: string, checked = false) => {
     doc.setDrawColor(0);
     doc.rect(cx, cy - 3, 3.5, 3.5, "S");
+    if (checked) {
+      doc.setFont("helvetica", "bold");
+      doc.text("X", cx + 0.6, cy);
+      doc.setFont("helvetica", "normal");
+    }
     doc.text(label, cx + 5, cy);
   };
-  drawCheckbox(marginX, y, "Persönlich übergeben");
-  drawCheckbox(marginX + 60, y, "An Nachbarn");
-  drawCheckbox(marginX + 100, y, "Ablageort:");
-  doc.line(marginX + 120, y + 0.5, pageW - marginX, y + 0.5);
+  drawCheckbox(marginX, y, "Persönlich übergeben", mode === "persoenlich");
+  drawCheckbox(marginX + 50, y, "Briefkasten", mode === "briefkasten");
+  drawCheckbox(marginX + 85, y, "An Nachbarn", mode === "nachbar");
+  drawCheckbox(marginX + 120, y, "Bemerkung:", mode === "bemerkung");
+  doc.line(marginX + 145, y + 0.5, pageW - marginX, y + 0.5);
+  if (mode === "bemerkung" && pod?.delivery_note) {
+    doc.text(pod.delivery_note.slice(0, 40), marginX + 147, y - 0.5);
+  }
   y += 10;
 
   // Signature box
@@ -445,6 +469,13 @@ export async function downloadOrderPdf(order: Order) {
   doc.setTextColor(110);
   doc.text("UNTERSCHRIFT EMPFÄNGER", marginX + 3, y + 5);
   doc.setTextColor(0);
+  if (sigDataUrl) {
+    try {
+      doc.addImage(sigDataUrl, "PNG", marginX + 3, y + 6, contentW - 6, 20);
+    } catch (e) {
+      console.warn("Konnte Unterschrift nicht ins PDF einbetten", e);
+    }
+  }
   y += 32;
 
   // Bemerkungen Fahrer
