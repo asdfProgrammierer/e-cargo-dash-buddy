@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { DriverLayout } from "@/components/driver/DriverLayout";
@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { SignaturePad, type SignaturePadHandle } from "@/components/driver/SignaturePad";
 
 interface Stop {
   id: string;
@@ -40,6 +41,15 @@ const REASONS = [
   "Sonstiges",
 ];
 
+type DeliveryMode = "persoenlich" | "briefkasten" | "nachbar" | "bemerkung";
+
+const DELIVERY_MODES: { value: DeliveryMode; label: string }[] = [
+  { value: "persoenlich", label: "Persönlich übergeben" },
+  { value: "briefkasten", label: "Briefkasten" },
+  { value: "nachbar", label: "An Nachbar" },
+  { value: "bemerkung", label: "Bemerkung" },
+];
+
 const DriverRouteDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const [routeName, setRouteName] = useState("Route");
@@ -49,6 +59,13 @@ const DriverRouteDetailPage = () => {
   const [reason, setReason] = useState(REASONS[0]);
   const [extraNote, setExtraNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Delivery confirmation sheet state
+  const [deliverStop, setDeliverStop] = useState<Stop | null>(null);
+  const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>("persoenlich");
+  const [deliveryNote, setDeliveryNote] = useState("");
+  const [deliveryRecipient, setDeliveryRecipient] = useState("");
+  const sigPadRef = useRef<SignaturePadHandle>(null);
 
   const load = async () => {
     if (!id) return;
@@ -79,10 +96,20 @@ const DriverRouteDetailPage = () => {
     load();
   }, [id]);
 
-  const updateStatus = async (stopId: string, status: "erledigt" | "uebersprungen", reasonText?: string) => {
+  const updateStatus = async (
+    stopId: string,
+    status: "erledigt" | "uebersprungen",
+    payload: {
+      reason?: string;
+      delivery_mode?: DeliveryMode;
+      delivery_note?: string;
+      delivery_recipient?: string;
+      signature_base64?: string | null;
+    } = {},
+  ) => {
     setSubmitting(true);
     const { data, error } = await supabase.functions.invoke("driver-update-stop-status", {
-      body: { stop_id: stopId, status, reason: reasonText },
+      body: { stop_id: stopId, status, ...payload },
     });
     setSubmitting(false);
     if (error || (data as any)?.error) {
@@ -91,8 +118,32 @@ const DriverRouteDetailPage = () => {
     }
     toast.success(status === "erledigt" ? "Als zugestellt markiert" : "Als nicht zugestellt markiert");
     setActiveStop(null);
+    setDeliverStop(null);
     setExtraNote("");
+    setDeliveryNote("");
+    setDeliveryRecipient("");
+    setDeliveryMode("persoenlich");
     load();
+  };
+
+  const openDeliverSheet = (s: Stop) => {
+    setDeliverStop(s);
+    setDeliveryMode("persoenlich");
+    setDeliveryNote("");
+    setDeliveryRecipient("");
+    // clear pad on next render
+    setTimeout(() => sigPadRef.current?.clear(), 50);
+  };
+
+  const submitDelivery = () => {
+    if (!deliverStop) return;
+    const sig = sigPadRef.current?.toDataURL() ?? null;
+    updateStatus(deliverStop.id, "erledigt", {
+      delivery_mode: deliveryMode,
+      delivery_note: deliveryNote.trim() || undefined,
+      delivery_recipient: deliveryMode === "nachbar" ? deliveryRecipient.trim() || undefined : undefined,
+      signature_base64: sig,
+    });
   };
 
   const navigate = (s: Stop) => {
@@ -246,7 +297,7 @@ const DriverRouteDetailPage = () => {
                         <Phone className="h-4 w-4 opacity-30" />
                       </Button>
                     )}
-                    <Button size="sm" onClick={() => updateStatus(s.id, "erledigt")} disabled={submitting}>
+                    <Button size="sm" onClick={() => openDeliverSheet(s)} disabled={submitting}>
                       <CheckCircle2 className="h-4 w-4 mr-1" />
                       OK
                     </Button>
@@ -294,10 +345,79 @@ const DriverRouteDetailPage = () => {
               onClick={() => {
                 if (!activeStop) return;
                 const fullReason = extraNote ? `${reason} – ${extraNote}` : reason;
-                updateStatus(activeStop.id, "uebersprungen", fullReason);
+                updateStatus(activeStop.id, "uebersprungen", { reason: fullReason });
               }}
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Bestätigen"}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={!!deliverStop} onOpenChange={(o) => !o && setDeliverStop(null)}>
+        <SheetContent side="bottom" className="rounded-t-2xl max-h-[90vh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Zustellung bestätigen</SheetTitle>
+          </SheetHeader>
+          <div className="py-4 space-y-4">
+            <div>
+              <Label className="text-xs text-muted-foreground mb-2 block">Übergabe</Label>
+              <RadioGroup value={deliveryMode} onValueChange={(v) => setDeliveryMode(v as DeliveryMode)}>
+                {DELIVERY_MODES.map((m) => (
+                  <div key={m.value} className="flex items-center space-x-2">
+                    <RadioGroupItem value={m.value} id={`mode-${m.value}`} />
+                    <Label htmlFor={`mode-${m.value}`} className="font-normal">{m.label}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+
+            {deliveryMode === "nachbar" && (
+              <div>
+                <Label htmlFor="recipient" className="text-xs text-muted-foreground mb-1 block">
+                  Name des Nachbarn (optional)
+                </Label>
+                <input
+                  id="recipient"
+                  className="w-full h-10 px-3 rounded-md border bg-background text-sm"
+                  value={deliveryRecipient}
+                  onChange={(e) => setDeliveryRecipient(e.target.value)}
+                  placeholder="z. B. Familie Müller"
+                />
+              </div>
+            )}
+
+            <Textarea
+              placeholder="Bemerkung (optional)"
+              value={deliveryNote}
+              onChange={(e) => setDeliveryNote(e.target.value)}
+              rows={2}
+            />
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <Label className="text-xs text-muted-foreground">Unterschrift (optional)</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => sigPadRef.current?.clear()}
+                >
+                  Löschen
+                </Button>
+              </div>
+              <SignaturePad ref={sigPadRef} />
+            </div>
+
+            <Button className="w-full" disabled={submitting} onClick={submitDelivery}>
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-1" />
+                  Zustellung bestätigen
+                </>
+              )}
             </Button>
           </div>
         </SheetContent>
