@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight } from "lucide-react";
+import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight, PenLine } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { SignaturePad, type SignaturePadHandle } from "@/components/driver/SignaturePad";
 
@@ -41,13 +41,12 @@ const REASONS = [
   "Sonstiges",
 ];
 
-type DeliveryMode = "persoenlich" | "briefkasten" | "nachbar" | "bemerkung";
+type DeliveryMode = "persoenlich" | "briefkasten" | "nachbar";
 
 const DELIVERY_MODES: { value: DeliveryMode; label: string }[] = [
   { value: "persoenlich", label: "Persönlich übergeben" },
   { value: "briefkasten", label: "Briefkasten" },
   { value: "nachbar", label: "An Nachbar" },
-  { value: "bemerkung", label: "Bemerkung" },
 ];
 
 const DriverRouteDetailPage = () => {
@@ -66,6 +65,8 @@ const DriverRouteDetailPage = () => {
   const [deliveryNote, setDeliveryNote] = useState("");
   const [deliveryRecipient, setDeliveryRecipient] = useState("");
   const sigPadRef = useRef<SignaturePadHandle>(null);
+  const [signatureOpen, setSignatureOpen] = useState(false);
+  const [hasSignature, setHasSignature] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -131,8 +132,8 @@ const DriverRouteDetailPage = () => {
     setDeliveryMode("persoenlich");
     setDeliveryNote("");
     setDeliveryRecipient("");
-    // clear pad on next render
-    setTimeout(() => sigPadRef.current?.clear(), 50);
+    setHasSignature(false);
+    setSignatureOpen(false);
   };
 
   const submitDelivery = () => {
@@ -394,20 +395,16 @@ const DriverRouteDetailPage = () => {
               rows={2}
             />
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <Label className="text-xs text-muted-foreground">Unterschrift (optional)</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => sigPadRef.current?.clear()}
-                >
-                  Löschen
-                </Button>
-              </div>
-              <SignaturePad ref={sigPadRef} />
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => setSignatureOpen(true)}
+            >
+              <PenLine className="h-4 w-4 mr-2" />
+              {hasSignature ? "Unterschrift bearbeiten" : "Unterschrift hinzufügen"}
+              {hasSignature && <CheckCircle2 className="h-4 w-4 ml-2 text-primary" />}
+            </Button>
 
             <Button className="w-full" disabled={submitting} onClick={submitDelivery}>
               {submitting ? (
@@ -422,6 +419,49 @@ const DriverRouteDetailPage = () => {
           </div>
         </SheetContent>
       </Sheet>
+
+      {signatureOpen && (
+        <div className="fixed inset-0 z-[100] bg-background flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b">
+            <div>
+              <div className="font-semibold">Unterschrift</div>
+              <div className="text-xs text-muted-foreground">Gerät bitte quer halten</div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => sigPadRef.current?.clear()}
+            >
+              Löschen
+            </Button>
+          </div>
+          <div className="flex-1 p-4 landscape-rotate">
+            <SignaturePad ref={sigPadRef} className="w-full h-full bg-white border rounded-md touch-none" />
+          </div>
+          <div className="grid grid-cols-2 gap-2 p-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => {
+                sigPadRef.current?.clear();
+                setHasSignature(false);
+                setSignatureOpen(false);
+              }}
+            >
+              Abbrechen
+            </Button>
+            <Button
+              onClick={() => {
+                const empty = sigPadRef.current?.isEmpty() ?? true;
+                setHasSignature(!empty);
+                setSignatureOpen(false);
+              }}
+            >
+              <CheckCircle2 className="h-4 w-4 mr-1" />
+              Übernehmen
+            </Button>
+          </div>
+        </div>
+      )}
     </DriverLayout>
   );
 };
