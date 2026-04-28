@@ -327,7 +327,7 @@ const RoutenplanungPage = () => {
         {/* LEFT COLUMN */}
         <div className="flex flex-col gap-3 min-h-0 overflow-hidden">
           {/* Routes (top) */}
-          <Card className="shadow-card flex flex-col flex-[1] min-h-0 overflow-hidden">
+          <Card className="shadow-card flex flex-col min-h-0 overflow-hidden" style={{ flex: "0 0 auto", maxHeight: "30%" }}>
             <div className="flex items-center justify-between px-4 h-10 border-b border-border/50">
               <span className="text-body font-medium">Routen</span>
               <span className="text-caption tabular-nums text-muted-foreground">{routesForDate.length}</span>
@@ -392,7 +392,7 @@ const RoutenplanungPage = () => {
           </Card>
 
           {/* Stops of selected route (bottom) */}
-          <div className="flex-[2] min-h-0 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-hidden">
             {selectedId ? (
               <RouteBuilder key={selectedId + ":" + refreshKey} routeId={selectedId} compact />
             ) : (
@@ -409,7 +409,7 @@ const RoutenplanungPage = () => {
         {/* RIGHT COLUMN */}
         <div className="flex flex-col gap-3 min-h-0 overflow-hidden">
           {/* Map (top, large) */}
-          <div className="flex-[3] min-h-0">
+          <div className="flex-[2] min-h-0">
             <RoutesOverviewMap
               date={date}
               mapOnly
@@ -424,7 +424,7 @@ const RoutenplanungPage = () => {
           </div>
 
           {/* New orders table (bottom) */}
-          <div className="flex-[2] min-h-0">
+          <div className="flex-[1] min-h-0">
             <NewOrdersTable
               routeId={selectedId}
               refreshKey={refreshKey}
