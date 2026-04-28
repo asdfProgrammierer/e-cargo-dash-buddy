@@ -21,6 +21,14 @@ interface HistoryEntry {
   created_at: string;
 }
 
+interface ProofOfDelivery {
+  delivery_mode: string | null;
+  delivery_note: string | null;
+  delivery_recipient: string | null;
+  signature_url: string | null;
+  delivered_at: string | null;
+}
+
 async function loadStatusHistory(orderId: string): Promise<HistoryEntry[]> {
   const { data, error } = await supabase
     .from("order_status_history")
@@ -30,6 +38,35 @@ async function loadStatusHistory(orderId: string): Promise<HistoryEntry[]> {
   if (error) throw new Error(`Statushistorie konnte nicht geladen werden: ${error.message}`);
   if (!data) return [];
   return data as HistoryEntry[];
+}
+
+async function loadProofOfDelivery(orderId: string): Promise<ProofOfDelivery | null> {
+  const { data } = await supabase
+    .from("route_stops")
+    .select("delivery_mode, delivery_note, delivery_recipient, signature_url, delivered_at")
+    .eq("order_id", orderId)
+    .not("delivered_at", "is", null)
+    .order("delivered_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data as ProofOfDelivery) ?? null;
+}
+
+async function loadSignatureDataUrl(path: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.storage
+      .from("delivery-signatures")
+      .download(path);
+    if (error || !data) return null;
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(data);
+    });
+  } catch {
+    return null;
+  }
 }
 
 async function generateQrDataUrl(order: Order) {
