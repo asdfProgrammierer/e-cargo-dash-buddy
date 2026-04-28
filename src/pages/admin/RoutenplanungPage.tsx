@@ -265,7 +265,7 @@ const RoutenplanungPage = () => {
         `Start: ${route.start_time?.slice(0, 5) ?? "–"}`,
         `Fahrer: ${route.drivers?.name ?? "–"}`,
         `Fahrzeug: ${route.vehicles?.kennzeichen ?? "–"}`,
-        `Stops: ${rows.length}`,
+        `Stops: ${(stops ?? []).length}`,
       ].join("   ·   ");
       doc.text(meta, 14, 22);
       doc.setTextColor(0);
