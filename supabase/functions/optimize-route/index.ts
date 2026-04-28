@@ -99,73 +99,35 @@ Deno.serve(async (req) => {
     if (!stops || stops.length === 0) return json({ error: "Keine Stops vorhanden" }, 400);
 
     type StopRow = { id: string; order_id: string; position: number; pinned: boolean; orders: { id: string; lat: number | null; lng: number | null } };
-    const valid = (stops as unknown as StopRow[]).filter((s) => s.orders?.lat != null && s.orders?.lng != null);
-    if (valid.length === 0) return json({ error: "Keine Stops mit Koordinaten" }, 400);
+    const valid = (stops as unknown as StopRow[]).slice().sort((a, b) => a.position - b.position);
+    const missingGeo = valid.filter((s) => s.orders?.lat == null || s.orders?.lng == null);
+    if (missingGeo.length > 0) {
+      return json({ error: `${missingGeo.length} Stopp(s) ohne Koordinaten – bitte zuerst geocodieren` }, 400);
+    }
 
-    // ----- Segmentweise Optimierung mit fixierten Stopps -----
-    // Splitte die Stopps in Segmente, die jeweils zwischen zwei "Ankern" liegen.
-    // Anker sind: Start-Depot, fixierte Stopps (in ihrer aktuellen Reihenfolge), End-Depot.
+    const invalidPositions = valid.filter((s, idx) => s.position !== idx + 1);
+    const uniquePositions = new Set(valid.map((s) => s.position));
+    if (invalidPositions.length > 0 || uniquePositions.size !== valid.length) {
+      return json({ error: "Stopppositionen sind inkonsistent – bitte Reihenfolge neu speichern" }, 409);
+    }
+
+    // ----- Positionsbasierte Segment-Optimierung mit fixierten Stopps -----
+    // Fixierte Stopps bleiben exakt auf ihrer position. Nur freie Slots vor,
+    // zwischen und nach fixierten Stopps werden segmentweise optimiert.
     type Anchor =
       | { kind: "depot"; lng: number; lat: number }
       | { kind: "stop"; stop: StopRow };
 
-    const pinned = valid.filter((s) => s.pinned);
+    const pinned = valid.filter((s) => s.pinned).sort((a, b) => a.position - b.position);
     const free = valid.filter((s) => !s.pinned);
 
-    const anchors: Anchor[] = [
-      { kind: "depot", lng: Number(startDepot.lng), lat: Number(startDepot.lat) },
-      ...pinned.map((s) => ({ kind: "stop" as const, stop: s })),
-      { kind: "depot", lng: Number(endDepot.lng), lat: Number(endDepot.lat) },
-    ];
-
-    // Verteile die freien Stopps gleichmäßig auf die Segmente (zunächst alle ins erste).
-    // Bessere Heuristik: ordne jeden freien Stop dem nächstgelegenen Segment-Mittelpunkt zu.
     const anchorLngLat = (a: Anchor): [number, number] =>
       a.kind === "depot" ? [a.lng, a.lat] : [Number(a.stop.orders.lng), Number(a.stop.orders.lat)];
 
-    const segmentBuckets: StopRow[][] = Array.from({ length: anchors.length - 1 }, () => []);
-    if (segmentBuckets.length === 1) {
-      segmentBuckets[0] = free;
-    } else {
-      for (const f of free) {
-        const fLng = Number(f.orders.lng);
-        const fLat = Number(f.orders.lat);
-        let bestIdx = 0;
-        let bestDist = Infinity;
-        for (let i = 0; i < segmentBuckets.length; i++) {
-          const [aLng, aLat] = anchorLngLat(anchors[i]);
-          const [bLng, bLat] = anchorLngLat(anchors[i + 1]);
-          // Distance from f to segment midpoint (rough heuristic, equirect)
-          const mLng = (aLng + bLng) / 2;
-          const mLat = (aLat + bLat) / 2;
-          const dx = (fLng - mLng) * Math.cos((mLat * Math.PI) / 180);
-          const dy = fLat - mLat;
-          const d = dx * dx + dy * dy;
-          if (d < bestDist) {
-            bestDist = d;
-            bestIdx = i;
-          }
-        }
-        segmentBuckets[bestIdx].push(f);
-      }
-    }
-
-    // Pro Segment: wenn freie Stopps vorhanden, ORS Optimization aufrufen
-    // (Start = Anker[i], End = Anker[i+1], Jobs = bucket[i]).
-    // Sammelt finale geordnete Stopp-IDs.
-    const orderedStopIds: string[] = [];
-
-    for (let i = 0; i < segmentBuckets.length; i++) {
-      const bucket = segmentBuckets[i];
-      if (bucket.length === 0) {
-        // Nur Anker-zu-Anker, kein Job dazwischen.
-        if (anchors[i + 1].kind === "stop") {
-          orderedStopIds.push((anchors[i + 1] as { kind: "stop"; stop: StopRow }).stop.id);
-        }
-        continue;
-      }
-      const [sLng, sLat] = anchorLngLat(anchors[i]);
-      const [eLng, eLat] = anchorLngLat(anchors[i + 1]);
+    const optimizeSegment = async (bucket: StopRow[], start: Anchor, end: Anchor): Promise<string[]> => {
+      if (bucket.length <= 1) return bucket.map((s) => s.id);
+      const [sLng, sLat] = anchorLngLat(start);
+      const [eLng, eLat] = anchorLngLat(end);
       const segJobs = bucket.map((s, idx) => ({
         id: idx + 1,
         location: [Number(s.orders.lng), Number(s.orders.lat)] as [number, number],
@@ -188,46 +150,78 @@ Deno.serve(async (req) => {
       });
       if (!segRes.ok) {
         const t = await segRes.text();
-        return json({ error: "Optimierung fehlgeschlagen", details: t }, 502);
+        throw new Error(`Optimierung fehlgeschlagen: ${t}`);
       }
       const segData = await segRes.json();
       const segRoute = segData?.routes?.[0];
-      if (!segRoute) return json({ error: "Keine Route von ORS (Segment)" }, 502);
+      if (!segRoute) throw new Error("Keine Route von ORS (Segment)");
       type OrsStep = { type: string; job?: number; description?: string };
       const segSteps = ((segRoute.steps as OrsStep[]) ?? []).filter((st) => st.type === "job");
+      const ids: string[] = [];
       for (const st of segSteps) {
         const job = segJobs.find((j) => j.id === st.job);
-        if (job) orderedStopIds.push(job.description!);
+        if (job) ids.push(job.description!);
       }
-      // Nach diesem Segment kommt der Anker (falls Stop)
-      if (anchors[i + 1].kind === "stop") {
-        orderedStopIds.push((anchors[i + 1] as { kind: "stop"; stop: StopRow }).stop.id);
+      if (ids.length !== bucket.length) {
+        throw new Error("Optimierung unvollständig (Segment)");
       }
-    }
+      return ids;
+    };
 
-    // Sicherheits-Check: alle Stopps drin
-    if (orderedStopIds.length !== valid.length) {
-      return json({ error: "Optimierung unvollständig (Anzahl Stopps)" }, 500);
-    }
-
-    // Validierung: gepinnte Stopps müssen ihre RELATIVE Reihenfolge behalten.
-    // (Die absolute Position ändert sich segmentweise, je nachdem wie viele
-    // freie Stopps in den Segmenten davor einsortiert wurden – das ist gewollt.)
-    const pinnedOriginalOrder = pinned
-      .slice()
-      .sort((a, b) => a.position - b.position)
-      .map((s) => s.id);
-    const pinnedNewOrder = orderedStopIds.filter((id) => pinnedOriginalOrder.includes(id));
-    const orderOk = pinnedOriginalOrder.length === pinnedNewOrder.length &&
-      pinnedOriginalOrder.every((id, i) => pinnedNewOrder[i] === id);
-    if (!orderOk) {
-      console.error("Pinned stops reordered during optimization", {
-        before: pinnedOriginalOrder,
-        after: pinnedNewOrder,
+    type Segment = { startIdx: number; endIdx: number; start: Anchor; end: Anchor; bucket: StopRow[] };
+    const segments: Segment[] = [];
+    let startIdx = 0;
+    let startAnchor: Anchor = { kind: "depot", lng: Number(startDepot.lng), lat: Number(startDepot.lat) };
+    for (const pin of pinned) {
+      const endIdx = pin.position - 1;
+      segments.push({
+        startIdx,
+        endIdx,
+        start: startAnchor,
+        end: { kind: "stop", stop: pin },
+        bucket: free.filter((s) => s.position - 1 >= startIdx && s.position - 1 < endIdx),
       });
-      return json({
-        error: "Optimierung würde die Reihenfolge fixierter Stopps verändern",
-      }, 500);
+      startIdx = endIdx + 1;
+      startAnchor = { kind: "stop", stop: pin };
+    }
+    segments.push({
+      startIdx,
+      endIdx: valid.length,
+      start: startAnchor,
+      end: { kind: "depot", lng: Number(endDepot.lng), lat: Number(endDepot.lat) },
+      bucket: free.filter((s) => s.position - 1 >= startIdx && s.position - 1 < valid.length),
+    });
+
+    const finalSlots: Array<string | null> = new Array(valid.length).fill(null);
+    for (const pin of pinned) finalSlots[pin.position - 1] = pin.id;
+
+    for (const segment of segments) {
+      const slotCount = segment.endIdx - segment.startIdx;
+      if (segment.bucket.length !== slotCount) {
+        return json({ error: "Segmentierung der freien Stopps ist inkonsistent" }, 500);
+      }
+      const optimizedIds = await optimizeSegment(segment.bucket, segment.start, segment.end);
+      optimizedIds.forEach((id, offset) => {
+        finalSlots[segment.startIdx + offset] = id;
+      });
+    }
+
+    const orderedStopIds = finalSlots.filter((id): id is string => Boolean(id));
+    const uniqueStopIds = new Set(orderedStopIds);
+    const originalStopIds = new Set(valid.map((s) => s.id));
+    const complete = orderedStopIds.length === valid.length &&
+      uniqueStopIds.size === valid.length &&
+      orderedStopIds.every((id) => originalStopIds.has(id));
+    if (!complete) {
+      return json({ error: "Optimierung unvollständig oder doppelte Stopps" }, 500);
+    }
+
+    const pinViolations = pinned
+      .filter((pin) => finalSlots[pin.position - 1] !== pin.id)
+      .map((pin) => ({ id: pin.id, expected: pin.position, got: orderedStopIds.indexOf(pin.id) + 1 }));
+    if (pinViolations.length > 0) {
+      console.error("Pinned stops moved during optimization", pinViolations);
+      return json({ error: "Optimierung würde fixierte Stopps verschieben", violations: pinViolations }, 409);
     }
 
     // Map id → StopRow
@@ -257,16 +251,16 @@ Deno.serve(async (req) => {
     const dirData = await dirRes.json();
     const feat = dirData?.features?.[0];
     const geometry = feat?.geometry ?? null;
-    const segments = feat?.properties?.segments as Array<{ distance: number; duration: number }> | undefined;
+    const routeSegments = feat?.properties?.segments as Array<{ distance: number; duration: number }> | undefined;
 
     // Per-leg durations/distances aus Directions ableiten.
     const legCount = orderedStops.length + 1; // depot->stop1, stop1->stop2, ..., lastStop->depot
     const legDurations: number[] = new Array(legCount).fill(0);
     const legDistances: number[] = new Array(legCount).fill(0);
-    if (segments && segments.length === legCount) {
+    if (routeSegments && routeSegments.length === legCount) {
       for (let i = 0; i < legCount; i++) {
-        legDurations[i] = segments[i].duration ?? 0;
-        legDistances[i] = segments[i].distance ?? 0;
+        legDurations[i] = routeSegments[i].duration ?? 0;
+        legDistances[i] = routeSegments[i].distance ?? 0;
       }
     }
 

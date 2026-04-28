@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { supabase } from "@/integrations/supabase/client";
@@ -210,7 +210,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  const load = async () => {
+  const load = useCallback(async (): Promise<StopRow[]> => {
     setLoading(true);
     const [r, s, d] = await Promise.all([
       supabase.from("routes").select("*").eq("id", routeId).single(),
@@ -239,8 +239,9 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
       setVehicle(null);
     }
     setLoading(false);
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [routeId]);
+    return stopRows;
+  }, [routeId]);
+  useEffect(() => { void load(); }, [load]);
 
   const startDepot = useMemo(() => depots.find((x) => x.id === route?.start_depot_id) ?? depots.find((x) => x.is_default) ?? null, [depots, route]);
   const endDepot = useMemo(() => depots.find((x) => x.id === route?.end_depot_id) ?? startDepot, [depots, route, startDepot]);
@@ -381,14 +382,27 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
       toast.error("Fixierter Stopp kann nicht verschoben werden – erst Fixierung lösen");
       return;
     }
-    const reordered = arrayMove(stops, oldIdx, newIdx).map((s, i) => ({ ...s, position: i + 1 }));
-    // Validate: pinned stops must keep their RELATIVE order to each other
-    const pinnedBefore = stops.filter((s) => s.pinned).map((s) => s.id);
-    const pinnedAfter = reordered.filter((s) => s.pinned).map((s) => s.id);
-    const orderChanged = pinnedBefore.length !== pinnedAfter.length ||
-      pinnedBefore.some((id, i) => pinnedAfter[i] !== id);
-    if (orderChanged) {
-      toast.error("Verschieben würde die Reihenfolge fixierter Stopps verändern");
+    const freeStops = stops.filter((s) => !s.pinned);
+    const oldFreeIdx = freeStops.findIndex((s) => s.id === e.active.id);
+    const overFreeIdx = freeStops.findIndex((s) => s.id === e.over!.id);
+    const newFreeIdx = overFreeIdx >= 0
+      ? overFreeIdx
+      : stops.slice(0, newIdx).filter((s) => !s.pinned).length;
+    const reorderedFree = arrayMove(freeStops, oldFreeIdx, newFreeIdx);
+    let freeCursor = 0;
+    const reordered = stops.map((s, i) => {
+      if (s.pinned) return { ...s, position: i + 1 };
+      const next = reorderedFree[freeCursor++];
+      return { ...next, position: i + 1 };
+    });
+    // Validate: pinned stops must keep their exact saved position
+    const pinnedMoved = reordered.some((s) => {
+      if (!s.pinned) return false;
+      const before = stops.find((old) => old.id === s.id);
+      return before != null && before.position !== s.position;
+    });
+    if (pinnedMoved) {
+      toast.error("Verschieben würde eine fixierte Positionsnummer verändern");
       return;
     }
     setStops(reordered);
@@ -432,10 +446,11 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
   };
 
   const optimize = async () => {
-    if (stops.length < 2) { toast.error("Mindestens 2 Stops nötig"); return; }
+    const latestStops = await load();
+    if (latestStops.length < 2) { toast.error("Mindestens 2 Stops nötig"); return; }
     if (!startDepot?.lat || !endDepot?.lat) { toast.error("Start-/Ziel-Depot fehlt – bitte in der Route hinterlegen"); return; }
     // Snapshot der gepinnten Positionen, um nach Optimierung zu validieren
-    const pinnedSnapshot = stops.filter((s) => s.pinned).map((s) => ({ id: s.id, position: s.position }));
+    const pinnedSnapshot = latestStops.filter((s) => s.pinned).map((s) => ({ id: s.id, position: s.position }));
     setOptimizing(true);
     const { data, error } = await supabase.functions.invoke("optimize-route", {
       body: { routeId, profile },
@@ -462,7 +477,10 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
       }
     }
     // Karte neu laden: resize + Geometrie/Marker werden via Effekt aktualisiert
-    setTimeout(() => mapRef.current?.resize(), 150);
+    setTimeout(() => {
+      mapRef.current?.resize();
+      mapRef.current?.triggerRepaint();
+    }, 150);
   };
 
 
