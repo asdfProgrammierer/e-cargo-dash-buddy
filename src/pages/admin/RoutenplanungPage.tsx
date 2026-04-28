@@ -231,7 +231,39 @@ const RoutenplanungPage = () => {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Datum</Label><Input type="date" value={form.datum} onChange={(e) => setForm({ ...form, datum: e.target.value })} /></div>
-                <div><Label>Startzeit</Label><Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} /></div>
+                <div>
+                  <Label>Startzeit</Label>
+                  <div className="flex gap-2">
+                    <Select
+                      value={(form.start_time || "09:00").split(":")[0]}
+                      onValueChange={(h) => {
+                        const m = (form.start_time || "09:00").split(":")[1] ?? "00";
+                        setForm({ ...form, start_time: `${h}:${m}` });
+                      }}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map((h) => (
+                          <SelectItem key={h} value={h}>{h}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={(form.start_time || "09:00").split(":")[1] ?? "00"}
+                      onValueChange={(m) => {
+                        const h = (form.start_time || "09:00").split(":")[0];
+                        setForm({ ...form, start_time: `${h}:${m}` });
+                      }}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {["00", "15", "30", "45"].map((m) => (
+                          <SelectItem key={m} value={m}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
               <div className="grid grid-cols-1 gap-3">
                 <div>
