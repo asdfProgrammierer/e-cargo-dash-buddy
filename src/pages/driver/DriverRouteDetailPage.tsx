@@ -98,12 +98,51 @@ const DriverRouteDetailPage = () => {
   const navigate = (s: Stop) => {
     const o = s.order;
     if (!o) return;
-    const addr = encodeURIComponent(`${o.empfaenger_adresse}, ${o.empfaenger_plz} ${o.empfaenger_stadt}`);
-    if (o.lat && o.lng) {
-      window.location.href = `geo:${o.lat},${o.lng}?q=${o.lat},${o.lng}(${encodeURIComponent(o.empfaenger_name)})`;
+
+    const addrText = `${o.empfaenger_adresse}, ${o.empfaenger_plz} ${o.empfaenger_stadt}`;
+    const addr = encodeURIComponent(addrText);
+    const label = encodeURIComponent(o.empfaenger_name);
+    const hasCoords = o.lat != null && o.lng != null;
+    const coords = hasCoords ? `${o.lat},${o.lng}` : null;
+
+    const ua = navigator.userAgent || "";
+    const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
+    const isAndroid = /Android/i.test(ua);
+
+    let url: string;
+    if (isIOS) {
+      // Apple Maps Deep-Link, Driving-Modus
+      url = coords
+        ? `maps://?daddr=${coords}&dirflg=d`
+        : `maps://?daddr=${addr}&dirflg=d`;
+    } else if (isAndroid) {
+      // Google Maps Navigation Intent (öffnet direkt Turn-by-Turn)
+      url = coords
+        ? `google.navigation:q=${coords}&mode=d`
+        : `google.navigation:q=${addr}&mode=d`;
     } else {
-      window.location.href = `geo:0,0?q=${addr}`;
+      // Desktop / Fallback: Google Maps im Browser
+      url = coords
+        ? `https://www.google.com/maps/dir/?api=1&destination=${coords}&travelmode=driving`
+        : `https://www.google.com/maps/dir/?api=1&destination=${addr}&travelmode=driving`;
     }
+
+    // Fallback falls Deep-Link nicht greift (z. B. Google Maps nicht installiert)
+    const fallback = coords
+      ? `https://www.google.com/maps/dir/?api=1&destination=${coords}&travelmode=driving`
+      : `https://www.google.com/maps/dir/?api=1&destination=${addr}&travelmode=driving`;
+
+    const start = Date.now();
+    window.location.href = url;
+    if (isIOS || isAndroid) {
+      setTimeout(() => {
+        if (Date.now() - start < 2000 && document.visibilityState === "visible") {
+          window.location.href = fallback;
+        }
+      }, 1200);
+    }
+    // label wird aktuell nicht in den Deep-Links benötigt
+    void label;
   };
 
   const done = stops.filter((s) => s.status === "erledigt" || s.status === "uebersprungen").length;
