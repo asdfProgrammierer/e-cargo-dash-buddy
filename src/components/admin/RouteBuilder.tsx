@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { MapPin, Plus, Sparkles, Trash2, GripVertical, Bike, Car, Zap, AlertTriangle, CheckCircle2, SkipForward, Circle } from "lucide-react";
+import { MapPin, Plus, Sparkles, Trash2, GripVertical, Bike, Car, Zap, AlertTriangle, CheckCircle2, SkipForward, Circle, Lock, Unlock } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -39,6 +39,7 @@ interface StopRow {
   leg_distance_m: number | null; leg_duration_s: number | null;
   eta: string | null;
   status: "offen" | "erledigt" | "uebersprungen";
+  pinned: boolean;
   orders: OrderRow;
 }
 
@@ -115,10 +116,11 @@ const STATUS_DOT: Record<StopRow["status"], string> = {
   uebersprungen: "bg-warning shadow-[0_0_8px_hsl(var(--warning)/0.4)]",
 };
 
-function SortableStop({ stop, index, onRemove, onCycleStatus }: {
+function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin }: {
   stop: StopRow; index: number;
   onRemove: (id: string) => void;
   onCycleStatus: (id: string, current: StopRow["status"]) => void;
+  onTogglePin: (id: string, current: boolean) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stop.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -126,7 +128,7 @@ function SortableStop({ stop, index, onRemove, onCycleStatus }: {
     <div
       ref={setNodeRef}
       style={style}
-      className="group flex items-center gap-3 px-3 py-2 bg-card hover:bg-surface-muted transition-colors duration-fast ease-fast-out border-b border-border/50 last:border-b-0"
+      className={`group flex items-center gap-3 px-3 py-2 hover:bg-surface-muted transition-colors duration-fast ease-fast-out border-b border-border/50 last:border-b-0 ${stop.pinned ? "bg-primary/5" : "bg-card"}`}
     >
       <button
         {...attributes}
@@ -136,7 +138,7 @@ function SortableStop({ stop, index, onRemove, onCycleStatus }: {
       >
         <GripVertical className="h-3.5 w-3.5" />
       </button>
-      <span className="text-[10px] font-bold tabular-nums text-muted-foreground w-5 text-right shrink-0">
+      <span className={`text-[10px] font-bold tabular-nums w-5 text-right shrink-0 ${stop.pinned ? "text-primary" : "text-muted-foreground"}`}>
         {String(index + 1).padStart(2, "0")}
       </span>
       <div className="flex-1 min-w-0">
@@ -166,6 +168,14 @@ function SortableStop({ stop, index, onRemove, onCycleStatus }: {
         title={`Status: ${stop.status} (klicken zum Wechseln)`}
         className={`h-2 w-2 rounded-full shrink-0 ${STATUS_DOT[stop.status]}`}
       />
+      <button
+        onClick={() => onTogglePin(stop.id, stop.pinned)}
+        title={stop.pinned ? "Position fixiert – klicken zum Lösen" : "Position fixieren (wird beim Optimieren nicht verschoben)"}
+        className={`h-6 w-6 inline-flex items-center justify-center rounded transition-opacity duration-fast ${stop.pinned ? "text-primary opacity-100" : "text-muted-foreground/60 opacity-0 group-hover:opacity-100 hover:text-foreground"}`}
+        aria-label={stop.pinned ? "Position lösen" : "Position fixieren"}
+      >
+        {stop.pinned ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+      </button>
       <Button
         variant="ghost"
         size="icon"
@@ -205,7 +215,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
     const [r, s, d] = await Promise.all([
       supabase.from("routes").select("*").eq("id", routeId).single(),
       supabase.from("route_stops")
-        .select("id, route_id, order_id, position, leg_distance_m, leg_duration_s, eta, status, orders(id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, gewicht, lat, lng, status, notizen)")
+        .select("id, route_id, order_id, position, leg_distance_m, leg_duration_s, eta, status, pinned, orders(id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, gewicht, lat, lng, status, notizen)")
         .eq("route_id", routeId)
         .order("position", { ascending: true }),
       supabase.from("depots").select("id, name, lat, lng, is_default").eq("active", true).order("name"),
@@ -389,6 +399,18 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
     setStops((prev) => prev.map((s) => s.id === stopId ? { ...s, status: next } : s));
   };
 
+  const togglePin = async (stopId: string, current: boolean) => {
+    const next = !current;
+    setStops((prev) => prev.map((s) => s.id === stopId ? { ...s, pinned: next } : s));
+    const { error } = await supabase.from("route_stops").update({ pinned: next }).eq("id", stopId);
+    if (error) {
+      toast.error("Fixierung konnte nicht gespeichert werden");
+      setStops((prev) => prev.map((s) => s.id === stopId ? { ...s, pinned: current } : s));
+      return;
+    }
+    toast.success(next ? "Position fixiert" : "Fixierung gelöst");
+  };
+
   const optimize = async () => {
     if (stops.length < 2) { toast.error("Mindestens 2 Stops nötig"); return; }
     if (!startDepot?.lat || !endDepot?.lat) { toast.error("Start-/Ziel-Depot fehlt – bitte in der Route hinterlegen"); return; }
@@ -455,7 +477,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
                 <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                   <ScrollArea className="flex-1 min-h-0">
                     <div className="border-y border-border/50">
-                      {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} />)}
+                      {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} onTogglePin={togglePin} />)}
                     </div>
                   </ScrollArea>
                 </SortableContext>
@@ -539,14 +561,14 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                   <div className="border-y border-border/50">
-                    {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} />)}
+                    {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} onTogglePin={togglePin} />)}
                   </div>
                 </SortableContext>
               </DndContext>
             )}
             {stops.length > 0 && (
               <div className="mt-2 px-4 text-caption text-muted-foreground">
-                Tipp: Auf den Status-Punkt klicken, um zwischen offen → erledigt → übersprungen zu wechseln.
+                Tipp: Status-Punkt = offen/erledigt/übersprungen. Schloss-Icon = Position fixieren (bleibt beim Optimieren stehen).
               </div>
             )}
           </CardContent>
