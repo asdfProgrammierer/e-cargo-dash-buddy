@@ -251,16 +251,16 @@ Deno.serve(async (req) => {
     const dirData = await dirRes.json();
     const feat = dirData?.features?.[0];
     const geometry = feat?.geometry ?? null;
-    const segments = feat?.properties?.segments as Array<{ distance: number; duration: number }> | undefined;
+    const routeSegments = feat?.properties?.segments as Array<{ distance: number; duration: number }> | undefined;
 
     // Per-leg durations/distances aus Directions ableiten.
     const legCount = orderedStops.length + 1; // depot->stop1, stop1->stop2, ..., lastStop->depot
     const legDurations: number[] = new Array(legCount).fill(0);
     const legDistances: number[] = new Array(legCount).fill(0);
-    if (segments && segments.length === legCount) {
+    if (routeSegments && routeSegments.length === legCount) {
       for (let i = 0; i < legCount; i++) {
-        legDurations[i] = segments[i].duration ?? 0;
-        legDistances[i] = segments[i].distance ?? 0;
+        legDurations[i] = routeSegments[i].duration ?? 0;
+        legDistances[i] = routeSegments[i].distance ?? 0;
       }
     }
 
