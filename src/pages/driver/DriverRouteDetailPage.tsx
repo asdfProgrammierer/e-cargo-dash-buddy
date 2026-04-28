@@ -395,20 +395,16 @@ const DriverRouteDetailPage = () => {
               rows={2}
             />
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <Label className="text-xs text-muted-foreground">Unterschrift (optional)</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => sigPadRef.current?.clear()}
-                >
-                  Löschen
-                </Button>
-              </div>
-              <SignaturePad ref={sigPadRef} />
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => setSignatureOpen(true)}
+            >
+              <PenLine className="h-4 w-4 mr-2" />
+              {hasSignature ? "Unterschrift bearbeiten" : "Unterschrift hinzufügen"}
+              {hasSignature && <CheckCircle2 className="h-4 w-4 ml-2 text-primary" />}
+            </Button>
 
             <Button className="w-full" disabled={submitting} onClick={submitDelivery}>
               {submitting ? (
@@ -423,6 +419,49 @@ const DriverRouteDetailPage = () => {
           </div>
         </SheetContent>
       </Sheet>
+
+      {signatureOpen && (
+        <div className="fixed inset-0 z-[100] bg-background flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b">
+            <div>
+              <div className="font-semibold">Unterschrift</div>
+              <div className="text-xs text-muted-foreground">Gerät bitte quer halten</div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => sigPadRef.current?.clear()}
+            >
+              Löschen
+            </Button>
+          </div>
+          <div className="flex-1 p-4 landscape-rotate">
+            <SignaturePad ref={sigPadRef} className="w-full h-full bg-white border rounded-md touch-none" />
+          </div>
+          <div className="grid grid-cols-2 gap-2 p-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => {
+                sigPadRef.current?.clear();
+                setHasSignature(false);
+                setSignatureOpen(false);
+              }}
+            >
+              Abbrechen
+            </Button>
+            <Button
+              onClick={() => {
+                const empty = sigPadRef.current?.isEmpty() ?? true;
+                setHasSignature(!empty);
+                setSignatureOpen(false);
+              }}
+            >
+              <CheckCircle2 className="h-4 w-4 mr-1" />
+              Übernehmen
+            </Button>
+          </div>
+        </div>
+      )}
     </DriverLayout>
   );
 };
