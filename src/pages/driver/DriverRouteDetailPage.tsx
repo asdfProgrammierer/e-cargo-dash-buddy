@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin } from "lucide-react";
+import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 interface Stop {
@@ -148,6 +148,9 @@ const DriverRouteDetailPage = () => {
   const done = stops.filter((s) => s.status === "erledigt" || s.status === "uebersprungen").length;
   const total = stops.length;
   const pct = total > 0 ? (done / total) * 100 : 0;
+  const nextStop = stops.find(
+    (s) => s.status !== "erledigt" && s.status !== "uebersprungen" && s.order,
+  ) ?? null;
 
   return (
     <DriverLayout title={routeName} showBack>
@@ -158,6 +161,32 @@ const DriverRouteDetailPage = () => {
         </div>
         <Progress value={pct} className="h-2" />
       </div>
+
+      {nextStop?.order && (
+        <div className="sticky top-[5.75rem] z-[4] px-4 pt-3">
+          <button
+            type="button"
+            onClick={() => navigate(nextStop)}
+            className="w-full text-left bg-primary text-primary-foreground rounded-xl p-4 shadow-md active:scale-[0.99] transition-transform"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 w-11 h-11 rounded-full bg-primary-foreground/15 flex items-center justify-center">
+                <Navigation className="h-5 w-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] uppercase tracking-wide opacity-80">
+                  Nächster Stopp · #{nextStop.position + 1}
+                </div>
+                <div className="font-semibold truncate">{nextStop.order.empfaenger_name}</div>
+                <div className="text-xs opacity-90 truncate">
+                  {nextStop.order.empfaenger_adresse}, {nextStop.order.empfaenger_plz} {nextStop.order.empfaenger_stadt}
+                </div>
+              </div>
+              <ArrowRight className="h-5 w-5 flex-shrink-0 opacity-90" />
+            </div>
+          </button>
+        </div>
+      )}
 
       <div className="p-4 space-y-3">
         {loading ? (
