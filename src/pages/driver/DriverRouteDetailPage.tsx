@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight } from "lucide-react";
+import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight, PenLine } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { SignaturePad, type SignaturePadHandle } from "@/components/driver/SignaturePad";
 
@@ -41,13 +41,12 @@ const REASONS = [
   "Sonstiges",
 ];
 
-type DeliveryMode = "persoenlich" | "briefkasten" | "nachbar" | "bemerkung";
+type DeliveryMode = "persoenlich" | "briefkasten" | "nachbar";
 
 const DELIVERY_MODES: { value: DeliveryMode; label: string }[] = [
   { value: "persoenlich", label: "Persönlich übergeben" },
   { value: "briefkasten", label: "Briefkasten" },
   { value: "nachbar", label: "An Nachbar" },
-  { value: "bemerkung", label: "Bemerkung" },
 ];
 
 const DriverRouteDetailPage = () => {
@@ -66,6 +65,8 @@ const DriverRouteDetailPage = () => {
   const [deliveryNote, setDeliveryNote] = useState("");
   const [deliveryRecipient, setDeliveryRecipient] = useState("");
   const sigPadRef = useRef<SignaturePadHandle>(null);
+  const [signatureOpen, setSignatureOpen] = useState(false);
+  const [hasSignature, setHasSignature] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -131,8 +132,8 @@ const DriverRouteDetailPage = () => {
     setDeliveryMode("persoenlich");
     setDeliveryNote("");
     setDeliveryRecipient("");
-    // clear pad on next render
-    setTimeout(() => sigPadRef.current?.clear(), 50);
+    setHasSignature(false);
+    setSignatureOpen(false);
   };
 
   const submitDelivery = () => {
