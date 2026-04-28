@@ -287,38 +287,43 @@ const RoutenplanungPage = () => {
         const empf = o.empfaenger_name || "–";
         const note = (o.notizen || s.notiz || "").toString().trim();
 
-        // Layout constants
-        const padX = 4;
-        const padY = 4;
-        const numBoxW = 12;
+        // Layout constants — compact one-line header per stop.
+        const padX = 3;
+        const padY = 3;
+        const numBoxW = 8;
+        const numBoxH = 8;
         const innerLeft = marginX + padX + numBoxW + 3;
         const innerW = contentW - padX * 2 - numBoxW - 3;
 
-        // Wrap address + note
+        // Build the single info line.
+        const addrPart = [street, cityLine].filter(Boolean).join(", ");
+        const infoParts = [
+          empf,
+          addrPart,
+          phone ? `Tel ${phone}` : null,
+          `${pakete} Paket${pakete === 1 ? "" : "e"}`,
+          `Händler: ${merchant}`,
+        ].filter(Boolean) as string[];
+        const infoText = infoParts.join("  ·  ");
+
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        const addrLines = doc.splitTextToSize(
-          [street, cityLine].filter(Boolean).join("\n") || "–",
-          innerW,
-        ) as string[];
+        doc.setFontSize(9.5);
+        const auftragW = auftrag ? doc.getTextWidth(auftrag) + 4 : 0;
+        const infoLines = doc.splitTextToSize(infoText, innerW - auftragW) as string[];
         const noteLines = note
           ? (doc.splitTextToSize(`Notiz: ${note}`, innerW) as string[])
           : [];
 
         // Heights (mm)
-        const headerLineH = 7;     // recipient + auftrag
-        const subLineH = 5;        // merchant
-        const addrLineH = 5;
-        const phonePackLineH = note ? 5 : 5;
-        const noteLineH = 4.5;
-        const checkBlockH = 22;    // checkbox area
+        const infoLineH = 4.4;
+        const noteLineH = 4;
+        const checkBlockH = 18;
+        const headerH = Math.max(numBoxH, infoLines.length * infoLineH);
         const blockH =
           padY +
-          headerLineH +
-          subLineH +
-          addrLines.length * addrLineH +
-          phonePackLineH +
-          (noteLines.length ? noteLines.length * noteLineH + 1 : 0) +
+          headerH +
+          (noteLines.length ? noteLines.length * noteLineH + 0.5 : 0) +
+          2 + // separator gap
           checkBlockH +
           padY;
 
@@ -337,66 +342,62 @@ const RoutenplanungPage = () => {
         doc.setLineWidth(0.3);
         doc.roundedRect(marginX, top, contentW, blockH, 1.5, 1.5, "S");
 
-        // Number badge
+        // Number badge (small)
         doc.setFillColor(34, 139, 87);
-        doc.roundedRect(marginX + padX, top + padY, numBoxW, numBoxW, 1.5, 1.5, "F");
+        doc.roundedRect(marginX + padX, top + padY, numBoxW, numBoxH, 1, 1, "F");
         doc.setTextColor(255);
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(13);
-        doc.text(String(s.position), marginX + padX + numBoxW / 2, top + padY + numBoxW / 2 + 1.5, { align: "center" });
+        doc.setFontSize(10);
+        doc.text(String(s.position), marginX + padX + numBoxW / 2, top + padY + numBoxH / 2 + 1.2, { align: "center" });
         doc.setTextColor(0);
 
-        // Recipient + Auftragsnr
-        let y = top + padY + 4.5;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        const empfMaxW = innerW - 45;
-        const empfText = (doc.splitTextToSize(empf, empfMaxW) as string[])[0];
-        doc.text(empfText, innerLeft, y);
+        // Auftragsnr top-right
+        let y = top + padY + 3.5;
         if (auftrag) {
           doc.setFont("helvetica", "normal");
-          doc.setFontSize(9);
-          doc.setTextColor(110);
+          doc.setFontSize(8.5);
+          doc.setTextColor(120);
           doc.text(auftrag, marginX + contentW - padX, y, { align: "right" });
           doc.setTextColor(0);
         }
-        y += subLineH;
 
-        // Merchant
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
-        doc.setTextColor(110);
-        doc.text(`Händler: ${merchant}`, innerLeft, y);
-        doc.setTextColor(0);
-        y += addrLineH - 0.5;
-
-        // Address lines
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        addrLines.forEach((line) => {
-          doc.text(line, innerLeft, y);
-          y += addrLineH;
-        });
-
-        // Phone + packages
-        doc.setFontSize(9);
-        doc.setTextColor(80);
-        const phoneText = phone ? `Tel: ${phone}` : "Tel: –";
-        doc.text(phoneText, innerLeft, y);
-        doc.text(`${pakete} Paket${pakete === 1 ? "" : "e"}`, marginX + contentW - padX, y, { align: "right" });
-        doc.setTextColor(0);
-        y += phonePackLineH;
+        // Single info line (recipient bold, then rest normal — emulate by drawing recipient first, then the rest).
+        doc.setFontSize(9.5);
+        let lineY = y;
+        if (infoLines.length === 1) {
+          // Bold recipient + normal tail on one line
+          doc.setFont("helvetica", "bold");
+          const empfW = doc.getTextWidth(empf);
+          doc.text(empf, innerLeft, lineY);
+          const tail = infoText.slice(empf.length);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(70);
+          doc.text(tail, innerLeft + empfW, lineY);
+          doc.setTextColor(0);
+        } else {
+          // Multi-line wrap: first line bold-ish, rest normal grey
+          doc.setFont("helvetica", "bold");
+          doc.text(infoLines[0], innerLeft, lineY);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(70);
+          for (let i = 1; i < infoLines.length; i++) {
+            lineY += infoLineH;
+            doc.text(infoLines[i], innerLeft, lineY);
+          }
+          doc.setTextColor(0);
+        }
+        y += headerH;
 
         // Note (optional)
         if (noteLines.length) {
-          doc.setFontSize(9);
+          doc.setFontSize(8.5);
           doc.setTextColor(150, 90, 0);
           noteLines.forEach((line) => {
             doc.text(line, innerLeft, y);
             y += noteLineH;
           });
           doc.setTextColor(0);
-          y += 1;
+          y += 0.5;
         }
 
         // Separator above checkoff area
