@@ -16,6 +16,8 @@ import { RouteBuilder } from "@/components/admin/RouteBuilder";
 import { RoutesOverviewMap } from "@/components/admin/RoutesOverviewMap";
 import { NewOrdersTable, type NewOrderRow } from "@/components/admin/NewOrdersTable";
 import { Switch } from "@/components/ui/switch";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface Driver { id: string; name: string; }
 interface Vehicle { id: string; kennzeichen: string; }
@@ -67,6 +69,7 @@ const RoutenplanungPage = () => {
   // Print dialog state: pick one of the planned/active routes for the day
   const [printOpen, setPrintOpen] = useState(false);
   const [printRouteId, setPrintRouteId] = useState<string | null>(null);
+  const [printing, setPrinting] = useState(false);
 
   const selectedId = searchParams.get("route");
 
@@ -194,6 +197,104 @@ const RoutenplanungPage = () => {
 
   const routesForDate = routes.filter((r) => r.datum === date);
   const printableRoutes = routesForDate.filter((r) => r.status === "geplant" || r.status === "aktiv");
+
+  const generateRoutePdf = async (routeId: string) => {
+    setPrinting(true);
+    try {
+      const route = routes.find((r) => r.id === routeId);
+      if (!route) throw new Error("Route nicht gefunden");
+
+      const { data: stops, error } = await supabase
+        .from("route_stops")
+        .select("position, orders(user_id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete)")
+        .eq("route_id", routeId)
+        .order("position", { ascending: true });
+      if (error) throw error;
+
+      const userIds = Array.from(
+        new Set((stops ?? []).map((s: any) => s.orders?.user_id).filter(Boolean)),
+      );
+      let merchantMap = new Map<string, string>();
+      if (userIds.length > 0) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("user_id, firma_name, ansprechpartner")
+          .in("user_id", userIds);
+        (profs ?? []).forEach((p: any) => {
+          merchantMap.set(p.user_id, p.firma_name || p.ansprechpartner || "–");
+        });
+      }
+
+      const rows = (stops ?? []).map((s: any) => {
+        const o = s.orders ?? {};
+        const merchant = merchantMap.get(o.user_id) ?? "–";
+        const addr = [o.empfaenger_adresse, [o.empfaenger_plz, o.empfaenger_stadt].filter(Boolean).join(" ")]
+          .filter(Boolean).join(", ");
+        return [
+          String(s.position),
+          o.empfaenger_name ?? "–",
+          addr || "–",
+          merchant,
+          o.empfaenger_telefon ?? "",
+          String(o.pakete ?? 1),
+        ];
+      });
+
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      const dateStr = new Date(route.datum).toLocaleDateString("de-DE");
+      doc.setFontSize(16);
+      doc.text(`Route: ${route.name}`, 14, 16);
+      doc.setFontSize(10);
+      doc.setTextColor(90);
+      const meta = [
+        `Datum: ${dateStr}`,
+        `Start: ${route.start_time?.slice(0, 5) ?? "–"}`,
+        `Fahrer: ${route.drivers?.name ?? "–"}`,
+        `Fahrzeug: ${route.vehicles?.kennzeichen ?? "–"}`,
+        `Stops: ${rows.length}`,
+      ].join("   ·   ");
+      doc.text(meta, 14, 22);
+      doc.setTextColor(0);
+
+      autoTable(doc, {
+        startY: 28,
+        head: [["#", "Empfänger", "Adresse", "Händler", "Telefon", "Pakete"]],
+        body: rows,
+        styles: { fontSize: 9, cellPadding: 2, valign: "top" },
+        headStyles: { fillColor: [34, 139, 87] },
+        columnStyles: {
+          0: { cellWidth: 10, halign: "center" },
+          1: { cellWidth: 38 },
+          2: { cellWidth: 60 },
+          3: { cellWidth: 38 },
+          4: { cellWidth: 24 },
+          5: { cellWidth: 14, halign: "center" },
+        },
+        didDrawPage: (data) => {
+          const pageCount = doc.getNumberOfPages();
+          const page = data.pageNumber;
+          doc.setFontSize(8);
+          doc.setTextColor(120);
+          doc.text(
+            `e-cargo · ${route.name} · ${dateStr} · Seite ${page}/${pageCount}`,
+            14,
+            doc.internal.pageSize.getHeight() - 8,
+          );
+          doc.setTextColor(0);
+        },
+      });
+
+      const safeName = route.name.replace(/[^a-z0-9-_]+/gi, "_");
+      doc.save(`Route_${safeName}_${route.datum}.pdf`);
+      toast.success("PDF erstellt");
+      setPrintOpen(false);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e.message ?? "PDF konnte nicht erstellt werden");
+    } finally {
+      setPrinting(false);
+    }
+  };
 
   // When the date changes, drop a selected route that doesn't belong to the new day
   useEffect(() => {
@@ -347,7 +448,7 @@ const RoutenplanungPage = () => {
           <DialogHeader><DialogTitle>Route drucken</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <p className="text-caption text-muted-foreground">
-              Wähle eine geplante oder aktive Route. Es öffnet sich eine druckfertige PDF-Ansicht mit allen Stops in Reihenfolge für den Fahrer.
+              Wähle eine geplante oder aktive Route. Es wird eine PDF mit allen Stops in Reihenfolge (Nr, Empfänger, Adresse, Händler) heruntergeladen.
             </p>
             {printableRoutes.length === 0 ? (
               <div className="rounded-md border border-dashed p-6 text-center text-caption text-muted-foreground">
@@ -372,14 +473,11 @@ const RoutenplanungPage = () => {
                 </div>
                 <Button
                   className="w-full"
-                  disabled={!printRouteId}
-                  onClick={() => {
-                    if (!printRouteId) return;
-                    window.open(`/admin/routen/${printRouteId}/druck`, "_blank");
-                    setPrintOpen(false);
-                  }}
+                  disabled={!printRouteId || printing}
+                  onClick={() => printRouteId && generateRoutePdf(printRouteId)}
                 >
-                  <Printer className="mr-2 h-4 w-4" />PDF öffnen
+                  <Printer className="mr-2 h-4 w-4" />
+                  {printing ? "Erstelle PDF..." : "PDF herunterladen"}
                 </Button>
               </>
             )}
