@@ -221,9 +221,9 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
   const displayStops = useMemo<StopRow[]>(() => {
     if (!route?.datum) return stops;
     const startTime = (route.start_time ?? "09:00").slice(0, 5);
-    const base = new Date(`${route.datum}T${startTime}:00`);
-    if (isNaN(base.getTime())) return stops;
-    let cursor = base.getTime();
+    const baseMs = berlinLocalToUtcMs(route.datum, startTime);
+    if (isNaN(baseMs)) return stops;
+    let cursor = baseMs;
     return stops.map((s) => {
       if (s.leg_duration_s == null) return s;
       cursor += s.leg_duration_s * 1000;
