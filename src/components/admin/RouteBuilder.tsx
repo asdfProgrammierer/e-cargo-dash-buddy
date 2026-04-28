@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { supabase } from "@/integrations/supabase/client";
@@ -210,7 +210,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  const load = async (): Promise<StopRow[]> => {
+  const load = useCallback(async (): Promise<StopRow[]> => {
     setLoading(true);
     const [r, s, d] = await Promise.all([
       supabase.from("routes").select("*").eq("id", routeId).single(),
@@ -240,8 +240,8 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
     }
     setLoading(false);
     return stopRows;
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [routeId]);
+  }, [routeId]);
+  useEffect(() => { void load(); }, [load]);
 
   const startDepot = useMemo(() => depots.find((x) => x.id === route?.start_depot_id) ?? depots.find((x) => x.is_default) ?? null, [depots, route]);
   const endDepot = useMemo(() => depots.find((x) => x.id === route?.end_depot_id) ?? startDepot, [depots, route, startDepot]);
