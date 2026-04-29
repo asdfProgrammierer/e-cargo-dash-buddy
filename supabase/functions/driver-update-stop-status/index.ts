@@ -79,8 +79,8 @@ Deno.serve(async (req) => {
       .eq("id", stopId)
       .maybeSingle();
 
-    // Use a simpler verification via SQL function instead
-    const { data: ownsStop } = await admin.rpc("is_stop_route_driver", { _stop_id: stopId });
+    // Use a simpler verification via SQL function instead (must run as the user so auth.uid() is set)
+    const { data: ownsStop } = await userClient.rpc("is_stop_route_driver", { _stop_id: stopId });
     if (!ownsStop) {
       return new Response(JSON.stringify({ error: "Kein Zugriff auf diesen Stopp" }), {
         status: 403,
