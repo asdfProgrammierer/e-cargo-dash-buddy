@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
     const routeId: string | undefined = body.route_id;
     if (!routeId) return json({ error: "route_id fehlt" }, 400);
 
-    const { data: owns } = await admin.rpc("is_route_driver", { _route_id: routeId });
+    const { data: owns } = await userClient.rpc("is_route_driver", { _route_id: routeId });
     if (!owns) return json({ error: "Kein Zugriff auf diese Route" }, 403);
 
     const { data: route, error: routeErr } = await admin
