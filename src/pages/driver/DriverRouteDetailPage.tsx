@@ -505,7 +505,17 @@ const DriverRouteDetailPage = () => {
                         <Phone className="h-4 w-4 opacity-30" />
                       </Button>
                     )}
-                    <Button size="sm" onClick={() => openDeliverSheet(s)} disabled={submitting}>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (isPlanned) {
+                          toast.info("Bitte zuerst Route starten");
+                          return;
+                        }
+                        openDeliverSheet(s);
+                      }}
+                      disabled={submitting || isPlanned}
+                    >
                       <CheckCircle2 className="h-4 w-4 mr-1" />
                       OK
                     </Button>
@@ -513,7 +523,14 @@ const DriverRouteDetailPage = () => {
                       variant="ghost"
                       size="sm"
                       className="col-span-3 text-destructive hover:text-destructive"
-                      onClick={() => { setActiveStop(s); setReason(REASONS[0]); setExtraNote(""); }}
+                      disabled={isPlanned}
+                      onClick={() => {
+                        if (isPlanned) {
+                          toast.info("Bitte zuerst Route starten");
+                          return;
+                        }
+                        setActiveStop(s); setReason(REASONS[0]); setExtraNote("");
+                      }}
                     >
                       <XCircle className="h-4 w-4 mr-1" />
                       Nicht zugestellt
