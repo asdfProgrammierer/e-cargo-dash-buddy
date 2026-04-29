@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
       if (newOrderStatus) {
         const { data: order } = await admin
           .from("orders")
-          .select("user_id")
+          .select("user_id, auftrags_nr, empfaenger_name, empfaenger_email, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, tracking_token")
           .eq("id", stop.order_id)
           .maybeSingle();
 
@@ -162,6 +162,46 @@ Deno.serve(async (req) => {
             reason: reason ?? null,
             changed_by: userData.user.id,
           });
+        }
+
+        // Send status email to recipient
+        try {
+          const email = (order?.empfaenger_email ?? "").trim();
+          if (order && email) {
+            const { data: p } = await admin
+              .from("profiles")
+              .select("firma_name, ansprechpartner")
+              .eq("user_id", order.user_id)
+              .maybeSingle();
+            const haendlerName = (p?.firma_name?.trim() || p?.ansprechpartner?.trim() || "Ihr Händler");
+            const lieferadresse = [
+              order.empfaenger_name,
+              order.empfaenger_adresse,
+              [order.empfaenger_plz, order.empfaenger_stadt].filter(Boolean).join(" "),
+            ].filter((x) => x && String(x).trim().length > 0).join(", ");
+            const origin = req.headers.get("origin") || "https://ecargo-logistic.de";
+            const trackingUrl = order.tracking_token ? `${origin}/track/${order.tracking_token}` : "";
+            const templateData: Record<string, string> = {
+              kundenname: order.empfaenger_name,
+              haendlerName,
+              auftragsNr: order.auftrags_nr,
+              lieferadresse,
+              trackingUrl,
+            };
+            if (newOrderStatus === "nicht_zugestellt" && reason) templateData.reason = reason;
+            const templateName = newOrderStatus === "zugestellt" ? "order-zugestellt" : "order-nicht-zugestellt";
+            const { error: mailErr } = await admin.functions.invoke("send-transactional-email", {
+              body: {
+                templateName,
+                recipientEmail: email,
+                idempotencyKey: `order-status-${stop.order_id}-${newOrderStatus}`,
+                templateData,
+              },
+            });
+            if (mailErr) console.error("status email failed", stop.order_id, mailErr);
+          }
+        } catch (mailEx) {
+          console.error("status email error", mailEx);
         }
       }
     }
