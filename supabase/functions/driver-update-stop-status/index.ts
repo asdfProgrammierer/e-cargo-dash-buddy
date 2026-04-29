@@ -166,10 +166,75 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // Check if all stops of this route are done -> close route + return depot
+    let routeCompleted = false;
+    let endDepot: {
+      id: string;
+      name: string;
+      strasse: string;
+      plz: string;
+      stadt: string;
+      lat: number | null;
+      lng: number | null;
+    } | null = null;
+
+    if (stop?.route_id) {
+      const { count: openCount } = await admin
+        .from("route_stops")
+        .select("id", { count: "exact", head: true })
+        .eq("route_id", stop.route_id)
+        .eq("status", "offen");
+
+      if ((openCount ?? 0) === 0) {
+        await admin
+          .from("routes")
+          .update({ status: "abgeschlossen", updated_at: new Date().toISOString() })
+          .eq("id", stop.route_id);
+        routeCompleted = true;
+
+        const { data: routeRow } = await admin
+          .from("routes")
+          .select("end_depot_id, start_depot_id")
+          .eq("id", stop.route_id)
+          .maybeSingle();
+
+        let depotId = routeRow?.end_depot_id ?? routeRow?.start_depot_id ?? null;
+        if (!depotId) {
+          const { data: def } = await admin
+            .from("depots")
+            .select("id")
+            .eq("is_default", true)
+            .maybeSingle();
+          depotId = def?.id ?? null;
+        }
+        if (depotId) {
+          const { data: depot } = await admin
+            .from("depots")
+            .select("id, name, strasse, plz, stadt, lat, lng")
+            .eq("id", depotId)
+            .maybeSingle();
+          if (depot) {
+            endDepot = {
+              id: depot.id,
+              name: depot.name,
+              strasse: depot.strasse,
+              plz: depot.plz,
+              stadt: depot.stadt,
+              lat: depot.lat != null ? Number(depot.lat) : null,
+              lng: depot.lng != null ? Number(depot.lng) : null,
+            };
+          }
+        }
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ ok: true, route_completed: routeCompleted, end_depot: endDepot }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (e) {
     console.error(e);
     return new Response(JSON.stringify({ error: (e as Error).message }), {
