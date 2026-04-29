@@ -5,6 +5,7 @@ import { DriverLayout } from "@/components/driver/DriverLayout";
 import { useDriverCheck } from "@/hooks/useDriverCheck";
 import { Calendar, Package, ChevronRight, Loader2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 
 interface RouteRow {
   id: string;
@@ -43,6 +44,8 @@ const DriverHomePage = () => {
         total_stops: r.route_stops?.length ?? 0,
         done_stops: r.route_stops?.filter((s: any) => s.status === "erledigt" || s.status === "uebersprungen").length ?? 0,
       }));
+      const order = { aktiv: 0, geplant: 1, abgeschlossen: 2 } as Record<string, number>;
+      rows.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
       setRoutes(rows);
       setLoading(false);
     })();
@@ -50,6 +53,10 @@ const DriverHomePage = () => {
 
   const fmtDate = (d: string) => new Date(d).toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" });
   const isToday = (d: string) => d === todayISO();
+  const statusLabel = (s: string) =>
+    s === "aktiv" ? "Aktiv" : s === "abgeschlossen" ? "Abgeschlossen" : "Geplant";
+  const statusVariant = (s: string): "default" | "secondary" | "outline" =>
+    s === "aktiv" ? "default" : s === "abgeschlossen" ? "secondary" : "outline";
 
   return (
     <DriverLayout title="Meine Routen">
@@ -80,7 +87,12 @@ const DriverHomePage = () => {
                       <span>•</span>
                       <span>{r.start_time?.slice(0, 5)} Uhr</span>
                     </div>
-                    <h2 className="font-semibold truncate">{r.name}</h2>
+                    <div className="flex items-center gap-2">
+                      <h2 className="font-semibold truncate">{r.name}</h2>
+                      <Badge variant={statusVariant(r.status)} className="text-[10px] py-0 h-5">
+                        {statusLabel(r.status)}
+                      </Badge>
+                    </div>
                     <p className="text-sm text-muted-foreground mt-0.5">
                       {r.done_stops} / {r.total_stops} Stopps erledigt
                     </p>
