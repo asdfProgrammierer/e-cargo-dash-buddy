@@ -9,9 +9,10 @@ interface Props {
   auftragsNr?: string
   lieferadresse?: string
   trackingUrl?: string
+  etaWindow?: string
 }
 
-const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, trackingUrl }: Props) => (
+const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, trackingUrl, etaWindow }: Props) => (
   <Html lang="de">
     <Head />
     <Preview>Ihre Bestellung ist unterwegs zu Ihnen</Preview>
@@ -27,6 +28,12 @@ const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, trackingUr
           <div style={card}>
             <Text style={cardLabel}>Ihre Auftragsnummer</Text>
             <Text style={cardValue}>{auftragsNr}</Text>
+          </div>
+        ) : null}
+        {etaWindow ? (
+          <div style={infoBox}>
+            <Text style={infoLabel}>Voraussichtliches Lieferzeitfenster</Text>
+            <Text style={infoValue}>{etaWindow}</Text>
           </div>
         ) : null}
         {lieferadresse ? (
@@ -52,5 +59,5 @@ export const template = {
   component: Email,
   subject: 'Ihre Bestellung ist unterwegs',
   displayName: 'Bestellung – Unterwegs',
-  previewData: { kundenname: 'Max Mustermann', haendlerName: 'PMF Store', auftragsNr: 'EC-PMF-0000123', lieferadresse: 'Musterstraße 1, 12345 Berlin' },
+  previewData: { kundenname: 'Max Mustermann', haendlerName: 'PMF Store', auftragsNr: 'EC-PMF-0000123', lieferadresse: 'Musterstraße 1, 12345 Berlin', etaWindow: '14:30 – 15:30 Uhr' },
 } satisfies TemplateEntry
