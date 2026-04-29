@@ -1,47 +1,76 @@
 ## Ziel
-Sobald der Fahrer eine Zustellung mit Unterschrift bestätigt, soll der Lieferschein automatisch als PDF neu generiert, mit der gespeicherten Signatur verknüpft und im Storage abgelegt werden – ohne dass jemand manuell auf "PDF herunterladen" klicken muss.
 
-## Vorgehen
+Klare Verknüpfung der Stati zwischen Route, Stopps und Aufträgen entlang des Fahrer-Workflows:
 
-### 1. Storage-Bucket für Lieferscheine
-- Neuen privaten Bucket `delivery-notes` anlegen.
-- RLS-Policies analog zu `delivery-signatures`:
-  - Admins: voller Zugriff
-  - Fahrer: Lese-/Schreibzugriff auf Lieferscheine ihrer Routen-Stopps
-  - Händler: Lesezugriff auf Lieferscheine ihrer eigenen Aufträge
+```text
+[geplant]  ──[Route starten]──►  [aktiv]  ──[alle Stopps fertig]──►  [abgeschlossen]
+   │                                │                                       │
+Aufträge: in_bearbeitung    →  unterwegs                  →  zugestellt / nicht_zugestellt
+                                                                            │
+                                                                 Navigation zum Hauptdepot
+```
 
-### 2. Datenbank
-- Spalte `delivery_note_pdf_url TEXT` zu `route_stops` hinzufügen (Pfad im Bucket).
-- Migration über das Migration-Tool.
+## Workflow im Detail
 
-### 3. PDF-Generierung als wiederverwendbares Modul
-- `src/lib/orderPdf.ts` refactoren: bestehende Logik in eine reine Funktion `buildOrderPdf(order): Promise<jsPDF>` extrahieren, die das `jsPDF`-Objekt zurückgibt.
-- `downloadOrderPdf(order)` ruft `buildOrderPdf` + `doc.save()` auf (kein Verhaltensbruch für bestehende Aufrufer).
-- Neue Funktion `buildOrderPdfBlob(order): Promise<Blob>` exportieren – wird vom Edge-Flow konsumiert.
+1. **Route starten (Fahrer)**
+   - Neuer Button „Route starten" in `DriverRouteDetailPage`, sichtbar wenn `routes.status = 'geplant'`.
+   - Setzt `routes.status = 'aktiv'` und alle zugehörigen `orders.status` von `in_bearbeitung` (oder `neu`) auf `unterwegs`.
+   - Löst die bestehende E-Mail „Sendung unterwegs" automatisch über die normale Order-Status-Logik aus.
 
-### 4. Edge Function `driver-update-stop-status` erweitern
-Direkt nach erfolgreichem Signatur-Upload + DB-Update:
-- Auftrag laden (`orders` + `order_status_history` + `route_stops`).
-- Lieferschein als PDF serverseitig erzeugen mit **jsPDF via esm.sh** (`https://esm.sh/jspdf@2.5.1` + `https://esm.sh/qrcode@1.5.3`). Dieselbe Layout-Logik wie im Frontend, gekapselt in einer geteilten Helper-Datei `supabase/functions/_shared/delivery-note-pdf.ts`.
-  - Hinweis: Die Layout-Logik wird einmalig vom Frontend-Modul ins `_shared`-Modul portiert, damit Server + Client identische Lieferscheine erzeugen. (Frontend importiert weiterhin lokal, Server nutzt den geteilten Helper.)
-- Signatur-PNG aus Storage laden und als Base64 ins PDF einbetten (`addImage`).
-- PDF nach `delivery-notes/orders/<order_id>/<stop_id>-<timestamp>.pdf` hochladen (`upsert: true`).
-- Pfad in `route_stops.delivery_note_pdf_url` speichern.
-- Fehler beim PDF-Schritt nur loggen, **nicht** den gesamten Stopp-Update-Call fehlschlagen lassen (Zustellung muss erfasst bleiben, auch wenn PDF-Build hakt).
+2. **Stopps abarbeiten** (bestehende Logik)
+   - „OK" → `route_stops.status = 'erledigt'` + `orders.status = 'zugestellt'` (bereits vorhanden).
+   - „Nicht zugestellt" → `uebersprungen` + `nicht_zugestellt` (bereits vorhanden).
 
-### 5. Frontend-Anpassung Lieferschein-Download
-- `downloadOrderPdf` prüft zuerst `route_stops.delivery_note_pdf_url`. Wenn vorhanden → diese Datei aus dem Storage laden und herunterladen (so bekommen Händler/Admin exakt das PDF, das mit der Unterschrift archiviert wurde).
-- Fallback: PDF wie bisher live generieren (für Aufträge ohne PoD).
+3. **Route automatisch abschließen**
+   - Sobald **alle** Stopps `erledigt` oder `uebersprungen` sind:
+     - `routes.status = 'abgeschlossen'`.
+     - Im UI erscheint statt Stopp-Liste eine Abschluss-Karte „Route abgeschlossen – zurück zum Depot".
+     - **Automatischer Start der Navigation** zum `end_depot_id` (Fallback: `start_depot_id` bzw. Default-Depot) über die bereits vorhandene `navigate()`-Logik (Apple Maps / Google Navigation Deep-Link).
 
-### 6. Kein UI-Eingriff für den Fahrer
-- Bestätigungs-Sheet bleibt unverändert. Nach erfolgreichem Submit zeigt der Toast zusätzlich „Lieferschein archiviert" an.
+## Technische Umsetzung
 
-## Technische Details
-- Edge-Function-Imports: `jspdf` und `qrcode` aus esm.sh (CDN, keine Build-Pipeline nötig in Deno).
-- Service-Role-Client lädt Signatur via `storage.from('delivery-signatures').download(path)` → ArrayBuffer → Base64 für `addImage`.
-- Upload als `Uint8Array` mit `contentType: 'application/pdf'`.
-- Migration setzt nur die neue Spalte + Bucket + Policies; bestehende Daten unberührt.
-- Types werden automatisch nach Migration aktualisiert.
+### Edge Function – neu: `driver-start-route`
+- Input: `{ route_id }`.
+- Verifiziert per `is_route_driver(route_id)`, dass der eingeloggte Fahrer die Route besitzt.
+- Prüft `routes.status = 'geplant'`, sonst 409.
+- Service-Role Update:
+  - `routes.status = 'aktiv'`.
+  - `orders.status = 'unterwegs'` für alle Orders dieser Route, deren Status aktuell `neu` oder `in_bearbeitung` ist (kein Downgrade von bereits `zugestellt` etc.).
+- Antwort: `{ ok: true, updated_orders: n }`.
 
-## Ergebnis
-Beim Tippen auf „Bestätigen" im Übergabe-Sheet wird die Unterschrift hochgeladen, der Stopp/Order auf „zugestellt" gesetzt **und** ein finaler Lieferschein als PDF mit eingebetteter Signatur im Backend abgelegt. Spätere PDF-Downloads liefern exakt diese archivierte Version.
+### Edge Function – Erweiterung: `driver-update-stop-status`
+- Nach erfolgreichem Stop-Update prüfen, ob für diese Route **kein** offener Stopp mehr existiert.
+- Falls ja: `routes.status = 'abgeschlossen'` setzen.
+- In der Response zusätzlich `route_completed: true` und `end_depot: { lat, lng, adresse }` zurückgeben (geladen via `routes.end_depot_id` → `depots`-Tabelle, Fallback auf `start_depot_id` oder Default-Depot).
+
+### Frontend – `src/pages/driver/DriverRouteDetailPage.tsx`
+- `route`-State erweitern um `status`, `start_depot`, `end_depot`.
+- **„Route starten"-Banner** (oberhalb des Nächster-Stopp-Banners) wenn `route.status === 'geplant'`. Klick ruft `driver-start-route` auf, lädt neu und zeigt Toast „Route gestartet".
+- Solange `route.status === 'geplant'`: OK-/Nicht-zugestellt-Buttons deaktiviert mit Hinweis „Bitte zuerst Route starten".
+- Nach `submitDelivery`/`updateStatus`: wenn Response `route_completed`, automatisch:
+  - Toast „Route abgeschlossen – Navigation zum Depot startet".
+  - `navigate({...})` mit Depot-Adresse/Koordinaten aufrufen (gleiche Deep-Link-Logik wie für Stopps, neue Hilfsfunktion `navigateToDepot(depot)`).
+  - UI in „Abschluss-Modus" schalten (Stopp-Liste ausgegraut, große Karte „Zurück zum Depot" mit erneutem Navigations-Button).
+
+### Frontend – `src/pages/driver/DriverHomePage.tsx`
+- Status-Badge je Route: `geplant` / `aktiv` / `abgeschlossen` (farblich: muted / primary / success).
+- Sortierung: aktive Routen zuerst, dann geplante, dann abgeschlossene des Tages.
+
+### Admin-Sicht
+- Bestehende Routen-Listen zeigen den `aktiv`/`abgeschlossen`-Status automatisch (kein Code-Change nötig, nur ggf. Badge-Farben in `RoutesOverviewMap`/`RouteDetailPage` prüfen).
+
+## Edge Cases
+
+- **Bereits aktive Route bei App-Reload**: Button „Route starten" wird nicht mehr angezeigt, normale Stopp-Bearbeitung möglich.
+- **Letzter Stopp = uebersprungen**: Route trotzdem abgeschlossen; Heimfahrt startet ebenfalls.
+- **Kein Depot hinterlegt**: Toast „Kein Depot konfiguriert", keine Auto-Navigation; Route wird trotzdem abgeschlossen.
+- **Order-Status-Trigger**: `prevent_non_admin_order_status_change` greift nicht, da Updates über Service-Role laufen.
+
+## Geänderte / neue Dateien
+
+- **neu**: `supabase/functions/driver-start-route/index.ts`
+- **bearbeitet**: `supabase/functions/driver-update-stop-status/index.ts` (Auto-Abschluss + Depot-Antwort)
+- **bearbeitet**: `src/pages/driver/DriverRouteDetailPage.tsx` (Start-Button, Abschluss-Flow, Depot-Navigation)
+- **bearbeitet**: `src/pages/driver/DriverHomePage.tsx` (Status-Badges)
+
+Keine Schema-Änderungen nötig – `route_status`-Enum (`geplant`/`aktiv`/`abgeschlossen`) und `depots`-Verknüpfungen existieren bereits.
