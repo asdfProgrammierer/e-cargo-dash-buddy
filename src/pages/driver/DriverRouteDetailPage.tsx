@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight, PenLine } from "lucide-react";
+import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight, PenLine, Play, Home } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { SignaturePad, type SignaturePadHandle } from "@/components/driver/SignaturePad";
 import { buildOrderPdfBlob } from "@/lib/orderPdf";
@@ -35,6 +35,16 @@ interface Stop {
   } | null;
 }
 
+interface Depot {
+  id: string;
+  name: string;
+  strasse: string;
+  plz: string;
+  stadt: string;
+  lat: number | null;
+  lng: number | null;
+}
+
 const REASONS = [
   "Empfänger nicht angetroffen",
   "Adresse nicht auffindbar",
@@ -54,6 +64,9 @@ const DELIVERY_MODES: { value: DeliveryMode; label: string }[] = [
 const DriverRouteDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const [routeName, setRouteName] = useState("Route");
+  const [routeStatus, setRouteStatus] = useState<string>("geplant");
+  const [endDepot, setEndDepot] = useState<Depot | null>(null);
+  const [startingRoute, setStartingRoute] = useState(false);
   const [stops, setStops] = useState<Stop[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeStop, setActiveStop] = useState<Stop | null>(null);
@@ -72,8 +85,34 @@ const DriverRouteDetailPage = () => {
 
   const load = async () => {
     if (!id) return;
-    const { data: route } = await supabase.from("routes").select("name").eq("id", id).maybeSingle();
-    if (route) setRouteName(route.name);
+    const { data: route } = await supabase
+      .from("routes")
+      .select("name, status, end_depot_id, start_depot_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (route) {
+      setRouteName(route.name);
+      setRouteStatus(route.status);
+      const depotId = route.end_depot_id ?? route.start_depot_id ?? null;
+      if (depotId) {
+        const { data: depot } = await supabase
+          .from("depots")
+          .select("id, name, strasse, plz, stadt, lat, lng")
+          .eq("id", depotId)
+          .maybeSingle();
+        if (depot) {
+          setEndDepot({
+            id: depot.id,
+            name: depot.name,
+            strasse: depot.strasse,
+            plz: depot.plz,
+            stadt: depot.stadt,
+            lat: depot.lat != null ? Number(depot.lat) : null,
+            lng: depot.lng != null ? Number(depot.lng) : null,
+          });
+        }
+      }
+    }
 
     const { data } = await supabase
       .from("route_stops")
@@ -142,6 +181,37 @@ const DriverRouteDetailPage = () => {
     setDeliveryNote("");
     setDeliveryRecipient("");
     setDeliveryMode("persoenlich");
+    await load();
+
+    // Auto-close route + start navigation back to depot
+    const result = data as { route_completed?: boolean; end_depot?: Depot | null };
+    if (result?.route_completed) {
+      const depot = result.end_depot ?? endDepot;
+      setRouteStatus("abgeschlossen");
+      if (depot) {
+        setEndDepot(depot);
+        toast.success("Route abgeschlossen · Navigation zum Depot startet");
+        setTimeout(() => navigateToDepot(depot), 800);
+      } else {
+        toast.success("Route abgeschlossen");
+        toast.warning("Kein Depot hinterlegt – keine Heimfahrt-Navigation");
+      }
+    }
+  };
+
+  const startRoute = async () => {
+    if (!id) return;
+    setStartingRoute(true);
+    const { data, error } = await supabase.functions.invoke("driver-start-route", {
+      body: { route_id: id },
+    });
+    setStartingRoute(false);
+    if (error || (data as any)?.error) {
+      toast.error((data as any)?.error ?? "Route konnte nicht gestartet werden");
+      return;
+    }
+    toast.success("Route gestartet · Pakete sind unterwegs");
+    setRouteStatus("aktiv");
     load();
   };
 
@@ -227,10 +297,18 @@ const DriverRouteDetailPage = () => {
     if (!o) return;
 
     const addrText = `${o.empfaenger_adresse}, ${o.empfaenger_plz} ${o.empfaenger_stadt}`;
+    openMapsNavigation(addrText, o.lat, o.lng);
+  };
+
+  const navigateToDepot = (depot: Depot) => {
+    const addrText = `${depot.strasse}, ${depot.plz} ${depot.stadt}`;
+    openMapsNavigation(addrText, depot.lat, depot.lng);
+  };
+
+  const openMapsNavigation = (addrText: string, lat: number | null, lng: number | null) => {
     const addr = encodeURIComponent(addrText);
-    const label = encodeURIComponent(o.empfaenger_name);
-    const hasCoords = o.lat != null && o.lng != null;
-    const coords = hasCoords ? `${o.lat},${o.lng}` : null;
+    const hasCoords = lat != null && lng != null;
+    const coords = hasCoords ? `${lat},${lng}` : null;
 
     const ua = navigator.userAgent || "";
     const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
@@ -238,23 +316,19 @@ const DriverRouteDetailPage = () => {
 
     let url: string;
     if (isIOS) {
-      // Apple Maps Deep-Link, Driving-Modus
       url = coords
         ? `maps://?daddr=${coords}&dirflg=d`
         : `maps://?daddr=${addr}&dirflg=d`;
     } else if (isAndroid) {
-      // Google Maps Navigation Intent (öffnet direkt Turn-by-Turn)
       url = coords
         ? `google.navigation:q=${coords}&mode=d`
         : `google.navigation:q=${addr}&mode=d`;
     } else {
-      // Desktop / Fallback: Google Maps im Browser
       url = coords
         ? `https://www.google.com/maps/dir/?api=1&destination=${coords}&travelmode=driving`
         : `https://www.google.com/maps/dir/?api=1&destination=${addr}&travelmode=driving`;
     }
 
-    // Fallback falls Deep-Link nicht greift (z. B. Google Maps nicht installiert)
     const fallback = coords
       ? `https://www.google.com/maps/dir/?api=1&destination=${coords}&travelmode=driving`
       : `https://www.google.com/maps/dir/?api=1&destination=${addr}&travelmode=driving`;
@@ -268,8 +342,6 @@ const DriverRouteDetailPage = () => {
         }
       }, 1200);
     }
-    // label wird aktuell nicht in den Deep-Links benötigt
-    void label;
   };
 
   const done = stops.filter((s) => s.status === "erledigt" || s.status === "uebersprungen").length;
@@ -278,18 +350,78 @@ const DriverRouteDetailPage = () => {
   const nextStop = stops.find(
     (s) => s.status !== "erledigt" && s.status !== "uebersprungen" && s.order,
   ) ?? null;
+  const isPlanned = routeStatus === "geplant";
+  const isCompleted = routeStatus === "abgeschlossen";
 
   return (
     <DriverLayout title={routeName} showBack>
       <div className="sticky top-14 bg-card border-b px-4 py-2 z-[5]">
         <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-          <span>Fortschritt</span>
+          <span>
+            {isPlanned ? "Geplant" : isCompleted ? "Abgeschlossen" : "Aktiv"}
+          </span>
           <span>{done} / {total}</span>
         </div>
         <Progress value={pct} className="h-2" />
       </div>
 
-      {nextStop?.order && (
+      {isPlanned && (
+        <div className="px-4 pt-3">
+          <button
+            type="button"
+            onClick={startRoute}
+            disabled={startingRoute}
+            className="w-full text-left bg-primary text-primary-foreground rounded-xl p-4 shadow-md active:scale-[0.99] transition-transform disabled:opacity-60"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 w-11 h-11 rounded-full bg-primary-foreground/15 flex items-center justify-center">
+                {startingRoute ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] uppercase tracking-wide opacity-80">Bereit zur Auslieferung</div>
+                <div className="font-semibold">Route starten</div>
+                <div className="text-xs opacity-90">
+                  Setzt alle {total} Pakete auf „unterwegs"
+                </div>
+              </div>
+            </div>
+          </button>
+        </div>
+      )}
+
+      {isCompleted && (
+        <div className="px-4 pt-3">
+          <div className="bg-primary text-primary-foreground rounded-xl p-4 shadow-md">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex-shrink-0 w-11 h-11 rounded-full bg-primary-foreground/15 flex items-center justify-center">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] uppercase tracking-wide opacity-80">Route abgeschlossen</div>
+                <div className="font-semibold">Alle Stopps erledigt</div>
+                {endDepot && (
+                  <div className="text-xs opacity-90 truncate">
+                    Zurück zu {endDepot.name}
+                  </div>
+                )}
+              </div>
+            </div>
+            {endDepot && (
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                onClick={() => navigateToDepot(endDepot)}
+              >
+                <Home className="h-4 w-4 mr-2" />
+                Navigation zum Depot
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!isPlanned && !isCompleted && nextStop?.order && (
         <div className="sticky top-[5.75rem] z-[4] px-4 pt-3">
           <button
             type="button"
