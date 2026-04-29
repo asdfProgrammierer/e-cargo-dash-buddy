@@ -76,6 +76,88 @@ Deno.serve(async (req) => {
         .select("id");
       if (oUpdErr) console.error("order update failed", oUpdErr);
       updatedOrders = upd?.length ?? 0;
+
+      // Send "unterwegs" email to recipients with ETA window (±30 min)
+      try {
+        const updatedIds = (upd ?? []).map((r: { id: string }) => r.id);
+        if (updatedIds.length > 0) {
+          const { data: orderRows } = await admin
+            .from("orders")
+            .select("id, user_id, auftrags_nr, empfaenger_name, empfaenger_email, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, tracking_token")
+            .in("id", updatedIds);
+
+          const { data: stopRows } = await admin
+            .from("route_stops")
+            .select("order_id, eta")
+            .eq("route_id", routeId)
+            .in("order_id", updatedIds);
+          const etaByOrder = new Map<string, string | null>();
+          (stopRows ?? []).forEach((s: { order_id: string | null; eta: string | null }) => {
+            if (s.order_id) etaByOrder.set(s.order_id, s.eta);
+          });
+
+          const merchantNameCache = new Map<string, string>();
+          const getMerchantName = async (uid: string) => {
+            if (merchantNameCache.has(uid)) return merchantNameCache.get(uid)!;
+            const { data: p } = await admin
+              .from("profiles")
+              .select("firma_name, ansprechpartner")
+              .eq("user_id", uid)
+              .maybeSingle();
+            const name = (p?.firma_name?.trim() || p?.ansprechpartner?.trim() || "Ihr Händler");
+            merchantNameCache.set(uid, name);
+            return name;
+          };
+
+          const fmt = (d: Date) =>
+            new Intl.DateTimeFormat("de-DE", {
+              hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin",
+            }).format(d);
+
+          const origin = req.headers.get("origin") || "https://ecargo-logistic.de";
+
+          for (const o of orderRows ?? []) {
+            const email = (o.empfaenger_email ?? "").trim();
+            if (!email) continue;
+            const etaIso = etaByOrder.get(o.id);
+            let etaWindow: string | undefined;
+            if (etaIso) {
+              const eta = new Date(etaIso);
+              const from = new Date(eta.getTime() - 30 * 60 * 1000);
+              const to = new Date(eta.getTime() + 30 * 60 * 1000);
+              etaWindow = `${fmt(from)} – ${fmt(to)} Uhr`;
+            }
+            const haendlerName = await getMerchantName(o.user_id);
+            const lieferadresse = [
+              o.empfaenger_name,
+              o.empfaenger_adresse,
+              [o.empfaenger_plz, o.empfaenger_stadt].filter(Boolean).join(" "),
+            ].filter((x) => x && String(x).trim().length > 0).join(", ");
+            const trackingUrl = o.tracking_token ? `${origin}/track/${o.tracking_token}` : "";
+
+            const templateData: Record<string, string> = {
+              kundenname: o.empfaenger_name,
+              haendlerName,
+              auftragsNr: o.auftrags_nr,
+              lieferadresse,
+              trackingUrl,
+            };
+            if (etaWindow) templateData.etaWindow = etaWindow;
+
+            const { error: mailErr } = await admin.functions.invoke("send-transactional-email", {
+              body: {
+                templateName: "order-unterwegs",
+                recipientEmail: email,
+                idempotencyKey: `order-status-${o.id}-unterwegs`,
+                templateData,
+              },
+            });
+            if (mailErr) console.error("unterwegs email failed", o.id, mailErr);
+          }
+        }
+      } catch (mailEx) {
+        console.error("unterwegs email batch failed", mailEx);
+      }
     }
 
     return json({ ok: true, updated_orders: updatedOrders });
