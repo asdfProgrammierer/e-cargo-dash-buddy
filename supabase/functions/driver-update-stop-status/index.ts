@@ -198,7 +198,7 @@ Deno.serve(async (req) => {
             };
             if (newOrderStatus === "nicht_zugestellt" && reason) templateData.reason = reason;
             const templateName = newOrderStatus === "zugestellt" ? "order-zugestellt" : "order-nicht-zugestellt";
-            const { error: mailErr } = await admin.functions.invoke("send-transactional-email", {
+            const { error: mailErr } = await userClient.functions.invoke("send-transactional-email", {
               body: {
                 templateName,
                 recipientEmail: email,

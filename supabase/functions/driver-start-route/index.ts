@@ -137,7 +137,7 @@ Deno.serve(async (req) => {
             templateData.etaWindow = etaWindow;
             if (etaCenter) templateData.etaCenter = etaCenter;
 
-            const { error: mailErr } = await admin.functions.invoke("send-transactional-email", {
+            const { error: mailErr } = await userClient.functions.invoke("send-transactional-email", {
               body: {
                 templateName: "order-unterwegs",
                 recipientEmail: email,

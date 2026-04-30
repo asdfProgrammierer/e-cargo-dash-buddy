@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Mail, RotateCcw, Save, Send, Sparkles } from "lucide-react";
+import { Mail, RotateCcw, Save, Send, Sparkles, Beaker } from "lucide-react";
 
 type TemplateKey =
   | "order-neu"
@@ -67,6 +67,8 @@ const EmailTemplatesPage = () => {
   const [previewHtml, setPreviewHtml] = useState<string>("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [testEmail, setTestEmail] = useState<string>("");
+  const [testOrderNr, setTestOrderNr] = useState<string>("");
+  const [testingOrder, setTestingOrder] = useState(false);
   const [dirty, setDirty] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const rowsRef = useRef(rows);
@@ -273,6 +275,77 @@ const EmailTemplatesPage = () => {
     else toast.success(`Test-Mail an ${testEmail} eingereiht`);
   };
 
+  // Sendet die aktuell gewählte Status-E-Mail mit den echten Daten einer
+  // konkreten Bestellung — entweder an die hinterlegte Empfänger-Adresse
+  // oder, falls oben eine Test-Adresse eingetragen ist, an diese.
+  const sendTestForOrder = async () => {
+    const nr = testOrderNr.trim();
+    if (!nr) {
+      toast.error("Bitte eine Auftragsnummer eingeben (z.B. EC-PMF-0000123)");
+      return;
+    }
+    setTestingOrder(true);
+    try {
+      const { data: order, error: oErr } = await supabase
+        .from("orders")
+        .select(
+          "id, auftrags_nr, user_id, empfaenger_name, empfaenger_email, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, tracking_token",
+        )
+        .eq("auftrags_nr", nr)
+        .maybeSingle();
+      if (oErr) throw oErr;
+      if (!order) {
+        toast.error("Auftrag nicht gefunden");
+        return;
+      }
+      const recipient = (testEmail || order.empfaenger_email || "").trim();
+      if (!recipient) {
+        toast.error("Auftrag hat keine Empfänger-E-Mail. Bitte Test-Adresse oben eintragen.");
+        return;
+      }
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("firma_name, ansprechpartner")
+        .eq("user_id", order.user_id)
+        .maybeSingle();
+      const haendlerName =
+        (prof?.firma_name?.trim() || prof?.ansprechpartner?.trim() || "Ihr Händler");
+      const lieferadresse = [
+        order.empfaenger_name,
+        order.empfaenger_adresse,
+        [order.empfaenger_plz, order.empfaenger_stadt].filter(Boolean).join(" "),
+      ]
+        .filter((x) => x && String(x).trim().length > 0)
+        .join(", ");
+      const origin = window.location.origin;
+      const trackingUrl = order.tracking_token ? `${origin}/track/${order.tracking_token}` : "";
+
+      const { error } = await supabase.functions.invoke("send-transactional-email", {
+        body: {
+          templateName: active,
+          recipientEmail: recipient,
+          idempotencyKey: `manual-test-${active}-${order.id}-${Date.now()}`,
+          templateData: {
+            kundenname: order.empfaenger_name,
+            haendlerName,
+            auftragsNr: order.auftrags_nr,
+            lieferadresse,
+            trackingUrl,
+            etaWindow: "14:30 – 15:30 Uhr",
+            etaCenter: "15:00",
+            reason: "Empfänger nicht angetroffen",
+          },
+        },
+      });
+      if (error) toast.error("Versand fehlgeschlagen: " + error.message);
+      else toast.success(`Status-E-Mail (${active}) an ${recipient} eingereiht`);
+    } catch (e: any) {
+      toast.error("Fehler: " + (e?.message ?? e));
+    } finally {
+      setTestingOrder(false);
+    }
+  };
+
   return (
     <AdminLayout title="Einstellungen">
       <SettingsTabs />
@@ -355,6 +428,25 @@ const EmailTemplatesPage = () => {
               Klicken Sie direkt in die Vorschau, um Texte zu bearbeiten. Verfügbare Platzhalter:{" "}
               <span className="font-mono">{PLACEHOLDERS.join(" · ")}</span>
             </p>
+            <div className="rounded-md border bg-muted/40 p-3">
+              <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-foreground">
+                <Beaker className="h-3.5 w-3.5 text-primary" /> Mit echter Bestellung testen
+              </div>
+              <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                <Input
+                  placeholder="Auftragsnummer (z.B. EC-PMF-0000123)"
+                  value={testOrderNr}
+                  onChange={(e) => setTestOrderNr(e.target.value)}
+                />
+                <Button onClick={sendTestForOrder} variant="default" disabled={testingOrder}>
+                  <Send className="mr-2 h-4 w-4" />
+                  {testingOrder ? "Sende…" : `„${TEMPLATES.find((t) => t.key === active)?.label}" auslösen`}
+                </Button>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Sendet die ausgewählte Status-E-Mail mit den echten Daten der Bestellung. Wenn oben eine Test-Adresse eingetragen ist, geht die Mail dorthin — sonst an die im Auftrag hinterlegte Empfänger-Adresse. Die Bestellung selbst wird dabei <strong>nicht</strong> verändert.
+              </p>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-hidden rounded-md border bg-white">
