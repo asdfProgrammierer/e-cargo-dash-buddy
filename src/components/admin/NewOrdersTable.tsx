@@ -30,6 +30,7 @@ export interface NewOrderRow {
   pakete: number; gewicht: number;
   lat: number | null; lng: number | null;
   created_at: string;
+  is_pickup?: boolean | null;
 }
 
 export interface RouteOption {
@@ -319,7 +320,16 @@ export function NewOrdersTable({
                           onCheckedChange={(c) => toggleOne(o.id, !!c)}
                         />
                       </td>
-                      <td className="px-2 py-2 tabular-nums font-medium">{o.auftrags_nr}</td>
+                      <td className="px-2 py-2 tabular-nums font-medium">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span>{o.auftrags_nr}</span>
+                          {o.is_pickup && (
+                            <Badge variant="outline" className="border-warning text-warning text-[9px] py-0 px-1">
+                              Abholung
+                            </Badge>
+                          )}
+                        </span>
+                      </td>
                       <td className="px-2 py-2 truncate max-w-[180px]">{o.empfaenger_name}</td>
                       <td className="px-2 py-2 tabular-nums truncate max-w-[180px]">
                         <span className="inline-flex items-center gap-1.5">
