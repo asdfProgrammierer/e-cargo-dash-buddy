@@ -1,5 +1,7 @@
 export type OrderStatus = "neu" | "in_bearbeitung" | "unterwegs" | "zugestellt" | "nicht_zugestellt" | "storniert";
 
+export const MAX_DELIVERY_ATTEMPTS = 3;
+
 export interface Order {
   id: string;
   auftragsNr: string;
@@ -19,6 +21,7 @@ export interface Order {
   status: OrderStatus;
   erstelltAm: string;
   notizen?: string;
+  deliveryAttempts?: number;
 }
 
 export const STATUS_LABELS: Record<OrderStatus, string> = {

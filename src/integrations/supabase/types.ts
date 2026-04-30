@@ -485,6 +485,7 @@ export type Database = {
           auftrags_nr: string
           created_at: string
           delivered_at: string | null
+          delivery_attempts: number
           empfaenger_adresse: string | null
           empfaenger_email: string | null
           empfaenger_name: string
@@ -512,6 +513,7 @@ export type Database = {
           auftrags_nr: string
           created_at?: string
           delivered_at?: string | null
+          delivery_attempts?: number
           empfaenger_adresse?: string | null
           empfaenger_email?: string | null
           empfaenger_name: string
@@ -539,6 +541,7 @@ export type Database = {
           auftrags_nr?: string
           created_at?: string
           delivered_at?: string | null
+          delivery_attempts?: number
           empfaenger_adresse?: string | null
           empfaenger_email?: string | null
           empfaenger_name?: string
@@ -1015,6 +1018,7 @@ export type Database = {
           auftrags_nr: string
           created_at: string
           delivered_at: string | null
+          delivery_attempts: number
           empfaenger_adresse: string | null
           empfaenger_email: string | null
           empfaenger_name: string

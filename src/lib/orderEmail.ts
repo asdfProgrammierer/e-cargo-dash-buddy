@@ -10,6 +10,11 @@ const STATUS_TEMPLATE: Partial<Record<OrderStatus, string>> = {
   // storniert: kein Versand
 };
 
+// Zusatz-Vorlage für Wiederzustellungen (Versuch 1 / 2 fehlgeschlagen).
+// Wird nicht über STATUS_TEMPLATE getriggert, sondern direkt aus dem
+// Driver-Edge-Function-Flow. Hier nur als Konstante für Tests.
+export const RETRY_TEMPLATE = "order-zustellversuch-fehlgeschlagen";
+
 export interface OrderEmailPayload {
   orderId: string;
   auftragsNr: string;

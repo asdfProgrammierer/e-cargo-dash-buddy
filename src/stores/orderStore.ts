@@ -46,6 +46,7 @@ interface DbOrder {
   notizen: string | null;
   created_at: string;
   updated_at: string;
+  delivery_attempts?: number | null;
 }
 
 function dbToOrder(row: DbOrder): Order {
@@ -68,6 +69,7 @@ function dbToOrder(row: DbOrder): Order {
     status: row.status as OrderStatus,
     erstelltAm: row.created_at.split("T")[0],
     notizen: row.notizen ?? undefined,
+    deliveryAttempts: typeof row.delivery_attempts === "number" ? row.delivery_attempts : 0,
   };
 }
 

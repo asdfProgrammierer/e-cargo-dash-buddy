@@ -133,38 +133,57 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Map stop status -> order status
+    // Map stop status -> order status (with retry / multi-attempt logic for failed deliveries)
+    const MAX_DELIVERY_ATTEMPTS = 3;
     if (stop.order_id) {
+      const { data: order } = await admin
+        .from("orders")
+        .select("status, user_id, auftrags_nr, empfaenger_name, empfaenger_email, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, tracking_token, delivery_attempts")
+        .eq("id", stop.order_id)
+        .maybeSingle();
+
       let newOrderStatus: string | null = null;
-      if (status === "erledigt") newOrderStatus = "zugestellt";
-      else if (status === "uebersprungen") newOrderStatus = "nicht_zugestellt";
+      let attemptNumber = order?.delivery_attempts ?? 0;
+      let isFinalFailure = false;
+      let isRetryable = false;
 
-      if (newOrderStatus) {
-        const { data: order } = await admin
-          .from("orders")
-          .select("status, user_id, auftrags_nr, empfaenger_name, empfaenger_email, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, tracking_token")
-          .eq("id", stop.order_id)
-          .maybeSingle();
+      if (status === "erledigt") {
+        newOrderStatus = "zugestellt";
+      } else if (status === "uebersprungen" && order) {
+        attemptNumber = (order.delivery_attempts ?? 0) + 1;
+        if (attemptNumber >= MAX_DELIVERY_ATTEMPTS) {
+          newOrderStatus = "nicht_zugestellt";
+          isFinalFailure = true;
+        } else {
+          // Retry: order goes back to "neu" so it shows up again in route planning.
+          newOrderStatus = "neu";
+          isRetryable = true;
+        }
+      }
 
-        // Idempotency guard: only update + notify when status actually changes.
-        const statusChanged = !!order && order.status !== newOrderStatus;
+      if (newOrderStatus && order) {
+        const statusChanged = order.status !== newOrderStatus || isRetryable;
 
         const orderUpdate: Record<string, unknown> = {
           status: newOrderStatus,
           updated_at: new Date().toISOString(),
         };
         if (newOrderStatus === "zugestellt") orderUpdate.delivered_at = new Date().toISOString();
+        if (newOrderStatus === "neu") orderUpdate.delivered_at = null;
+        if (status === "uebersprungen") orderUpdate.delivery_attempts = attemptNumber;
 
         if (statusChanged) {
           await admin.from("orders").update(orderUpdate).eq("id", stop.order_id);
         }
 
-        if (statusChanged && newOrderStatus === "nicht_zugestellt" && order) {
+        if (statusChanged && status === "uebersprungen") {
           await admin.from("order_status_history").insert({
             order_id: stop.order_id,
             user_id: order.user_id,
-            status: newOrderStatus,
-            reason: reason ?? null,
+            status: isFinalFailure ? "nicht_zugestellt" : "neu",
+            reason: reason
+              ? `Versuch ${attemptNumber}/${MAX_DELIVERY_ATTEMPTS}: ${reason}`
+              : `Versuch ${attemptNumber}/${MAX_DELIVERY_ATTEMPTS} fehlgeschlagen`,
             changed_by: userData.user.id,
           });
         }
@@ -175,7 +194,7 @@ Deno.serve(async (req) => {
             // Already in target status — skip duplicate notification.
           } else {
           const email = (order?.empfaenger_email ?? "").trim();
-          if (order && email) {
+          if (email) {
             const { data: p } = await admin
               .from("profiles")
               .select("firma_name, ansprechpartner")
@@ -196,8 +215,12 @@ Deno.serve(async (req) => {
               lieferadresse,
               trackingUrl,
             };
-            if (newOrderStatus === "nicht_zugestellt" && reason) templateData.reason = reason;
+
+            let templateName: string;
+            let idempotencyKey: string;
             if (newOrderStatus === "zugestellt") {
+              templateName = "order-zugestellt";
+              idempotencyKey = `order-status-${stop.order_id}-zugestellt`;
               const modeMap: Record<string, string> = {
                 persoenlich: "Persönlich übergeben",
                 briefkasten: "In den Briefkasten gelegt",
@@ -210,15 +233,21 @@ Deno.serve(async (req) => {
                 templateData.nachbarName = deliveryRecipient;
               }
               if (deliveryNote) templateData.uebergabeBemerkung = deliveryNote;
+            } else if (isFinalFailure) {
+              templateName = "order-nicht-zugestellt";
+              idempotencyKey = `order-status-${stop.order_id}-nicht_zugestellt-final`;
+              if (reason) templateData.reason = reason;
+            } else {
+              // Retry — Versuch 1 oder 2 fehlgeschlagen
+              templateName = "order-zustellversuch-fehlgeschlagen";
+              idempotencyKey = `order-status-${stop.order_id}-attempt-${attemptNumber}`;
+              templateData.attemptNumber = String(attemptNumber);
+              templateData.nextAttemptNumber = String(attemptNumber + 1);
+              if (reason) templateData.reason = reason;
             }
-            const templateName = newOrderStatus === "zugestellt" ? "order-zugestellt" : "order-nicht-zugestellt";
+
             const { error: mailErr } = await userClient.functions.invoke("send-transactional-email", {
-              body: {
-                templateName,
-                recipientEmail: email,
-                idempotencyKey: `order-status-${stop.order_id}-${newOrderStatus}`,
-                templateData,
-              },
+              body: { templateName, recipientEmail: email, idempotencyKey, templateData },
             });
             if (mailErr) console.error("status email failed", stop.order_id, mailErr);
           }
