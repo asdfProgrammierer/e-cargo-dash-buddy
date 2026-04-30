@@ -77,6 +77,7 @@ const RoutenplanungPage = () => {
   const [printOpen, setPrintOpen] = useState(false);
   const [printRouteId, setPrintRouteId] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
+  const [regeocoding, setRegeocoding] = useState(false);
 
   const selectedId = searchParams.get("route");
 
