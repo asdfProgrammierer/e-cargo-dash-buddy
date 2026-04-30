@@ -18,6 +18,7 @@ import { NewOrdersTable, type NewOrderRow } from "@/components/admin/NewOrdersTa
 import { Switch } from "@/components/ui/switch";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { sendOrderStatusEmailsForIds } from "@/lib/orderEmail";
 
 interface Driver { id: string; name: string; }
 interface Vehicle { id: string; kennzeichen: string; }

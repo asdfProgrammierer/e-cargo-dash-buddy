@@ -15,6 +15,7 @@ import { MapPin, Plus, Sparkles, Trash2, GripVertical, Bike, Car, Zap, AlertTria
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { sendOrderStatusEmailsForIds } from "@/lib/orderEmail";
 
 interface Depot { id: string; name: string; lat: number | null; lng: number | null; is_default: boolean; }
 interface Vehicle { id: string; kennzeichen: string; kapazitaet_kg: number; typ: string | null; }
