@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { Package, Truck, CheckCircle2, AlertCircle, Leaf } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,13 +13,15 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-type TimeRange = "heute" | "woche" | "monat" | "alle";
+export type TimeRange = "heute" | "woche" | "monat" | "alle";
 
 interface DashboardStatsProps {
   orders: Order[];
+  range: TimeRange;
+  onRangeChange: (range: TimeRange) => void;
 }
 
-function filterByRange(orders: Order[], range: TimeRange): Order[] {
+export function filterByRange(orders: Order[], range: TimeRange): Order[] {
   if (range === "alle") return orders;
   const now = new Date();
   const start = new Date();
@@ -44,8 +46,7 @@ function getChartData(orders: Order[]) {
 // ~0.5 kg CO2 saved per package vs diesel delivery (bike/e-cargo vs van)
 const CO2_PER_PACKAGE = 0.5;
 
-export function DashboardStats({ orders }: DashboardStatsProps) {
-  const [range, setRange] = useState<TimeRange>("alle");
+export function DashboardStats({ orders, range, onRangeChange }: DashboardStatsProps) {
   const filtered = useMemo(() => filterByRange(orders, range), [orders, range]);
   const chartData = useMemo(() => getChartData(filtered), [filtered]);
 
@@ -78,7 +79,7 @@ export function DashboardStats({ orders }: DashboardStatsProps) {
             key={r.value}
             variant={range === r.value ? "default" : "outline"}
             size="sm"
-            onClick={() => setRange(r.value)}
+            onClick={() => onRangeChange(r.value)}
           >
             {r.label}
           </Button>
