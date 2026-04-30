@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { OrderStatus } from "@/types/order";
+import { buildTrackingUrl } from "@/lib/siteUrl";
 
 const STATUS_TEMPLATE: Partial<Record<OrderStatus, string>> = {
   neu: "order-neu",
@@ -43,9 +44,6 @@ async function getMerchantName(userId: string): Promise<string> {
   return name;
 }
 
-const SITE_ORIGIN =
-  (typeof window !== "undefined" && window.location?.origin) || "https://ecargo-logistic.de";
-
 async function getTrackingToken(orderId: string): Promise<string | null> {
   const { data } = await supabase
     .from("orders")
@@ -77,7 +75,7 @@ export async function sendOrderStatusEmail(payload: OrderEmailPayload): Promise<
   try {
     const haendlerName = await getMerchantName(payload.haendlerUserId);
     const token = await getTrackingToken(payload.orderId);
-    const trackingUrl = token ? `${SITE_ORIGIN}/track/${token}` : "";
+    const trackingUrl = buildTrackingUrl(token);
     const templateData: Record<string, string> = {
       kundenname: payload.empfaengerName,
       haendlerName,

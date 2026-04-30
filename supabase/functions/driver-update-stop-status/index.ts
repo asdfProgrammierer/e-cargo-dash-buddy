@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { buildTrackingUrl } from "../_shared/site-url.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -206,8 +207,7 @@ Deno.serve(async (req) => {
               order.empfaenger_adresse,
               [order.empfaenger_plz, order.empfaenger_stadt].filter(Boolean).join(" "),
             ].filter((x) => x && String(x).trim().length > 0).join(", ");
-            const origin = req.headers.get("origin") || "https://ecargo-logistic.de";
-            const trackingUrl = order.tracking_token ? `${origin}/track/${order.tracking_token}` : "";
+            const trackingUrl = buildTrackingUrl(order.tracking_token, req);
             const templateData: Record<string, string> = {
               kundenname: order.empfaenger_name,
               haendlerName,
