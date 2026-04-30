@@ -121,11 +121,13 @@ Deno.serve(async (req) => {
             if (!email) continue;
             const etaIso = etaByOrder.get(o.id);
             let etaWindow: string | undefined;
+            let etaCenter: string | undefined;
             if (etaIso) {
               const eta = new Date(etaIso);
               const from = new Date(eta.getTime() - 30 * 60 * 1000);
               const to = new Date(eta.getTime() + 30 * 60 * 1000);
               etaWindow = `${fmt(from)} – ${fmt(to)} Uhr`;
+              etaCenter = fmt(eta);
             }
             const haendlerName = await getMerchantName(o.user_id);
             const lieferadresse = [
@@ -143,6 +145,7 @@ Deno.serve(async (req) => {
               trackingUrl,
             };
             if (etaWindow) templateData.etaWindow = etaWindow;
+            if (etaCenter) templateData.etaCenter = etaCenter;
 
             const { error: mailErr } = await admin.functions.invoke("send-transactional-email", {
               body: {
