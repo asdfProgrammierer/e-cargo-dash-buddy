@@ -10,9 +10,10 @@ interface Props {
   lieferadresse?: string
   trackingUrl?: string
   etaWindow?: string
+  etaCenter?: string
 }
 
-const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, trackingUrl, etaWindow }: Props) => (
+const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, trackingUrl, etaWindow, etaCenter }: Props) => (
   <Html lang="de">
     <Head />
     <Preview>Ihre Bestellung ist unterwegs zu Ihnen</Preview>
@@ -32,8 +33,13 @@ const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, trackingUr
         ) : null}
         {etaWindow ? (
           <div style={infoBox}>
-            <Text style={infoLabel}>Voraussichtliches Lieferzeitfenster</Text>
+            <Text style={infoLabel}>Voraussichtliches Lieferzeitfenster (±30 Minuten)</Text>
             <Text style={infoValue}>{etaWindow}</Text>
+            {etaCenter ? (
+              <Text style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0' }}>
+                Geplante Ankunft: ca. {etaCenter} Uhr
+              </Text>
+            ) : null}
           </div>
         ) : null}
         {lieferadresse ? (
@@ -59,5 +65,5 @@ export const template = {
   component: Email,
   subject: 'Ihre Bestellung ist unterwegs',
   displayName: 'Bestellung – Unterwegs',
-  previewData: { kundenname: 'Max Mustermann', haendlerName: 'PMF Store', auftragsNr: 'EC-PMF-0000123', lieferadresse: 'Musterstraße 1, 12345 Berlin', etaWindow: '14:30 – 15:30 Uhr' },
+  previewData: { kundenname: 'Max Mustermann', haendlerName: 'PMF Store', auftragsNr: 'EC-PMF-0000123', lieferadresse: 'Musterstraße 1, 12345 Berlin', etaWindow: '14:30 – 15:30 Uhr', etaCenter: '15:00' },
 } satisfies TemplateEntry
