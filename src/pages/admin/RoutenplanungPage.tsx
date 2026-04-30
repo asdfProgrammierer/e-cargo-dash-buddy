@@ -127,7 +127,7 @@ const RoutenplanungPage = () => {
     setNewOrdersLoading(true);
     const { data, error } = await supabase
       .from("orders")
-      .select("id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, pakete, gewicht, lat, lng, created_at")
+      .select("id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, pakete, gewicht, lat, lng, created_at, is_pickup")
       .eq("status", "neu")
       .order("created_at", { ascending: false })
       .limit(500);
