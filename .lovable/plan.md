@@ -1,44 +1,33 @@
 ## Ziel
+Automatisch generierte Abhol-Aufträge sollen für Admins in der Routenplanung wie normale Sendungen erscheinen — sichtbar in „Neue Sendungen", auf der Karte, und vor allem **einer Route zuweisbar**.
 
-In der Routenplanung (`/admin/routen`) sollen sich neue Bestellungen nach **Lieferzonen** (Zone A, B, C, D … wie im Bereich „Lieferzonen" angelegt) filtern lassen. Es werden dann nur Bestellungen aus den ausgewählten Zonen in der Liste „Neue Sendungen" angezeigt – und damit auch nur die für die Route ausgewählt/hinzugefügt.
+## Problem heute
+Die Edge Function `generate-pickup-orders` erstellt zwar Aufträge mit `status='neu'`, **aber ohne Geokoordinaten** (`lat`/`lng` bleiben null). Die `NewOrdersTable` deaktiviert die Checkbox für Aufträge ohne Koordinaten — dadurch tauchen Abholungen zwar in der Liste auf, lassen sich aber nicht in eine Route hinzufügen und erscheinen auch nicht auf der Karte.
 
-## Was wird gebaut
+Zusätzlich ist die Adresse unsauber gefüllt: `empfaenger_adresse` enthält nur die Straße (statt der vollen Adresse), was die Geocodierung erschwert.
 
-### 1. Zonen laden
-- In `RoutenplanungPage.tsx` zusätzlich zu Routen/Fahrern/Fahrzeugen/Depots auch die aktiven Lieferzonen mit ihren PLZ laden (`delivery_zones` + `delivery_zone_postcodes`, nur `active = true`).
-- Eine Map `postcode → zone` aufbauen, um jeder neuen Bestellung anhand `empfaenger_plz` eine Zone zuzuordnen.
+## Änderungen
 
-### 2. Zonen-Filter UI in „Neue Sendungen"
-- Im Header der `NewOrdersTable` (neben Suche/„Anzeigen"/„Zur Route") ein neues **Multi-Select-Dropdown „Zonen"** einfügen.
-  - Optionen: alle aktiven Zonen (Anzeige: farbiger Punkt + Zonen-Label/-Name) + Eintrag „Ohne Zone" für PLZ, die keiner Zone zugeordnet sind.
-  - Ohne Auswahl = keine Filterung (alle Zonen).
-  - Auswahl wird als Badge-Reihe sichtbar mit „Zurücksetzen"-Button.
-- In jeder Zeile der Tabelle wird zusätzlich eine kleine **Zonen-Badge** (Label + Farbe via `getZoneBadgeStyle`) hinter PLZ/Stadt angezeigt – damit man auf einen Blick sieht, welche Zone eine Bestellung hat.
+### 1. Edge Function `generate-pickup-orders` erweitern
+- Adresse korrekt zusammensetzen: `empfaenger_adresse = "{strasse}"`, `empfaenger_plz`, `empfaenger_stadt` (wie heute) — aber zusätzlich:
+- **Direkt nach dem Insert geocodieren**: ORS Forward-Geocoding (gleicher Endpoint wie `geocode-address`, mit `ORS_API_KEY` aus Secrets) aufrufen und `lat`, `lng`, `geocoded_at` auf der neuen Order setzen.
+- Falls Geocoding fehlschlägt → Order trotzdem behalten, aber im Result-Log vermerken (`geocode_failed`).
 
-### 3. Filter-Logik
-- Vor dem Rendern: `filteredOrders = orders.filter(o => selectedZones.size === 0 || selectedZones.has(zoneIdFor(o.empfaenger_plz) ?? "none"))`.
-- Suche und Zonen-Filter wirken kombiniert (UND).
-- „Alle auswählen" wählt nur die aktuell sichtbaren (gefilterten) Bestellungen mit Koordinaten aus.
-- Auswahl, die durch Filterung unsichtbar wird, bleibt im State – wird aber visuell nicht mehr in der Liste angezeigt (entspricht heutigem Verhalten beim Suchen).
+### 2. Admin-Sicht in `RoutenplanungPage.tsx`
+- `loadNewOrders`-Query um `is_pickup` und `notizen` erweitern, an `NewOrdersTable` weiterreichen.
 
-### 4. Optional: Karten-Layer beachtet Filter
-- Die Map (`RoutesOverviewMap`) bekommt ebenfalls die gefilterte Liste „neuer Sendungen", damit Pins auf der Karte konsistent zur Tabelle sind, wenn der Schalter „Anzeigen" aktiv ist.
+### 3. `NewOrdersTable.tsx`
+- `NewOrderRow` Interface um `is_pickup?: boolean` ergänzen.
+- In der Tabellenzeile neben der Auftrags-Nr. einen **gelben „Abholung"-Badge** anzeigen (gleicher Stil wie in `OrderTable.tsx`), damit Admins die Sendungen sofort erkennen.
+- Funktional ändert sich nichts — sobald die Pickup-Orders Koordinaten haben, sind sie wie jede andere neue Sendung selektierbar, kartierbar und einer Route zuweisbar.
 
-## Technische Details
+### 4. Optional: Fallback-Geocoding für Bestands-Abholungen
+Einmaliger Re-Geocoding-Lauf der bereits ohne Koordinaten erstellten Pickup-Orders über die bestehende Logik — kann der Admin auch durch erneutes Triggern der Funktion (mit Cleanup) lösen, daher hier nicht zwingend nötig.
 
-- **Datenquelle**: `delivery_zones (id, name, label, color, sort_order, active)` + `delivery_zone_postcodes (zone_id, postcode)` – RLS erlaubt SELECT für authentifizierte Nutzer auf aktive Zonen, also kein Migration-Bedarf.
-- **Helper**: kleine Util-Funktion `buildPostcodeZoneMap(zones)` → `Map<string, ZoneInfo>`; `zoneInfoFor(plz)` normalisiert via vorhandener `normalizePostcode` (`src/lib/deliveryCoverage.ts`).
-- **State**: `selectedZoneIds: Set<string>` in `RoutenplanungPage` (per Route-Zustand nicht nötig, rein UI). Wird per Props an `NewOrdersTable` durchgereicht, zusammen mit `zones` und `zoneByPostcode`.
-- **UI-Bibliothek**: bestehendes `DropdownMenu` mit `DropdownMenuCheckboxItem` für Multi-Select, `Badge` mit `getZoneBadgeStyle(zone.color)` für Anzeige.
-- **Keine DB-Änderungen, keine RLS-Änderungen, keine Edge Functions.**
+## Geänderte / neue Dateien
+- `supabase/functions/generate-pickup-orders/index.ts` — Geocoding-Schritt nach Insert.
+- `src/pages/admin/RoutenplanungPage.tsx` — `is_pickup` mitladen und durchreichen.
+- `src/components/admin/NewOrdersTable.tsx` — Interface + Abholung-Badge in der Zeile.
 
-## Geänderte Dateien
-
-- `src/pages/admin/RoutenplanungPage.tsx` – Zonen + Postcode-Map laden, State für Zonen-Filter, Props an `NewOrdersTable` weitergeben, gefilterte Liste auch an `RoutesOverviewMap`.
-- `src/components/admin/NewOrdersTable.tsx` – Filter-Dropdown im Header, Filterlogik, Zonen-Badge je Zeile.
-- (Neu, klein) `src/lib/deliveryZoneLookup.ts` – Helper für `Map<postcode, zone>` und Lookup-Funktion.
-
-## Nicht im Scope
-
-- Automatisches Zuweisen ganzer Zonen an Routen (Single-Click „alle aus Zone A → Route"). Kann später als Erweiterung hinzukommen, wenn gewünscht.
-- Anpassung des Etiketten-Druckes oder anderer Seiten – Zonen-Logik bleibt auf die Routenplanung beschränkt.
+## Ergebnis
+Abhol-Aufträge erscheinen morgens automatisch in der Admin-Routenplanung mit klarem „Abholung"-Badge, sind auf der Karte sichtbar und können wie jede andere Sendung per Klick einer Tour zugeordnet werden.
