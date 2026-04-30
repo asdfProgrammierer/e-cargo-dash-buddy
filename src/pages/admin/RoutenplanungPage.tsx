@@ -166,6 +166,7 @@ const RoutenplanungPage = () => {
             toast.error("Stops konnten nicht hinzugefügt werden");
           } else {
             await supabase.from("orders").update({ status: "in_bearbeitung" }).in("id", pendingAssignIds);
+            void sendOrderStatusEmailsForIds(pendingAssignIds, "in_bearbeitung");
             toast.success(`${pendingAssignIds.length} Sendung(en) zur neuen Route hinzugefügt`);
             setSelectedNewOrders(new Set());
             bumpRefresh();

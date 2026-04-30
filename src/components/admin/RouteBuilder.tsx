@@ -707,6 +707,7 @@ function AddStopsDialog({ routeId, existingOrderIds, open, onOpenChange, onAdded
     const { error } = await supabase.from("route_stops").insert(rows);
     if (error) { toast.error("Stops konnten nicht hinzugefügt werden"); return; }
     await supabase.from("orders").update({ status: "in_bearbeitung" }).in("id", toInsert);
+    void sendOrderStatusEmailsForIds(toInsert, "in_bearbeitung");
     toast.success(
       skipped > 0
         ? `${rows.length} Stop(s) hinzugefügt (${skipped} Duplikat(e) übersprungen)`
