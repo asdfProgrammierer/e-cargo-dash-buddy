@@ -20,20 +20,20 @@ interface Props {
 const Email = ({ kundenname, haendlerName, auftragsNr, reviewUrl, __override: o }: Props) => (
   <Html lang="de">
     <Head />
-    <Preview>{pick(o?.preview, 'Ihre Bestellung wurde erfolgreich zugestellt')}</Preview>
+    <Preview>{pick(o?.preview, 'Ihre Bestellung wurde erfolgreich zugestellt', 'preview')}</Preview>
     <Body style={main}>
       <Container style={container}>
         <Text style={brand}>e-cargo</Text>
         <Text style={tagline}>Wir liefern 100% elektrisch.</Text>
-        <Heading style={h1}>{pick(o?.greeting, `Guten Tag${kundenname ? ` ${kundenname}` : ''},`)}</Heading>
-        <Text style={text}>{pick(o?.intro, `Ihre Bestellung von ${haendlerName ?? 'unserem Händler'} wurde erfolgreich an Sie zugestellt. Vielen Dank, dass Sie sich für eine umweltfreundliche und emissionsfreie Lieferung entschieden haben – Sie haben damit aktiv CO₂ eingespart.`)}</Text>
+        <Heading style={h1}>{pick(o?.greeting, `Guten Tag${kundenname ? ` ${kundenname}` : ''},`, 'greeting')}</Heading>
+        <Text style={text}>{pick(o?.intro, `Ihre Bestellung von ${haendlerName ?? 'unserem Händler'} wurde erfolgreich an Sie zugestellt. Vielen Dank, dass Sie sich für eine umweltfreundliche und emissionsfreie Lieferung entschieden haben – Sie haben damit aktiv CO₂ eingespart.`, 'intro')}</Text>
         {auftragsNr ? (
           <div style={card}>
             <Text style={cardLabel}>Auftragsnummer</Text>
             <Text style={cardValue}>{auftragsNr}</Text>
           </div>
         ) : null}
-        <Text style={text}>{pick(o?.outro, 'Wir wünschen Ihnen viel Freude mit Ihrer Bestellung.')}</Text>
+        <Text style={text}>{pick(o?.outro, 'Wir wünschen Ihnen viel Freude mit Ihrer Bestellung.', 'outro')}</Text>
         <Heading as="h2" style={{ ...h1, fontSize: '18px', margin: '28px 0 8px' }}>
           Wie war unser Lieferservice?
         </Heading>
@@ -42,11 +42,11 @@ const Email = ({ kundenname, haendlerName, auftragsNr, reviewUrl, __override: o 
         </Text>
         <div style={ctaWrap}>
           <Button href={reviewUrl || REVIEW_FALLBACK_URL} style={ctaButton}>
-            {pick(o?.ctaLabel, 'Lieferung jetzt bewerten')}
+            {pick(o?.ctaLabel, 'Lieferung jetzt bewerten', 'ctaLabel')}
           </Button>
           <Text style={ctaHint}>Vielen Dank – schon eine Minute Ihrer Zeit hilft uns enorm.</Text>
         </div>
-        <Text style={footer}>{pick(o?.footer, 'e-cargo · Klimafreundliche Lieferungen direkt zu Ihnen.')}</Text>
+        <Text style={footer}>{pick(o?.footer, 'e-cargo · Klimafreundliche Lieferungen direkt zu Ihnen.', 'footer')}</Text>
       </Container>
     </Body>
   </Html>

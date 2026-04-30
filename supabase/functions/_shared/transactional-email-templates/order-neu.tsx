@@ -16,13 +16,13 @@ interface Props {
 const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, trackingUrl, __override: o }: Props) => (
   <Html lang="de">
     <Head />
-    <Preview>{pick(o?.preview, `Ihre Bestellung bei ${haendlerName ?? 'uns'} wurde übermittelt`)}</Preview>
+    <Preview>{pick(o?.preview, `Ihre Bestellung bei ${haendlerName ?? 'uns'} wurde übermittelt`, 'preview')}</Preview>
     <Body style={main}>
       <Container style={container}>
         <Text style={brand}>e-cargo</Text>
         <Text style={tagline}>Wir liefern 100% elektrisch.</Text>
-        <Heading style={h1}>{pick(o?.greeting, `Guten Tag${kundenname ? ` ${kundenname}` : ''},`)}</Heading>
-        <Text style={text}>{pick(o?.intro, `Ihre Bestellung bei ${haendlerName ?? 'unserem Händler'} wurde an uns übermittelt. Wir liefern Ihre Bestellung umweltfreundlich und emissionsfrei an Sie aus.`)}</Text>
+        <Heading style={h1}>{pick(o?.greeting, `Guten Tag${kundenname ? ` ${kundenname}` : ''},`, 'greeting')}</Heading>
+        <Text style={text}>{pick(o?.intro, `Ihre Bestellung bei ${haendlerName ?? 'unserem Händler'} wurde an uns übermittelt. Wir liefern Ihre Bestellung umweltfreundlich und emissionsfrei an Sie aus.`, 'intro')}</Text>
         {auftragsNr ? (
           <div style={card}>
             <Text style={cardLabel}>Ihre Auftragsnummer</Text>
@@ -37,12 +37,12 @@ const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, trackingUr
         ) : null}
         {trackingUrl ? (
           <div style={ctaWrap}>
-            <Button href={trackingUrl} style={ctaButton}>{pick(o?.ctaLabel, 'Sendung verfolgen & Anweisungen hinterlassen')}</Button>
+            <Button href={trackingUrl} style={ctaButton}>{pick(o?.ctaLabel, 'Sendung verfolgen & Anweisungen hinterlassen', 'ctaLabel')}</Button>
             <Text style={ctaHint}>Zur Verifizierung wird Ihre Postleitzahl abgefragt.</Text>
           </div>
         ) : null}
-        <Text style={text}>{pick(o?.outro, 'Sobald Ihre Bestellung in Bearbeitung geht, erhalten Sie eine weitere Nachricht von uns.')}</Text>
-        <Text style={footer}>{pick(o?.footer, 'e-cargo · Klimafreundliche Lieferungen direkt zu Ihnen.')}</Text>
+        <Text style={text}>{pick(o?.outro, 'Sobald Ihre Bestellung in Bearbeitung geht, erhalten Sie eine weitere Nachricht von uns.', 'outro')}</Text>
+        <Text style={footer}>{pick(o?.footer, 'e-cargo · Klimafreundliche Lieferungen direkt zu Ihnen.', 'footer')}</Text>
       </Container>
     </Body>
   </Html>
