@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Plus, Search, RefreshCw, AlertCircle } from "lucide-react";
+import { sendOrderStatusEmailsForIds } from "@/lib/orderEmail";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -111,6 +112,7 @@ export function NewOrdersTable({
     if (error) { toast.error("Stops konnten nicht hinzugefügt werden"); setAdding(false); return; }
 
     await supabase.from("orders").update({ status: "in_bearbeitung" }).in("id", ids);
+    void sendOrderStatusEmailsForIds(ids, "in_bearbeitung");
 
     toast.success(`${ids.length} Sendung(en) zur Route hinzugefügt`);
     setAdding(false);

@@ -97,3 +97,43 @@ export async function sendOrderStatusEmail(payload: OrderEmailPayload): Promise<
     console.error("Order status email error", err);
   }
 }
+
+/**
+ * Lädt die nötigen Order-Felder für die übergebenen IDs aus der DB und
+ * versendet pro Auftrag eine Status-E-Mail. Wird verwendet von Stellen,
+ * die Order-Status per direktem `update` ändern (z.B. Routenplanung,
+ * Massen-Annahme), wo der lokale Order-Kontext nicht vollständig vorliegt.
+ */
+export async function sendOrderStatusEmailsForIds(
+  ids: string[],
+  status: OrderStatus,
+  reason?: string,
+): Promise<void> {
+  if (!ids.length) return;
+  const { data, error } = await supabase
+    .from("orders")
+    .select(
+      "id, auftrags_nr, empfaenger_name, empfaenger_email, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, user_id",
+    )
+    .in("id", ids);
+  if (error || !data) {
+    console.error("Bulk status email lookup failed", error);
+    return;
+  }
+  await Promise.all(
+    data.map((o) =>
+      sendOrderStatusEmail({
+        orderId: o.id as string,
+        auftragsNr: o.auftrags_nr as string,
+        status,
+        empfaengerName: (o.empfaenger_name as string) ?? "",
+        empfaengerEmail: (o.empfaenger_email as string | null) ?? null,
+        empfaengerAdresse: (o.empfaenger_adresse as string | null) ?? null,
+        empfaengerPlz: (o.empfaenger_plz as string | null) ?? null,
+        empfaengerStadt: (o.empfaenger_stadt as string) ?? "",
+        haendlerUserId: o.user_id as string,
+        reason,
+      }),
+    ),
+  );
+}

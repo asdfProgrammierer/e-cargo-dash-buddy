@@ -18,6 +18,7 @@ import { NewOrdersTable, type NewOrderRow } from "@/components/admin/NewOrdersTa
 import { Switch } from "@/components/ui/switch";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { sendOrderStatusEmailsForIds } from "@/lib/orderEmail";
 
 interface Driver { id: string; name: string; }
 interface Vehicle { id: string; kennzeichen: string; }
@@ -166,6 +167,7 @@ const RoutenplanungPage = () => {
             toast.error("Stops konnten nicht hinzugefügt werden");
           } else {
             await supabase.from("orders").update({ status: "in_bearbeitung" }).in("id", pendingAssignIds);
+            void sendOrderStatusEmailsForIds(pendingAssignIds, "in_bearbeitung");
             toast.success(`${pendingAssignIds.length} Sendung(en) zur neuen Route hinzugefügt`);
             setSelectedNewOrders(new Set());
             bumpRefresh();

@@ -15,6 +15,7 @@ import { MapPin, Plus, Sparkles, Trash2, GripVertical, Bike, Car, Zap, AlertTria
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { sendOrderStatusEmailsForIds } from "@/lib/orderEmail";
 
 interface Depot { id: string; name: string; lat: number | null; lng: number | null; is_default: boolean; }
 interface Vehicle { id: string; kennzeichen: string; kapazitaet_kg: number; typ: string | null; }
@@ -707,6 +708,7 @@ function AddStopsDialog({ routeId, existingOrderIds, open, onOpenChange, onAdded
     const { error } = await supabase.from("route_stops").insert(rows);
     if (error) { toast.error("Stops konnten nicht hinzugefügt werden"); return; }
     await supabase.from("orders").update({ status: "in_bearbeitung" }).in("id", toInsert);
+    void sendOrderStatusEmailsForIds(toInsert, "in_bearbeitung");
     toast.success(
       skipped > 0
         ? `${rows.length} Stop(s) hinzugefügt (${skipped} Duplikat(e) übersprungen)`
