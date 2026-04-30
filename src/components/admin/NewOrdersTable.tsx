@@ -18,7 +18,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
+import { Filter } from "lucide-react";
+import { getZoneBadgeStyle } from "@/lib/deliveryZones";
+import { NO_ZONE_ID, zoneInfoFor, type ZoneInfo } from "@/lib/deliveryZoneLookup";
 
 export interface NewOrderRow {
   id: string; auftrags_nr: string; empfaenger_name: string;
@@ -55,6 +59,13 @@ interface Props {
   onCreateNewRoute: () => void;
   /** Set the active route in the parent (URL search param). */
   onSelectRoute: (id: string) => void;
+  /** All active delivery zones (ordered) for the filter dropdown. */
+  zones: ZoneInfo[];
+  /** Map postcode → zone for quick lookup. */
+  zoneByPostcode: Map<string, ZoneInfo>;
+  /** Selected zone ids (use NO_ZONE_ID for unmapped postcodes). Empty = no filter. */
+  selectedZoneIds: Set<string>;
+  setSelectedZoneIds: (next: Set<string>) => void;
 }
 
 export function NewOrdersTable({
@@ -62,6 +73,7 @@ export function NewOrdersTable({
   orders, loading, onReload, selected, setSelected,
   showOnMap, setShowOnMap, focusedOrderId,
   routesForDate, onCreateNewRoute, onSelectRoute,
+  zones, zoneByPostcode, selectedZoneIds, setSelectedZoneIds,
 }: Props) {
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
@@ -74,14 +86,23 @@ export function NewOrdersTable({
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return orders;
-    return orders.filter((o) =>
-      o.auftrags_nr.toLowerCase().includes(q) ||
-      o.empfaenger_name.toLowerCase().includes(q) ||
-      (o.empfaenger_plz ?? "").includes(q) ||
-      o.empfaenger_stadt.toLowerCase().includes(q),
-    );
-  }, [orders, search]);
+    return orders.filter((o) => {
+      if (q) {
+        const matchesQ =
+          o.auftrags_nr.toLowerCase().includes(q) ||
+          o.empfaenger_name.toLowerCase().includes(q) ||
+          (o.empfaenger_plz ?? "").includes(q) ||
+          o.empfaenger_stadt.toLowerCase().includes(q);
+        if (!matchesQ) return false;
+      }
+      if (selectedZoneIds.size > 0) {
+        const zone = zoneInfoFor(o.empfaenger_plz, zoneByPostcode);
+        const key = zone?.id ?? NO_ZONE_ID;
+        if (!selectedZoneIds.has(key)) return false;
+      }
+      return true;
+    });
+  }, [orders, search, selectedZoneIds, zoneByPostcode]);
 
   const toggleAll = (checked: boolean) => {
     if (!checked) { setSelected(new Set()); return; }
@@ -142,6 +163,72 @@ export function NewOrdersTable({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8">
+                <Filter className="mr-1 h-3.5 w-3.5" />
+                Zonen
+                {selectedZoneIds.size > 0 && (
+                  <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px] tabular-nums">
+                    {selectedZoneIds.size}
+                  </Badge>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Nach Zone filtern</DropdownMenuLabel>
+              {zones.length === 0 ? (
+                <div className="px-2 py-1.5 text-caption text-muted-foreground">
+                  Keine aktiven Zonen.
+                </div>
+              ) : (
+                zones.map((z) => {
+                  const checked = selectedZoneIds.has(z.id);
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={z.id}
+                      checked={checked}
+                      onCheckedChange={(c) => {
+                        const next = new Set(selectedZoneIds);
+                        if (c) next.add(z.id); else next.delete(z.id);
+                        setSelectedZoneIds(next);
+                      }}
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-full border border-border"
+                          style={z.color ? { backgroundColor: z.color } : undefined}
+                        />
+                        <span className="font-medium">{z.label}</span>
+                        <span className="text-muted-foreground truncate">{z.name}</span>
+                      </span>
+                    </DropdownMenuCheckboxItem>
+                  );
+                })
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={selectedZoneIds.has(NO_ZONE_ID)}
+                onCheckedChange={(c) => {
+                  const next = new Set(selectedZoneIds);
+                  if (c) next.add(NO_ZONE_ID); else next.delete(NO_ZONE_ID);
+                  setSelectedZoneIds(next);
+                }}
+                onSelect={(e) => e.preventDefault()}
+              >
+                <span className="text-muted-foreground">Ohne Zone</span>
+              </DropdownMenuCheckboxItem>
+              {selectedZoneIds.size > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => setSelectedZoneIds(new Set())}>
+                    Filter zurücksetzen
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
@@ -235,7 +322,22 @@ export function NewOrdersTable({
                       <td className="px-2 py-2 tabular-nums font-medium">{o.auftrags_nr}</td>
                       <td className="px-2 py-2 truncate max-w-[180px]">{o.empfaenger_name}</td>
                       <td className="px-2 py-2 tabular-nums truncate max-w-[180px]">
-                        {o.empfaenger_plz} {o.empfaenger_stadt}
+                        <span className="inline-flex items-center gap-1.5">
+                          <span>{o.empfaenger_plz} {o.empfaenger_stadt}</span>
+                          {(() => {
+                            const z = zoneInfoFor(o.empfaenger_plz, zoneByPostcode);
+                            if (!z) return null;
+                            return (
+                              <Badge
+                                variant="outline"
+                                className="border-border text-[9px] py-0 px-1 font-semibold"
+                                style={getZoneBadgeStyle(z.color)}
+                              >
+                                {z.label}
+                              </Badge>
+                            );
+                          })()}
+                        </span>
                       </td>
                       <td className="px-2 py-2 text-right tabular-nums">{o.pakete}</td>
                       <td className="px-2 py-2 text-right tabular-nums">{Number(o.gewicht).toFixed(1)} kg</td>
