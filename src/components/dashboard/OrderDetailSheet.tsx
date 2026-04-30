@@ -22,7 +22,7 @@ import {
   Save,
   X,
 } from "lucide-react";
-import { Order, OrderStatus, STATUS_LABELS, STATUS_COLORS } from "@/types/order";
+import { Order, OrderStatus, STATUS_LABELS, STATUS_COLORS, MAX_DELIVERY_ATTEMPTS } from "@/types/order";
 import { getZoneBadgeStyle } from "@/lib/deliveryZones";
 import { getOrderZoneMeta, printShippingLabels } from "@/lib/shippingLabels";
 
@@ -184,6 +184,11 @@ export function OrderDetailSheet({
               <Badge variant="secondary" className={`${STATUS_COLORS[order.status]} border-0 text-xs`}>
                 {STATUS_LABELS[order.status]}
               </Badge>
+              {(order.deliveryAttempts ?? 0) > 0 ? (
+                <Badge variant="outline" className="border-warning/40 bg-warning/10 text-warning text-xs">
+                  Versuch {order.deliveryAttempts} von {MAX_DELIVERY_ATTEMPTS}
+                </Badge>
+              ) : null}
             </SheetTitle>
           </div>
           <p className="text-sm text-muted-foreground">Erstellt am {order.erstelltAm}</p>
