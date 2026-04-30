@@ -110,7 +110,24 @@ Deno.serve(async (req) => {
     })
   }
 
-  if (order.status !== 'neu' && order.status !== 'in_bearbeitung') {
+  // Bearbeitung erlaubt: solange neu/in_bearbeitung, ODER unterwegs UND ETA > +1h.
+  let allowed = order.status === 'neu' || order.status === 'in_bearbeitung'
+  if (order.status === 'unterwegs') {
+    const { data: stopRow } = await supabase
+      .from('route_stops')
+      .select('eta')
+      .eq('order_id', order.id)
+      .order('eta', { ascending: true, nullsFirst: false })
+      .limit(1)
+      .maybeSingle()
+    const etaIso = stopRow?.eta as string | null | undefined
+    if (etaIso) {
+      const etaMs = new Date(etaIso).getTime()
+      const oneHourBefore = etaMs - 60 * 60 * 1000
+      if (Date.now() < oneHourBefore) allowed = true
+    }
+  }
+  if (!allowed) {
     return new Response(JSON.stringify({ error: 'locked', status: order.status }), {
       status: 409,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
