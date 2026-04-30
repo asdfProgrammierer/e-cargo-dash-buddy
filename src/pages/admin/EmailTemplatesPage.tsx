@@ -323,8 +323,7 @@ const EmailTemplatesPage = () => {
       ]
         .filter((x) => x && String(x).trim().length > 0)
         .join(", ");
-      const origin = window.location.origin;
-      const trackingUrl = order.tracking_token ? `${origin}/track/${order.tracking_token}` : "";
+      const trackingUrl = buildTrackingUrl(order.tracking_token);
 
       const { error } = await supabase.functions.invoke("send-transactional-email", {
         body: {
@@ -373,7 +372,7 @@ const EmailTemplatesPage = () => {
       auftragsNr: "EC-TEST-0000999",
       lieferadresse: "Musterstraße 1, 12345 Berlin",
       reason: "Empfänger nicht angetroffen",
-      trackingUrl: `${window.location.origin}/track/demo-token`,
+      trackingUrl: buildTrackingUrl("demo-token"),
     };
 
     const steps: Array<{
