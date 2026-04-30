@@ -2,6 +2,7 @@ import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { TEMPLATES } from '../_shared/transactional-email-templates/registry.ts'
+import { loadTemplateOverride } from '../_shared/transactional-email-templates/overrides.ts'
 
 // Configuration baked in at scaffold time — do NOT change these manually.
 // To update, re-run the email domain setup flow.
@@ -283,19 +284,25 @@ Deno.serve(async (req) => {
   }
 
   // 4. Render React Email template to HTML and plain text
+  // Lade Admin-Overrides (Texte aus DB) und injiziere sie in die Template-Props
+  const override = await loadTemplateOverride(templateName, templateData)
+  const propsForRender = { ...templateData, __override: override ?? undefined }
+
   const html = await renderAsync(
-    React.createElement(template.component, templateData)
+    React.createElement(template.component, propsForRender)
   )
   const plainText = await renderAsync(
-    React.createElement(template.component, templateData),
+    React.createElement(template.component, propsForRender),
     { plainText: true }
   )
 
-  // Resolve subject — supports static string or dynamic function
+  // Resolve subject — Override hat Vorrang
   const resolvedSubject =
-    typeof template.subject === 'function'
-      ? template.subject(templateData)
-      : template.subject
+    (override?.subject && override.subject.trim().length > 0)
+      ? override.subject
+      : (typeof template.subject === 'function'
+          ? template.subject(templateData)
+          : template.subject)
 
   // 5. Enqueue the pre-rendered email for async processing by the dispatcher.
   // The dispatcher (process-email-queue) handles sending, retries, and rate-limit backoff.
