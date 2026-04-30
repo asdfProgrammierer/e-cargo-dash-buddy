@@ -359,16 +359,11 @@ export default function TrackingPage() {
                   <Truck className="h-4 w-4 mt-0.5 text-primary" />
                   <div className="flex-1">
                     <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                      {order.eta ? "Voraussichtliches Lieferzeitfenster (±30 Min.)" : "Voraussichtliches Lieferzeitfenster"}
+                      Voraussichtliches Lieferzeitfenster
                     </p>
                     <p className="text-base font-medium text-foreground mt-1">
                       {order.eta ? order.eta.window : "Wird Ihnen kurz vor der Zustellung mitgeteilt"}
                     </p>
-                    {order.eta?.center && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Geplante Ankunft: ca. {order.eta.center} Uhr
-                      </p>
-                    )}
                   </div>
                 </div>
               </div>
@@ -416,16 +411,11 @@ export default function TrackingPage() {
                   <Truck className="h-4 w-4 mt-0.5 text-primary" />
                   <div className="flex-1">
                     <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                      {order.eta ? "Voraussichtliches Lieferzeitfenster (±30 Min.)" : "Voraussichtliches Lieferzeitfenster"}
+                      Voraussichtliches Lieferzeitfenster
                     </p>
                     <p className="text-base font-medium text-foreground mt-1">
                       {order.eta ? order.eta.window : "Wird Ihnen kurz vor der Zustellung mitgeteilt"}
                     </p>
-                    {order.eta?.center && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Geplante Ankunft: ca. {order.eta.center} Uhr
-                      </p>
-                    )}
                   </div>
                 </div>
               </div>
