@@ -22,6 +22,7 @@ export interface Order {
   erstelltAm: string;
   notizen?: string;
   deliveryAttempts?: number;
+  isPickup?: boolean;
 }
 
 export const STATUS_LABELS: Record<OrderStatus, string> = {
