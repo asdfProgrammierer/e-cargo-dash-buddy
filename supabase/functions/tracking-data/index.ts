@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
   const { data: order, error } = await supabase
     .from('orders')
     .select(
-      'id, auftrags_nr, status, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, created_at, updated_at, delivered_at, user_id, tracking_token'
+      'id, auftrags_nr, status, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, created_at, updated_at, delivered_at, user_id, tracking_token, delivery_attempts'
     )
     .eq('id', session.order_id)
     .maybeSingle()
@@ -131,6 +131,8 @@ Deno.serve(async (req) => {
         haendlerName: profile?.firma_name?.trim() || profile?.ansprechpartner?.trim() || 'Ihr Händler',
         eta: etaWindow,
         delivery: deliveryDetails,
+        deliveryAttempts: (order as { delivery_attempts?: number | null }).delivery_attempts ?? 0,
+        maxDeliveryAttempts: 3,
       },
       history: (history ?? []).map((h) => ({
         status: h.status,
