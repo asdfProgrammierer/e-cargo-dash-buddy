@@ -2,6 +2,7 @@ import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { TEMPLATES } from '../_shared/transactional-email-templates/registry.ts'
+import { setEditable } from '../_shared/transactional-email-templates/_override.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,6 +42,7 @@ Deno.serve(async (req) => {
   const templateName: string = body.templateName
   // overrideDraft = unsaved override values from the editor (preferred), otherwise read from DB
   const overrideDraft = body.overrideDraft ?? null
+  const editable: boolean = body.editable === true
 
   const entry = TEMPLATES[templateName]
   if (!entry) {
@@ -74,12 +76,18 @@ Deno.serve(async (req) => {
 
   const props = { ...previewData, __override: interpolated ?? undefined }
 
-  const html = await renderAsync(React.createElement(entry.component, props))
+  setEditable(editable)
+  let html: string
+  try {
+    html = await renderAsync(React.createElement(entry.component, props))
+  } finally {
+    setEditable(false)
+  }
   const subject = (interpolated?.subject && interpolated.subject.trim().length > 0)
     ? interpolated.subject
     : (typeof entry.subject === 'function' ? entry.subject(previewData) : entry.subject)
 
-  return new Response(JSON.stringify({ html, subject, previewData }), {
+  return new Response(JSON.stringify({ html, subject, previewData, editable }), {
     status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
