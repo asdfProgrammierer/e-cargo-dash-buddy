@@ -1,81 +1,44 @@
-# Wiederzustellung (2. & 3. Versuch)
-
 ## Ziel
 
-Wenn ein Fahrer einen Stopp als „nicht zugestellt" markiert, soll die Bestellung automatisch:
-1. Einen Zustellversuch hochzählen (max. 3).
-2. Eine passende **Kunden-E-Mail** auslösen, die den nächsten Versuch ankündigt (oder bei Versuch 3 das endgültige Scheitern).
-3. Bei Versuch 1 + 2 wieder als **„neu"** in die Routenplanung einfließen, damit sie unten im Bereich „Neue Sendungen" auftaucht und neu eingeplant werden kann.
-4. Erst nach **3 erfolglosen Versuchen** dauerhaft auf `nicht_zugestellt` bleiben (Endzustand, Händler muss reagieren).
+In der Routenplanung (`/admin/routen`) sollen sich neue Bestellungen nach **Lieferzonen** (Zone A, B, C, D … wie im Bereich „Lieferzonen" angelegt) filtern lassen. Es werden dann nur Bestellungen aus den ausgewählten Zonen in der Liste „Neue Sendungen" angezeigt – und damit auch nur die für die Route ausgewählt/hinzugefügt.
 
-## Flow
+## Was wird gebaut
 
-```text
-Versuch 1 fehlgeschlagen  -> delivery_attempts=1, status=neu, Mail "1. Zustellversuch fehlgeschlagen, 2. Versuch folgt kostenlos"
-Versuch 2 fehlgeschlagen  -> delivery_attempts=2, status=neu, Mail "2. Zustellversuch fehlgeschlagen, 3. Versuch folgt kostenlos"
-Versuch 3 fehlgeschlagen  -> delivery_attempts=3, status=nicht_zugestellt (final), Mail "Zustellung endgültig nicht möglich"
-Versuch erfolgreich       -> status=zugestellt (Zähler bleibt zur Info)
-```
+### 1. Zonen laden
+- In `RoutenplanungPage.tsx` zusätzlich zu Routen/Fahrern/Fahrzeugen/Depots auch die aktiven Lieferzonen mit ihren PLZ laden (`delivery_zones` + `delivery_zone_postcodes`, nur `active = true`).
+- Eine Map `postcode → zone` aufbauen, um jeder neuen Bestellung anhand `empfaenger_plz` eine Zone zuzuordnen.
 
-## Datenmodell
+### 2. Zonen-Filter UI in „Neue Sendungen"
+- Im Header der `NewOrdersTable` (neben Suche/„Anzeigen"/„Zur Route") ein neues **Multi-Select-Dropdown „Zonen"** einfügen.
+  - Optionen: alle aktiven Zonen (Anzeige: farbiger Punkt + Zonen-Label/-Name) + Eintrag „Ohne Zone" für PLZ, die keiner Zone zugeordnet sind.
+  - Ohne Auswahl = keine Filterung (alle Zonen).
+  - Auswahl wird als Badge-Reihe sichtbar mit „Zurücksetzen"-Button.
+- In jeder Zeile der Tabelle wird zusätzlich eine kleine **Zonen-Badge** (Label + Farbe via `getZoneBadgeStyle`) hinter PLZ/Stadt angezeigt – damit man auf einen Blick sieht, welche Zone eine Bestellung hat.
 
-- Spalte `orders.delivery_attempts integer not null default 0`.
-- Konstante `MAX_DELIVERY_ATTEMPTS = 3` zentral in `src/types/order.ts`.
+### 3. Filter-Logik
+- Vor dem Rendern: `filteredOrders = orders.filter(o => selectedZones.size === 0 || selectedZones.has(zoneIdFor(o.empfaenger_plz) ?? "none"))`.
+- Suche und Zonen-Filter wirken kombiniert (UND).
+- „Alle auswählen" wählt nur die aktuell sichtbaren (gefilterten) Bestellungen mit Koordinaten aus.
+- Auswahl, die durch Filterung unsichtbar wird, bleibt im State – wird aber visuell nicht mehr in der Liste angezeigt (entspricht heutigem Verhalten beim Suchen).
 
-## Backend: `driver-update-stop-status`
+### 4. Optional: Karten-Layer beachtet Filter
+- Die Map (`RoutesOverviewMap`) bekommt ebenfalls die gefilterte Liste „neuer Sendungen", damit Pins auf der Karte konsistent zur Tabelle sind, wenn der Schalter „Anzeigen" aktiv ist.
 
-Im Block, der bisher pauschal `newOrderStatus = "nicht_zugestellt"` setzt:
+## Technische Details
 
-- Aktuellen `delivery_attempts` aus der DB lesen, `nextAttempt = current + 1`.
-- Wenn `nextAttempt < 3`:
-  - `orders.status = 'neu'`, `delivery_attempts = nextAttempt`, `delivered_at = null`.
-  - History-Eintrag mit `reason` und Versuchsnummer.
-  - Versand der neuen Vorlage `order-zustellversuch-fehlgeschlagen` mit `templateData.attemptNumber`, `nextAttemptNumber`, `reason`, `trackingUrl`.
-- Wenn `nextAttempt >= 3`:
-  - `orders.status = 'nicht_zugestellt'`, `delivery_attempts = 3` (final).
-  - Bestehende Vorlage `order-nicht-zugestellt` versenden (final-Variante).
-- Stopp selbst bleibt `uebersprungen` (bestehendes Verhalten); die Route wird wie bisher abgeschlossen, sobald keine `offen`en Stopps mehr vorhanden sind.
+- **Datenquelle**: `delivery_zones (id, name, label, color, sort_order, active)` + `delivery_zone_postcodes (zone_id, postcode)` – RLS erlaubt SELECT für authentifizierte Nutzer auf aktive Zonen, also kein Migration-Bedarf.
+- **Helper**: kleine Util-Funktion `buildPostcodeZoneMap(zones)` → `Map<string, ZoneInfo>`; `zoneInfoFor(plz)` normalisiert via vorhandener `normalizePostcode` (`src/lib/deliveryCoverage.ts`).
+- **State**: `selectedZoneIds: Set<string>` in `RoutenplanungPage` (per Route-Zustand nicht nötig, rein UI). Wird per Props an `NewOrdersTable` durchgereicht, zusammen mit `zones` und `zoneByPostcode`.
+- **UI-Bibliothek**: bestehendes `DropdownMenu` mit `DropdownMenuCheckboxItem` für Multi-Select, `Badge` mit `getZoneBadgeStyle(zone.color)` für Anzeige.
+- **Keine DB-Änderungen, keine RLS-Änderungen, keine Edge Functions.**
 
-Damit die Order automatisch wieder in „Neue Sendungen" landet: `RoutenplanungPage.loadNewOrders` filtert bereits auf `status = 'neu'` — es ist also nichts an der Abfrage zu ändern. Über Realtime/Refresh erscheint die Bestellung von selbst wieder.
+## Geänderte Dateien
 
-## E-Mail-Vorlagen
+- `src/pages/admin/RoutenplanungPage.tsx` – Zonen + Postcode-Map laden, State für Zonen-Filter, Props an `NewOrdersTable` weitergeben, gefilterte Liste auch an `RoutesOverviewMap`.
+- `src/components/admin/NewOrdersTable.tsx` – Filter-Dropdown im Header, Filterlogik, Zonen-Badge je Zeile.
+- (Neu, klein) `src/lib/deliveryZoneLookup.ts` – Helper für `Map<postcode, zone>` und Lookup-Funktion.
 
-Neue gemeinsame Vorlage für Versuch 1 + 2:
+## Nicht im Scope
 
-- `supabase/functions/_shared/transactional-email-templates/order-zustellversuch-fehlgeschlagen.tsx`
-  - Felder: `kundenname`, `auftragsNr`, `attemptNumber`, `nextAttemptNumber`, `reason`, `trackingUrl`, `haendlerName`, `lieferadresse`.
-  - Kerntext: „Ihr {attemptNumber}. Zustellversuch war leider nicht erfolgreich. Wir versuchen es kostenlos erneut. Sie werden über den Status informiert, sobald ein neuer Termin feststeht."
-- Eintrag in `registry.ts` ergänzen, Override-Defaults in `_override.ts` ergänzen, damit die Vorlage im Admin-Dashboard aktiv/inaktiv geschaltet und live bearbeitet werden kann.
-- Bestehende `order-nicht-zugestellt` wird nur noch beim **finalen** Versuch verwendet — Text leicht anpassen ("nach 3 Versuchen").
-
-`src/lib/orderEmail.ts` erhält den neuen Template-Key (für Test-Versand aus dem Admin-Dashboard) und versendet ihn analog zu den anderen Status-Mails.
-
-## UI-Anpassungen (klein)
-
-- `OrderDetailSheet` und Tracking-Page zeigen `delivery_attempts` als Badge („Versuch 2 von 3"), wenn > 0.
-- `TrackingPage` zeigt bei `status=neu` mit `delivery_attempts > 0` einen Hinweis „Erneuter Zustellversuch in Planung".
-
-## Migration
-
-```sql
-alter table public.orders
-  add column if not exists delivery_attempts integer not null default 0;
-```
-
-Optional Index sparen — Anzahl ist klein.
-
-## Edge Cases
-
-- Idempotenz bleibt bestehen: nur erhöhen, wenn der Stopp gerade von `offen`/`erledigt` auf `uebersprungen` wechselt (`statusChanged`-Guard erweitern).
-- `admin_update_order_status` (manuelles Setzen durch Admin auf `nicht_zugestellt`) zählt **nicht** automatisch hoch — das bleibt eine Admin-Override-Aktion.
-- Bei manueller Stornierung greift die Logik nicht.
-
-## Betroffene Dateien
-
-- Migration: neue Spalte `delivery_attempts`.
-- `supabase/functions/driver-update-stop-status/index.ts` — Versuchslogik + Mailauswahl.
-- `supabase/functions/_shared/transactional-email-templates/order-zustellversuch-fehlgeschlagen.tsx` (neu).
-- `supabase/functions/_shared/transactional-email-templates/registry.ts`, `_override.ts`, `order-nicht-zugestellt.tsx` (Text final).
-- `src/lib/orderEmail.ts` — Template-Map erweitern.
-- `src/types/order.ts` — `MAX_DELIVERY_ATTEMPTS`, Feld `deliveryAttempts`.
-- `src/components/dashboard/OrderDetailSheet.tsx`, `src/pages/TrackingPage.tsx` — Anzeige Versuchszähler.
+- Automatisches Zuweisen ganzer Zonen an Routen (Single-Click „alle aus Zone A → Route"). Kann später als Erweiterung hinzukommen, wenn gewünscht.
+- Anpassung des Etiketten-Druckes oder anderer Seiten – Zonen-Logik bleibt auf die Routenplanung beschränkt.
