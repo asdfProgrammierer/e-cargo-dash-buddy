@@ -33,15 +33,8 @@ const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, trackingUr
         ) : null}
         {etaWindow ? (
           <div style={infoBox}>
-            <Text style={infoLabel}>
-              {etaCenter ? 'Voraussichtliches Lieferzeitfenster (±30 Minuten)' : 'Voraussichtliches Lieferzeitfenster'}
-            </Text>
+            <Text style={infoLabel}>Voraussichtliches Lieferzeitfenster</Text>
             <Text style={infoValue}>{etaWindow}</Text>
-            {etaCenter ? (
-              <Text style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0' }}>
-                Geplante Ankunft: ca. {etaCenter} Uhr
-              </Text>
-            ) : null}
           </div>
         ) : null}
         {lieferadresse ? (
