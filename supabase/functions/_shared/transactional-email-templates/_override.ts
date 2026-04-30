@@ -1,3 +1,5 @@
+import * as React from 'npm:react@18.3.1'
+
 export interface OverrideShape {
   subject?: string | null
   preview?: string | null
@@ -9,14 +11,29 @@ export interface OverrideShape {
   enabled?: boolean
 }
 
-export function pick(value: string | null | undefined, fallback: string): string {
-  if (typeof value === 'string' && value.trim().length > 0) return value
-  return fallback
+// Module-global editable flag, toggled by the admin preview function before render.
+let EDITABLE = false
+export function setEditable(value: boolean) {
+  EDITABLE = value
 }
 
-export function newlinesToBreaks(s: string): React.ReactNode[] {
-  // not used; templates render plain text via <Text>; multiline allowed
-  return []
+export function pick(
+  value: string | null | undefined,
+  fallback: string,
+  field?: string,
+): React.ReactNode {
+  const hasValue = typeof value === 'string' && value.trim().length > 0
+  const display = hasValue ? (value as string) : fallback
+  if (EDITABLE && field) {
+    return React.createElement(
+      'span',
+      {
+        'data-edit-field': field,
+        'data-edit-empty': hasValue ? 'false' : 'true',
+        style: { outline: 'none' },
+      },
+      display,
+    )
+  }
+  return display
 }
-
-import * as React from 'npm:react@18.3.1'
