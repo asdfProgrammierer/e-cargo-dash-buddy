@@ -142,9 +142,18 @@ const EmailTemplatesPage = () => {
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
-    const onLoad = () => {
+    let cancelled = false;
+    const wire = () => {
+      if (cancelled) return;
       const doc = iframe.contentDocument;
-      if (!doc) return;
+      if (!doc || !doc.body || doc.body.childElementCount === 0) {
+        // Not ready yet, retry shortly
+        setTimeout(wire, 50);
+        return;
+      }
+      // Avoid double-wiring
+      if (doc.documentElement.dataset.wired === "1") return;
+      doc.documentElement.dataset.wired = "1";
       // Inject editing styles
       const style = doc.createElement("style");
       style.textContent = `
@@ -161,6 +170,9 @@ const EmailTemplatesPage = () => {
       doc.head.appendChild(style);
 
       const fields = doc.querySelectorAll<HTMLElement>("[data-edit-field]");
+      if (fields.length === 0) {
+        console.warn("[EmailTemplatesPage] Keine [data-edit-field] Marker im HTML gefunden");
+      }
       fields.forEach((el) => {
         el.setAttribute("contenteditable", "true");
         el.setAttribute("spellcheck", "true");
@@ -180,8 +192,13 @@ const EmailTemplatesPage = () => {
         });
       });
     };
-    iframe.addEventListener("load", onLoad);
-    return () => iframe.removeEventListener("load", onLoad);
+    iframe.addEventListener("load", wire);
+    // Try immediately too — srcDoc may already be loaded by the time the effect runs
+    wire();
+    return () => {
+      cancelled = true;
+      iframe.removeEventListener("load", wire);
+    };
   }, [previewHtml]);
 
   const updateField = (field: keyof OverrideRow, value: any) => {
