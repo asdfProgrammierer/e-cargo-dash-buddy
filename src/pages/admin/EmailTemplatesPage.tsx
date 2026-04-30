@@ -373,6 +373,7 @@ const EmailTemplatesPage = () => {
       auftragsNr: "EC-TEST-0000999",
       lieferadresse: "Musterstraße 1, 12345 Berlin",
       reason: "Empfänger nicht angetroffen",
+      trackingUrl: `${window.location.origin}/track/demo-token`,
     };
 
     const steps: Array<{
