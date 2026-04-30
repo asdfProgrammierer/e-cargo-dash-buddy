@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MerchantInvoiceDialog } from "@/components/admin/MerchantInvoiceDialog";
+import { PickupSettingsCell } from "@/components/admin/PickupSettingsCell";
 import { toast } from "sonner";
 import { Search, Building2, ChevronRight } from "lucide-react";
 
@@ -21,6 +22,8 @@ interface MerchantProfile {
   paketpreis: number | null;
   merchant_code: string | null;
   approved: boolean;
+  pickup_enabled: boolean;
+  pickup_weekdays: number[];
   created_at: string;
 }
 
@@ -35,12 +38,16 @@ const HaendlerVerwaltungPage = () => {
   const fetchMerchants = async () => {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, user_id, firma_name, ansprechpartner, stadt, telefon, paketpreis, merchant_code, approved, created_at")
+      .select("id, user_id, firma_name, ansprechpartner, stadt, telefon, paketpreis, merchant_code, approved, pickup_enabled, pickup_weekdays, created_at")
       .order("created_at", { ascending: false });
     if (error) {
       toast.error("Fehler beim Laden der Händler");
     } else {
-      const merchantRows = data ?? [];
+      const merchantRows = (data ?? []).map((m: any) => ({
+        ...m,
+        pickup_enabled: m.pickup_enabled ?? false,
+        pickup_weekdays: Array.isArray(m.pickup_weekdays) ? m.pickup_weekdays : [],
+      })) as MerchantProfile[];
       setMerchants(merchantRows);
       setMerchantCodes(
         merchantRows.reduce<Record<string, string>>((acc, merchant) => {
@@ -136,6 +143,7 @@ const HaendlerVerwaltungPage = () => {
                 <TableHead>Code</TableHead>
                 <TableHead>Registriert am</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Abholung</TableHead>
                 <TableHead>Rechnung</TableHead>
                 <TableHead className="text-right">Freigabe</TableHead>
                 <TableHead className="w-8" />
@@ -144,13 +152,13 @@ const HaendlerVerwaltungPage = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                     Lade Händler...
                   </TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                     Keine Händler gefunden
                   </TableCell>
                 </TableRow>
@@ -201,6 +209,22 @@ const HaendlerVerwaltungPage = () => {
                         {m.approved ? "Aktiv" : "Ausstehend"}
                       </Badge>
                     </TableCell>
+                     <TableCell onClick={(e) => e.stopPropagation()}>
+                       <PickupSettingsCell
+                         profileId={m.id}
+                         pickupEnabled={m.pickup_enabled}
+                         pickupWeekdays={m.pickup_weekdays}
+                         onChange={(next) =>
+                           setMerchants((prev) =>
+                             prev.map((row) =>
+                               row.id === m.id
+                                 ? { ...row, pickup_enabled: next.pickup_enabled, pickup_weekdays: next.pickup_weekdays }
+                                 : row,
+                             ),
+                           )
+                         }
+                       />
+                     </TableCell>
                      <TableCell onClick={(e) => e.stopPropagation()}>
                        <MerchantInvoiceDialog merchant={m} />
                      </TableCell>

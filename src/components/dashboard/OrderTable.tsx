@@ -130,7 +130,16 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
                     onCheckedChange={() => toggleSelect(order.id)}
                   />
                 </TableCell>
-                <TableCell className="font-mono text-sm font-medium">{order.auftragsNr}</TableCell>
+                <TableCell className="font-mono text-sm font-medium">
+                  <div className="flex items-center gap-2">
+                    <span>{order.auftragsNr}</span>
+                    {order.isPickup && (
+                      <Badge variant="outline" className="border-warning text-warning text-[10px] uppercase tracking-wide">
+                        Abholung
+                      </Badge>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell>{order.absenderName}</TableCell>
                 <TableCell>{order.empfaengerName}</TableCell>
                 <TableCell>{order.empfaengerStadt}</TableCell>

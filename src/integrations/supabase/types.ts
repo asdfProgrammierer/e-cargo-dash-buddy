@@ -495,6 +495,7 @@ export type Database = {
           geocoded_at: string | null
           gewicht: number
           id: string
+          is_pickup: boolean
           lat: number | null
           lng: number | null
           notizen: string | null
@@ -523,6 +524,7 @@ export type Database = {
           geocoded_at?: string | null
           gewicht?: number
           id?: string
+          is_pickup?: boolean
           lat?: number | null
           lng?: number | null
           notizen?: string | null
@@ -551,6 +553,7 @@ export type Database = {
           geocoded_at?: string | null
           gewicht?: number
           id?: string
+          is_pickup?: boolean
           lat?: number | null
           lng?: number | null
           notizen?: string | null
@@ -578,6 +581,9 @@ export type Database = {
           merchant_code: string | null
           opening_hours: Json
           paketpreis: number | null
+          pickup_enabled: boolean
+          pickup_time: string | null
+          pickup_weekdays: number[]
           plz: string | null
           stadt: string | null
           strasse: string | null
@@ -599,6 +605,9 @@ export type Database = {
           merchant_code?: string | null
           opening_hours?: Json
           paketpreis?: number | null
+          pickup_enabled?: boolean
+          pickup_time?: string | null
+          pickup_weekdays?: number[]
           plz?: string | null
           stadt?: string | null
           strasse?: string | null
@@ -620,6 +629,9 @@ export type Database = {
           merchant_code?: string | null
           opening_hours?: Json
           paketpreis?: number | null
+          pickup_enabled?: boolean
+          pickup_time?: string | null
+          pickup_weekdays?: number[]
           plz?: string | null
           stadt?: string | null
           strasse?: string | null
@@ -1028,6 +1040,7 @@ export type Database = {
           geocoded_at: string | null
           gewicht: number
           id: string
+          is_pickup: boolean
           lat: number | null
           lng: number | null
           notizen: string | null
