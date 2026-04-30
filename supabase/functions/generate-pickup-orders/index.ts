@@ -26,6 +26,31 @@ function berlinDateString(date = new Date()): string {
   return fmt.format(date); // YYYY-MM-DD
 }
 
+async function geocode(strasse: string, plz: string, stadt: string): Promise<{ lat: number; lng: number } | null> {
+  const apiKey = Deno.env.get("ORS_API_KEY");
+  if (!apiKey) return null;
+  const text = [strasse, plz, stadt, "Deutschland"].filter(Boolean).join(", ").trim();
+  if (!text) return null;
+  try {
+    const url = new URL("https://api.openrouteservice.org/geocode/search");
+    url.searchParams.set("api_key", apiKey);
+    url.searchParams.set("text", text);
+    url.searchParams.set("size", "1");
+    url.searchParams.set("boundary.country", "DEU");
+    const res = await fetch(url.toString(), { headers: { Accept: "application/json" } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const feature = data?.features?.[0];
+    if (!feature) return null;
+    const [lng, lat] = feature.geometry.coordinates;
+    if (typeof lat !== "number" || typeof lng !== "number") return null;
+    return { lat, lng };
+  } catch (e) {
+    console.error("pickup geocode failed", e);
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -98,6 +123,8 @@ Deno.serve(async (req) => {
       const senderName = m.firma_name || m.ansprechpartner || "Händler";
       const adresse = `${m.strasse}, ${m.plz} ${m.stadt}`;
 
+      const geo = await geocode(m.strasse, m.plz, m.stadt);
+
       const { data: inserted, error: insErr } = await supabase
         .from("orders")
         .insert({
@@ -115,6 +142,9 @@ Deno.serve(async (req) => {
           gewicht: 0,
           notizen: "[ABHOLUNG] Automatisch generierter Abhol-Auftrag",
           is_pickup: true,
+          lat: geo?.lat ?? null,
+          lng: geo?.lng ?? null,
+          geocoded_at: geo ? new Date().toISOString() : null,
         })
         .select("id")
         .single();
@@ -122,7 +152,11 @@ Deno.serve(async (req) => {
       if (insErr) {
         results.push({ merchant: m.firma_name ?? m.id, status: "error", reason: insErr.message });
       } else {
-        results.push({ merchant: m.firma_name ?? m.id, status: "created", orderId: inserted.id });
+        results.push({
+          merchant: m.firma_name ?? m.id,
+          status: geo ? "created" : "created_no_geo",
+          orderId: inserted.id,
+        });
       }
     }
 
