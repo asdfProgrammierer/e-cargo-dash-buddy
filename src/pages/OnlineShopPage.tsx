@@ -1,198 +1,134 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingBag, Webhook, Key, Link2, CheckCircle2, AlertCircle, Copy } from "lucide-react";
-import { toast } from "sonner";
+import { CheckCircle2, AlertCircle, ShoppingBag, Package } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useOrders } from "@/context/OrderContext";
+import { OrderTable } from "@/components/dashboard/OrderTable";
+import { OrderDetailSheet } from "@/components/dashboard/OrderDetailSheet";
+import { Order } from "@/types/order";
 
-const SHOP_PLATFORMS = [
-  { value: "shopify", label: "Shopify" },
-  { value: "woocommerce", label: "WooCommerce" },
-  { value: "shopware", label: "Shopware" },
-  { value: "magento", label: "Magento" },
-  { value: "custom", label: "Eigener Shop" },
-];
+const PLATFORM_LABELS: Record<string, string> = {
+  shopify: "Shopify",
+  woocommerce: "WooCommerce",
+  shopware: "Shopware",
+  magento: "Magento",
+  custom: "Eigener Shop",
+};
+
+interface ShopConnection {
+  id: string;
+  platform: string;
+  api_url: string;
+  active: boolean;
+}
 
 const OnlineShopPage = () => {
-  const [platform, setPlatform] = useState("");
-  const [apiUrl, setApiUrl] = useState("");
-  const [apiKey, setApiKey] = useState("");
-  const [connected, setConnected] = useState(false);
-  const [testing, setTesting] = useState(false);
+  const { orders, updateStatus, deleteOrder, updateOrder } = useOrders();
+  const [connection, setConnection] = useState<ShopConnection | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
-  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL || "https://your-project.supabase.co"}/functions/v1/shop-webhook`;
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("shop_connections")
+        .select("id, platform, api_url, active")
+        .eq("active", true)
+        .maybeSingle();
+      setConnection(data as ShopConnection | null);
+      setLoading(false);
+    })();
+  }, []);
 
-  const handleConnect = async () => {
-    if (!platform || !apiUrl || !apiKey) {
-      toast.error("Bitte alle Felder ausfüllen");
-      return;
-    }
-    setTesting(true);
-    // Simulate connection test
-    await new Promise((r) => setTimeout(r, 1500));
-    setTesting(false);
-    setConnected(true);
-    toast.success("Verbindung erfolgreich hergestellt!");
-  };
+  // Heuristik: Bestellungen aus dem Shop sind die, deren Notizen einen Shop-Marker enthalten.
+  const shopOrders = useMemo(
+    () =>
+      orders.filter((o) => {
+        const n = (o.notizen ?? "").toLowerCase();
+        return n.includes("[shop]") || n.includes("shop-import") || n.includes("shopify") || n.includes("woocommerce");
+      }),
+    [orders]
+  );
 
-  const handleDisconnect = () => {
-    setConnected(false);
-    setPlatform("");
-    setApiUrl("");
-    setApiKey("");
-    toast.info("Shop-Verbindung getrennt");
-  };
-
-  const copyWebhookUrl = () => {
-    navigator.clipboard.writeText(webhookUrl);
-    toast.success("Webhook-URL kopiert");
-  };
+  const currentOrder = selectedOrder ? orders.find((o) => o.id === selectedOrder.id) ?? null : null;
 
   return (
-    <DashboardLayout title="Online-Shop verbinden">
-      <div className="space-y-6 max-w-3xl">
-        {connected && (
+    <DashboardLayout title="Online-Shop">
+      <div className="space-y-6 max-w-5xl">
+        {/* Connection Status */}
+        {loading ? (
+          <Card><CardContent className="py-6 text-sm text-muted-foreground">Verbindung wird geprüft…</CardContent></Card>
+        ) : connection ? (
           <Card className="border-success/30 bg-success/5">
-            <CardContent className="flex items-center gap-3 py-4">
-              <CheckCircle2 className="h-5 w-5 text-success" />
+            <CardContent className="flex items-center gap-3 py-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/15">
+                <CheckCircle2 className="h-5 w-5 text-success" />
+              </div>
               <div className="flex-1">
-                <p className="font-medium text-sm">Shop verbunden</p>
-                <p className="text-xs text-muted-foreground">
-                  {SHOP_PLATFORMS.find((p) => p.value === platform)?.label} · {apiUrl}
+                <p className="font-medium">Verbindung aktiv</p>
+                <p className="text-sm text-muted-foreground">
+                  {PLATFORM_LABELS[connection.platform] ?? connection.platform} · {connection.api_url}
                 </p>
               </div>
-              <Button variant="ghost" size="sm" className="text-destructive" onClick={handleDisconnect}>
-                Trennen
-              </Button>
+              <Badge variant="secondary">Aktiv</Badge>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-warning/30 bg-warning/5">
+            <CardContent className="flex items-center gap-3 py-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/15">
+                <AlertCircle className="h-5 w-5 text-warning" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">Keine Shop-Verbindung aktiv</p>
+                <p className="text-sm text-muted-foreground">
+                  Aktuell ist kein Online-Shop angebunden. Bitte wenden Sie sich an den Support, um eine Verbindung einzurichten.
+                </p>
+              </div>
             </CardContent>
           </Card>
         )}
 
-        <Tabs defaultValue="api">
-          <TabsList>
-            <TabsTrigger value="api" className="gap-1.5">
-              <Key className="h-4 w-4" />
-              API-Verbindung
-            </TabsTrigger>
-            <TabsTrigger value="webhook" className="gap-1.5">
-              <Webhook className="h-4 w-4" />
-              Webhook
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="api" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Link2 className="h-5 w-5 text-primary" />
-                  API-Verbindung einrichten
-                </CardTitle>
-                <CardDescription>
-                  Verbinden Sie Ihren Online-Shop über die REST-API, um Bestellungen automatisch zu importieren.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Shop-Plattform</Label>
-                  <Select value={platform} onValueChange={setPlatform}>
-                    <SelectTrigger className="mt-1.5">
-                      <SelectValue placeholder="Plattform wählen" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SHOP_PLATFORMS.map((p) => (
-                        <SelectItem key={p.value} value={p.value}>
-                          {p.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>API-URL / Shop-URL</Label>
-                  <Input
-                    className="mt-1.5"
-                    placeholder="https://mein-shop.de/api"
-                    value={apiUrl}
-                    onChange={(e) => setApiUrl(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>API-Schlüssel</Label>
-                  <Input
-                    className="mt-1.5"
-                    type="password"
-                    placeholder="sk_live_..."
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                  />
-                </div>
-                <div className="flex items-center gap-2 rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <p>Die API-Zugangsdaten finden Sie in den Einstellungen Ihres Online-Shops.</p>
-                </div>
-                <Button onClick={handleConnect} disabled={testing || connected} className="w-full">
-                  {testing ? (
-                    <>
-                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                      Verbindung wird getestet…
-                    </>
-                  ) : connected ? (
-                    "Verbunden"
-                  ) : (
-                    "Verbindung herstellen"
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="webhook" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Webhook className="h-5 w-5 text-primary" />
-                  Webhook einrichten
-                </CardTitle>
-                <CardDescription>
-                  Richten Sie einen Webhook in Ihrem Online-Shop ein, um Bestellungen in Echtzeit zu empfangen.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Ihre Webhook-URL</Label>
-                  <div className="mt-1.5 flex gap-2">
-                    <Input value={webhookUrl} readOnly className="font-mono text-xs" />
-                    <Button variant="outline" size="icon" onClick={copyWebhookUrl}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-3 rounded-lg border border-border p-4">
-                  <h4 className="font-medium text-sm">So richten Sie den Webhook ein:</h4>
-                  <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
-                    <li>Öffnen Sie die Webhook-Einstellungen in Ihrem Online-Shop</li>
-                    <li>Erstellen Sie einen neuen Webhook für Bestellereignisse</li>
-                    <li>Fügen Sie die oben angezeigte URL als Zieladresse ein</li>
-                    <li>Wählen Sie die Ereignisse: <Badge variant="secondary" className="text-xs mx-1">order.created</Badge> <Badge variant="secondary" className="text-xs mx-1">order.updated</Badge></li>
-                    <li>Speichern und testen Sie den Webhook</li>
-                  </ol>
-                </div>
-
-                <div className="flex items-center gap-2 rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-                  <ShoppingBag className="h-4 w-4 shrink-0" />
-                  <p>Unterstützte Formate: JSON. Der Webhook akzeptiert POST-Anfragen mit Bestelldaten.</p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {/* Imported Orders */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <ShoppingBag className="h-5 w-5 text-primary" />
+              Aus dem Shop übertragene Bestellungen
+            </CardTitle>
+            <CardDescription>
+              Übersicht aller Bestellungen, die automatisch aus Ihrem Online-Shop importiert wurden.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {shopOrders.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-10 text-center text-sm text-muted-foreground">
+                <Package className="h-8 w-8 text-muted-foreground/60" />
+                <p>Noch keine Bestellungen aus dem Shop übertragen.</p>
+              </div>
+            ) : (
+              <OrderTable
+                orders={shopOrders}
+                onDelete={deleteOrder}
+                onSelect={(o) => { setSelectedOrder(o); setSheetOpen(true); }}
+                onCancel={(id) => updateStatus(id, "storniert")}
+              />
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      <OrderDetailSheet
+        order={currentOrder}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onUpdateStatus={updateStatus}
+        onUpdateOrder={updateOrder}
+        canUpdateStatus={false}
+      />
     </DashboardLayout>
   );
 };
