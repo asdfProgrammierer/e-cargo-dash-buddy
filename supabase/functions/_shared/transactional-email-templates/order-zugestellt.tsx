@@ -3,8 +3,10 @@ import { Body, Button, Container, Head, Heading, Html, Preview, Text } from 'npm
 import type { TemplateEntry } from './registry.ts'
 import { main, container, brand, tagline, h1, text, card, cardLabel, cardValue, footer, ctaWrap, ctaButton, ctaHint } from './_styles.ts'
 
-const REVIEW_URL = 'https://search.google.com/local/writereview?placeid=&q=e-cargo+logistik+bochum'
-const REVIEW_FALLBACK_URL = 'https://www.google.com/search?q=e-cargo+logistik+bochum'
+// Opens the Google Maps business panel for e-cargo Logistik Bochum where the
+// "Bewertung schreiben" button is prominently visible. This is the most
+// reliable deep-link without a hard-coded Place ID.
+const REVIEW_FALLBACK_URL = 'https://www.google.com/maps/search/?api=1&query=e-cargo+logistik+bochum'
 
 interface Props {
   kundenname?: string
