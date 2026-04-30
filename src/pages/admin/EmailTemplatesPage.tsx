@@ -72,6 +72,9 @@ const EmailTemplatesPage = () => {
   const [testEmail, setTestEmail] = useState<string>("");
   const [testOrderNr, setTestOrderNr] = useState<string>("");
   const [testingOrder, setTestingOrder] = useState(false);
+  const [retryFlowEmail, setRetryFlowEmail] = useState<string>("");
+  const [retryFlowRunning, setRetryFlowRunning] = useState(false);
+  const [retryFlowLog, setRetryFlowLog] = useState<{ step: string; ok: boolean; detail?: string }[]>([]);
   const [dirty, setDirty] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const rowsRef = useRef(rows);
@@ -346,6 +349,80 @@ const EmailTemplatesPage = () => {
       toast.error("Fehler: " + (e?.message ?? e));
     } finally {
       setTestingOrder(false);
+    }
+  };
+
+  // Test-Workflow: simuliert die 3-Versuche-Sequenz, indem die drei E-Mails
+  // (Versuch 1 fehlgeschlagen → Versuch 2 fehlgeschlagen → final nicht zugestellt)
+  // hintereinander an die Test-Adresse gesendet werden. Verändert KEINE Bestellung.
+  const runRetryFlowTest = async () => {
+    const recipient = retryFlowEmail.trim();
+    if (!recipient || !/.+@.+\..+/.test(recipient)) {
+      toast.error("Bitte eine gültige Test-Adresse eingeben");
+      return;
+    }
+    setRetryFlowRunning(true);
+    setRetryFlowLog([]);
+    const append = (entry: { step: string; ok: boolean; detail?: string }) =>
+      setRetryFlowLog((prev) => [...prev, entry]);
+
+    const baseId = `retry-flow-test-${Date.now()}`;
+    const baseData = {
+      kundenname: "Max Mustermann",
+      haendlerName: "PMF Store",
+      auftragsNr: "EC-TEST-0000999",
+      lieferadresse: "Musterstraße 1, 12345 Berlin",
+      reason: "Empfänger nicht angetroffen",
+    };
+
+    const steps: Array<{
+      label: string;
+      template: TemplateKey;
+      data: Record<string, string>;
+      expect: string;
+    }> = [
+      {
+        label: "Versuch 1 fehlgeschlagen",
+        template: "order-zustellversuch-fehlgeschlagen",
+        data: { ...baseData, attemptNumber: "1", nextAttemptNumber: "2" },
+        expect: "Wiederzustellung-Mail (1/3)",
+      },
+      {
+        label: "Versuch 2 fehlgeschlagen",
+        template: "order-zustellversuch-fehlgeschlagen",
+        data: { ...baseData, attemptNumber: "2", nextAttemptNumber: "3" },
+        expect: "Wiederzustellung-Mail (2/3)",
+      },
+      {
+        label: "Versuch 3 fehlgeschlagen → final",
+        template: "order-nicht-zugestellt",
+        data: baseData,
+        expect: "Finale Nicht-Zugestellt-Mail",
+      },
+    ];
+
+    try {
+      for (const [i, step] of steps.entries()) {
+        const { error } = await supabase.functions.invoke("send-transactional-email", {
+          body: {
+            templateName: step.template,
+            recipientEmail: recipient,
+            idempotencyKey: `${baseId}-step-${i + 1}`,
+            templateData: step.data,
+          },
+        });
+        if (error) {
+          append({ step: step.label, ok: false, detail: `${step.expect} – Fehler: ${error.message}` });
+          toast.error(`Schritt ${i + 1} fehlgeschlagen: ${error.message}`);
+        } else {
+          append({ step: step.label, ok: true, detail: `${step.expect} eingereiht` });
+        }
+      }
+      toast.success(`Test-Workflow ausgeführt — 3 E-Mails an ${recipient} eingereiht`);
+    } catch (e: any) {
+      toast.error("Test-Workflow Fehler: " + (e?.message ?? e));
+    } finally {
+      setRetryFlowRunning(false);
     }
   };
 
