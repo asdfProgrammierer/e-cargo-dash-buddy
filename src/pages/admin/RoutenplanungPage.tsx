@@ -19,6 +19,8 @@ import { Switch } from "@/components/ui/switch";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { sendOrderStatusEmailsForIds } from "@/lib/orderEmail";
+import { buildPostcodeZoneMap, type ZoneInfo, type ZoneWithPostcodes } from "@/lib/deliveryZoneLookup";
+import { zoneInfoFor, NO_ZONE_ID } from "@/lib/deliveryZoneLookup";
 
 interface Driver { id: string; name: string; }
 interface Vehicle { id: string; kennzeichen: string; }
@@ -67,6 +69,10 @@ const RoutenplanungPage = () => {
   // so we can auto-assign them after the route is saved.
   const [pendingAssignIds, setPendingAssignIds] = useState<string[] | null>(null);
 
+  // Delivery zones (for the "new orders" filter)
+  const [zones, setZones] = useState<ZoneWithPostcodes[]>([]);
+  const [selectedZoneIds, setSelectedZoneIds] = useState<Set<string>>(new Set());
+
   // Print dialog state: pick one of the planned/active routes for the day
   const [printOpen, setPrintOpen] = useState(false);
   const [printRouteId, setPrintRouteId] = useState<string | null>(null);
@@ -83,17 +89,31 @@ const RoutenplanungPage = () => {
   });
 
   const load = async () => {
-    const [r, d, v, dep] = await Promise.all([
+    const [r, d, v, dep, zonesRes] = await Promise.all([
       supabase.from("routes").select("*, drivers(id,name), vehicles(id,kennzeichen)").order("datum", { ascending: false }),
       supabase.from("drivers").select("id, name").eq("status", "aktiv"),
       supabase.from("vehicles").select("id, kennzeichen").eq("status", "verfuegbar"),
       supabase.from("depots").select("id, name, is_default").eq("active", true).order("name"),
+      supabase
+        .from("delivery_zones")
+        .select("id, name, label, color, sort_order, delivery_zone_postcodes(postcode)")
+        .eq("active", true)
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true }),
     ]);
     const list = (r.data as Route[]) ?? [];
     setRoutes(list);
     setDrivers((d.data as Driver[]) ?? []);
     setVehicles((v.data as Vehicle[]) ?? []);
     setDepots((dep.data as Depot[]) ?? []);
+    const zoneRows = (zonesRes.data as Array<{
+      id: string; name: string; label: string; color: string | null; sort_order: number;
+      delivery_zone_postcodes: Array<{ postcode: string }> | null;
+    }> | null) ?? [];
+    setZones(zoneRows.map((z) => ({
+      id: z.id, name: z.name, label: z.label, color: z.color, sort_order: z.sort_order,
+      postcodes: (z.delivery_zone_postcodes ?? []).map((p) => p.postcode),
+    })));
     setLoading(false);
     // auto-select first if none selected
     if (!selectedId && list.length > 0) {
@@ -118,6 +138,20 @@ const RoutenplanungPage = () => {
   };
 
   useEffect(() => { loadNewOrders(); }, [refreshKey]);
+
+  const zoneByPostcode = useMemo(() => buildPostcodeZoneMap(zones), [zones]);
+  const zoneListForFilter: ZoneInfo[] = useMemo(
+    () => zones.map((z) => ({ id: z.id, name: z.name, label: z.label, color: z.color, sort_order: z.sort_order })),
+    [zones],
+  );
+  const visibleNewOrders = useMemo(() => {
+    if (selectedZoneIds.size === 0) return newOrders;
+    return newOrders.filter((o) => {
+      const zone = zoneInfoFor(o.empfaenger_plz, zoneByPostcode);
+      const key = zone?.id ?? NO_ZONE_ID;
+      return selectedZoneIds.has(key);
+    });
+  }, [newOrders, selectedZoneIds, zoneByPostcode]);
 
   const handleNewOrderPinClick = (id: string) => {
     setFocusedOrderId(id);
@@ -603,7 +637,7 @@ const RoutenplanungPage = () => {
               refreshKey={refreshKey}
               onSelectRoute={(id) => setSearchParams({ route: id })}
               hidden={hiddenRoutes}
-              newOrders={showNewOnMap ? newOrders : []}
+              newOrders={showNewOnMap ? visibleNewOrders : []}
               selectedNewOrderIds={selectedNewOrders}
               onNewOrderClick={handleNewOrderPinClick}
             />
@@ -631,6 +665,10 @@ const RoutenplanungPage = () => {
                 setOpen(true);
               }}
               onSelectRoute={(id) => setSearchParams({ route: id })}
+              zones={zoneListForFilter}
+              zoneByPostcode={zoneByPostcode}
+              selectedZoneIds={selectedZoneIds}
+              setSelectedZoneIds={setSelectedZoneIds}
             />
           </div>
         </div>
