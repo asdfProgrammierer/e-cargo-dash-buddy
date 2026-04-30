@@ -401,6 +401,35 @@ const RoutenplanungPage = () => {
         >
           <Printer className="mr-1 h-4 w-4" />Drucken
         </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={regeocoding}
+          onClick={async () => {
+            setRegeocoding(true);
+            try {
+              const { data, error } = await supabase.functions.invoke("regeocode-pickup-orders");
+              if (error) throw error;
+              const updated = (data as any)?.updated ?? 0;
+              const failed = (data as any)?.failed ?? 0;
+              const total = (data as any)?.total ?? 0;
+              if (total === 0) {
+                toast.success("Keine Abhol-Aufträge ohne Koordinaten gefunden");
+              } else {
+                toast.success(`${updated} von ${total} Abhol-Aufträgen geocodiert${failed ? ` (${failed} fehlgeschlagen)` : ""}`);
+              }
+              bumpRefresh();
+            } catch (e: any) {
+              toast.error(`Geocoding fehlgeschlagen: ${e?.message ?? e}`);
+            } finally {
+              setRegeocoding(false);
+            }
+          }}
+          title="Fehlende Koordinaten für Abhol-Aufträge nachtragen"
+        >
+          <Compass className="mr-1 h-4 w-4" />
+          {regeocoding ? "Geocodiere…" : "Abholungen geocoden"}
+        </Button>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm(buildEmptyForm(date)); setPendingAssignIds(null); } }}>
           <DialogTrigger asChild>
             <Button size="sm" onClick={() => setForm(buildEmptyForm(date))}>
