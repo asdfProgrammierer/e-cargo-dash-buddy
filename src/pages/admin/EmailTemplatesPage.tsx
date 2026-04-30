@@ -8,14 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Mail, RotateCcw, Save, Send, Sparkles, Beaker } from "lucide-react";
+import { Mail, RotateCcw, Save, Send, Sparkles, Beaker, PlayCircle } from "lucide-react";
 
 type TemplateKey =
   | "order-neu"
   | "order-in-bearbeitung"
   | "order-unterwegs"
   | "order-zugestellt"
-  | "order-nicht-zugestellt";
+  | "order-nicht-zugestellt"
+  | "order-zustellversuch-fehlgeschlagen";
 
 interface OverrideRow {
   template_name: TemplateKey;
@@ -34,10 +35,11 @@ const TEMPLATES: { key: TemplateKey; label: string; description: string }[] = [
   { key: "order-in-bearbeitung", label: "In Bearbeitung", description: "Bestellung wird vorbereitet." },
   { key: "order-unterwegs", label: "Unterwegs", description: "Fahrer ist mit ETA ±30 Min. unterwegs." },
   { key: "order-zugestellt", label: "Zugestellt", description: "Erfolgreich zugestellt (inkl. Bewertung)." },
-  { key: "order-nicht-zugestellt", label: "Nicht zugestellt", description: "Zustellung war nicht möglich." },
+  { key: "order-zustellversuch-fehlgeschlagen", label: "Zustellversuch fehlgeschlagen", description: "Versuch 1 oder 2 fehlgeschlagen, Wiederzustellung folgt kostenlos." },
+  { key: "order-nicht-zugestellt", label: "Nicht zugestellt (final)", description: "Endgültiges Scheitern nach 3 Versuchen." },
 ];
 
-const PLACEHOLDERS = ["{{kundenname}}", "{{haendlerName}}", "{{auftragsNr}}", "{{lieferadresse}}", "{{reason}}", "{{etaWindow}}", "{{etaCenter}}"];
+const PLACEHOLDERS = ["{{kundenname}}", "{{haendlerName}}", "{{auftragsNr}}", "{{lieferadresse}}", "{{reason}}", "{{etaWindow}}", "{{etaCenter}}", "{{attemptNumber}}", "{{nextAttemptNumber}}"];
 
 // Fields that map between DB columns and the data-edit-field markers in the rendered HTML.
 const EDITABLE_FIELDS: Array<{ marker: string; column: keyof OverrideRow }> = [
@@ -61,6 +63,7 @@ const EmailTemplatesPage = () => {
     "order-unterwegs": emptyOverride("order-unterwegs"),
     "order-zugestellt": emptyOverride("order-zugestellt"),
     "order-nicht-zugestellt": emptyOverride("order-nicht-zugestellt"),
+    "order-zustellversuch-fehlgeschlagen": emptyOverride("order-zustellversuch-fehlgeschlagen"),
   }));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
