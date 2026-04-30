@@ -37,3 +37,14 @@ export function pick(
   }
   return display
 }
+
+// Always returns a plain string. Use this for contexts that can't accept a
+// React element child (e.g. <Preview> from @react-email which calls
+// String.prototype.substr on its child).
+export function pickText(
+  value: string | null | undefined,
+  fallback: string,
+): string {
+  const hasValue = typeof value === 'string' && value.trim().length > 0
+  return hasValue ? (value as string) : fallback
+}
