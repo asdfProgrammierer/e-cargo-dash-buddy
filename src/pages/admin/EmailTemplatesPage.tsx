@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
+import { buildTrackingUrl } from "@/lib/siteUrl";
 import { toast } from "sonner";
 import { Mail, RotateCcw, Save, Send, Sparkles, Beaker, PlayCircle } from "lucide-react";
 
