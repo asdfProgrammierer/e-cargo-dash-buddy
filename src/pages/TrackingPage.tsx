@@ -50,6 +50,8 @@ interface OrderInfo {
     recipient: string | null;
     note: string | null;
   } | null;
+  deliveryAttempts?: number;
+  maxDeliveryAttempts?: number;
 }
 interface HistoryEntry {
   status: string;
@@ -353,6 +355,17 @@ export default function TrackingPage() {
             <Badge variant={statusVariant(order.status)}>{order.statusLabel}</Badge>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
+            {(order.deliveryAttempts ?? 0) > 0 && order.status !== "zugestellt" && (
+              <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm">
+                <p className="font-semibold text-warning">
+                  Erneuter Zustellversuch in Planung
+                </p>
+                <p className="text-muted-foreground mt-1">
+                  Versuch {order.deliveryAttempts} von {order.maxDeliveryAttempts ?? 3} war leider nicht erfolgreich.
+                  Wir versuchen die Zustellung kostenlos erneut – sobald ein neuer Termin feststeht, informieren wir Sie automatisch.
+                </p>
+              </div>
+            )}
             <div className="flex items-start gap-2">
               <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
               <div>
