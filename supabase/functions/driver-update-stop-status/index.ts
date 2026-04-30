@@ -142,9 +142,12 @@ Deno.serve(async (req) => {
       if (newOrderStatus) {
         const { data: order } = await admin
           .from("orders")
-          .select("user_id, auftrags_nr, empfaenger_name, empfaenger_email, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, tracking_token")
+          .select("status, user_id, auftrags_nr, empfaenger_name, empfaenger_email, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, tracking_token")
           .eq("id", stop.order_id)
           .maybeSingle();
+
+        // Idempotency guard: only update + notify when status actually changes.
+        const statusChanged = !!order && order.status !== newOrderStatus;
 
         const orderUpdate: Record<string, unknown> = {
           status: newOrderStatus,
@@ -152,9 +155,11 @@ Deno.serve(async (req) => {
         };
         if (newOrderStatus === "zugestellt") orderUpdate.delivered_at = new Date().toISOString();
 
-        await admin.from("orders").update(orderUpdate).eq("id", stop.order_id);
+        if (statusChanged) {
+          await admin.from("orders").update(orderUpdate).eq("id", stop.order_id);
+        }
 
-        if (newOrderStatus === "nicht_zugestellt" && order) {
+        if (statusChanged && newOrderStatus === "nicht_zugestellt" && order) {
           await admin.from("order_status_history").insert({
             order_id: stop.order_id,
             user_id: order.user_id,
@@ -166,6 +171,9 @@ Deno.serve(async (req) => {
 
         // Send status email to recipient
         try {
+          if (!statusChanged) {
+            // Already in target status — skip duplicate notification.
+          } else {
           const email = (order?.empfaenger_email ?? "").trim();
           if (order && email) {
             const { data: p } = await admin
@@ -199,6 +207,7 @@ Deno.serve(async (req) => {
               },
             });
             if (mailErr) console.error("status email failed", stop.order_id, mailErr);
+          }
           }
         } catch (mailEx) {
           console.error("status email error", mailEx);
