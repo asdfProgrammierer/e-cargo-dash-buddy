@@ -2,7 +2,7 @@ import * as React from 'npm:react@18.3.1'
 import { Body, Button, Container, Head, Heading, Html, Preview, Text } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
 import { main, container, brand, tagline, h1, text, card, cardLabel, cardValue, infoBox, infoLabel, infoValue, footer, ctaWrap, ctaButton, ctaHint } from './_styles.ts'
-import { pick, type OverrideShape } from './_override.ts'
+import { pick, pickText, type OverrideShape } from './_override.ts'
 
 interface Props {
   kundenname?: string
@@ -16,7 +16,7 @@ interface Props {
 const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, trackingUrl, __override: o }: Props) => (
   <Html lang="de">
     <Head />
-    <Preview>{pick(o?.preview, 'Ihre Bestellung wird vorbereitet', 'preview')}</Preview>
+    <Preview>{pickText(o?.preview, 'Ihre Bestellung wird vorbereitet')}</Preview>
     <Body style={main}>
       <Container style={container}>
         <Text style={brand}>e-cargo</Text>
