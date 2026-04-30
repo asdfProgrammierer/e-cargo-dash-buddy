@@ -1,15 +1,19 @@
 import * as React from 'npm:react@18.3.1'
-import { Body, Container, Head, Heading, Html, Preview, Text } from 'npm:@react-email/components@0.0.22'
+import { Body, Button, Container, Head, Heading, Html, Preview, Text } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
-import { main, container, brand, tagline, h1, text, card, cardLabel, cardValue, footer } from './_styles.ts'
+import { main, container, brand, tagline, h1, text, card, cardLabel, cardValue, footer, ctaWrap, ctaButton, ctaHint } from './_styles.ts'
+
+const REVIEW_URL = 'https://search.google.com/local/writereview?placeid=&q=e-cargo+logistik+bochum'
+const REVIEW_FALLBACK_URL = 'https://www.google.com/search?q=e-cargo+logistik+bochum'
 
 interface Props {
   kundenname?: string
   haendlerName?: string
   auftragsNr?: string
+  reviewUrl?: string
 }
 
-const Email = ({ kundenname, haendlerName, auftragsNr }: Props) => (
+const Email = ({ kundenname, haendlerName, auftragsNr, reviewUrl }: Props) => (
   <Html lang="de">
     <Head />
     <Preview>Ihre Bestellung wurde erfolgreich zugestellt</Preview>
@@ -28,6 +32,18 @@ const Email = ({ kundenname, haendlerName, auftragsNr }: Props) => (
           </div>
         ) : null}
         <Text style={text}>Wir wünschen Ihnen viel Freude mit Ihrer Bestellung.</Text>
+        <Heading as="h2" style={{ ...h1, fontSize: '18px', margin: '28px 0 8px' }}>
+          Wie war unser Lieferservice?
+        </Heading>
+        <Text style={text}>
+          Ihre Meinung hilft uns und anderen Kundinnen und Kunden weiter. Wenn Sie zufrieden waren, freuen wir uns sehr über eine kurze Bewertung bei Google.
+        </Text>
+        <div style={ctaWrap}>
+          <Button href={reviewUrl || REVIEW_FALLBACK_URL} style={ctaButton}>
+            Lieferung jetzt bewerten
+          </Button>
+          <Text style={ctaHint}>Vielen Dank – schon eine Minute Ihrer Zeit hilft uns enorm.</Text>
+        </div>
         <Text style={footer}>e-cargo · Klimafreundliche Lieferungen direkt zu Ihnen.</Text>
       </Container>
     </Body>
@@ -38,5 +54,5 @@ export const template = {
   component: Email,
   subject: 'Ihre Bestellung wurde zugestellt',
   displayName: 'Bestellung – Zugestellt',
-  previewData: { kundenname: 'Max Mustermann', haendlerName: 'PMF Store', auftragsNr: 'EC-PMF-0000123' },
+  previewData: { kundenname: 'Max Mustermann', haendlerName: 'PMF Store', auftragsNr: 'EC-PMF-0000123', reviewUrl: REVIEW_FALLBACK_URL },
 } satisfies TemplateEntry
