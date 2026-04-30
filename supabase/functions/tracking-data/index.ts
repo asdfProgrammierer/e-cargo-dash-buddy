@@ -82,18 +82,38 @@ Deno.serve(async (req) => {
 
   const editable = order.status === 'neu' || order.status === 'in_bearbeitung'
 
-  // Resolve ETA from the active route stop (only meaningful while unterwegs)
+  // Lade Routen-Stopp (für ETA und Übergabe-Details)
+  const { data: stopRow } = await supabase
+    .from('route_stops')
+    .select('eta, delivery_mode, delivery_recipient, delivery_note, delivered_at')
+    .eq('order_id', order.id)
+    .order('eta', { ascending: true, nullsFirst: false })
+    .limit(1)
+    .maybeSingle()
+
+  // ETA-Fenster (nur sinnvoll im Status "unterwegs")
   let etaWindow: { window: string; center: string; fromIso: string; toIso: string; centerIso: string } | null = null
   if (order.status === 'unterwegs') {
-    const { data: stopRow } = await supabase
-      .from('route_stops')
-      .select('eta')
-      .eq('order_id', order.id)
-      .order('eta', { ascending: true, nullsFirst: false })
-      .limit(1)
-      .maybeSingle()
     etaWindow = buildEtaWindow(stopRow?.eta ?? null)
   }
+
+  // Lieferanweisungen können bis 1h vor ETA bearbeitet werden, solange die Bestellung
+  // noch nicht final ist. „neu" / „in_bearbeitung" ist immer bearbeitbar.
+  let instructionsEditable = order.status === 'neu' || order.status === 'in_bearbeitung'
+  if (order.status === 'unterwegs' && stopRow?.eta) {
+    const etaMs = new Date(stopRow.eta as string).getTime()
+    const oneHourBefore = etaMs - 60 * 60 * 1000
+    if (Date.now() < oneHourBefore) instructionsEditable = true
+  }
+
+  const deliveryDetails =
+    order.status === 'zugestellt'
+      ? {
+          mode: (stopRow?.delivery_mode as string | null) ?? null,
+          recipient: (stopRow?.delivery_recipient as string | null) ?? null,
+          note: (stopRow?.delivery_note as string | null) ?? null,
+        }
+      : null
 
   return new Response(
     JSON.stringify({
@@ -110,6 +130,7 @@ Deno.serve(async (req) => {
         deliveredAt: order.delivered_at,
         haendlerName: profile?.firma_name?.trim() || profile?.ansprechpartner?.trim() || 'Ihr Händler',
         eta: etaWindow,
+        delivery: deliveryDetails,
       },
       history: (history ?? []).map((h) => ({
         status: h.status,
@@ -120,7 +141,9 @@ Deno.serve(async (req) => {
       instructions: instructions
         ? { options: instructions.options ?? [], freetext: instructions.freetext ?? '', updatedAt: instructions.updated_at }
         : { options: [], freetext: '', updatedAt: null },
-      editable,
+      editable: instructionsEditable,
+      // Backwards-compat (frühere UI nutzte `editable` auf Order-Ebene)
+      orderEditable: editable,
     }),
     { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   )
