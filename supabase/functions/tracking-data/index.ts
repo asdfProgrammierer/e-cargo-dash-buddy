@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { verifyTrackingSession, extractBearer } from '../_shared/tracking-session.ts'
+import { buildEtaWindow } from '../_shared/eta.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -81,6 +82,19 @@ Deno.serve(async (req) => {
 
   const editable = order.status === 'neu' || order.status === 'in_bearbeitung'
 
+  // Resolve ETA from the active route stop (only meaningful while unterwegs)
+  let etaWindow: { window: string; center: string; fromIso: string; toIso: string; centerIso: string } | null = null
+  if (order.status === 'unterwegs') {
+    const { data: stopRow } = await supabase
+      .from('route_stops')
+      .select('eta')
+      .eq('order_id', order.id)
+      .order('eta', { ascending: true, nullsFirst: false })
+      .limit(1)
+      .maybeSingle()
+    etaWindow = buildEtaWindow(stopRow?.eta ?? null)
+  }
+
   return new Response(
     JSON.stringify({
       order: {
@@ -95,6 +109,7 @@ Deno.serve(async (req) => {
         updatedAt: order.updated_at,
         deliveredAt: order.delivered_at,
         haendlerName: profile?.firma_name?.trim() || profile?.ansprechpartner?.trim() || 'Ihr Händler',
+        eta: etaWindow,
       },
       history: (history ?? []).map((h) => ({
         status: h.status,
