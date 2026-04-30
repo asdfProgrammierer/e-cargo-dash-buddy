@@ -8,14 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Mail, RotateCcw, Save, Send, Sparkles, Beaker } from "lucide-react";
+import { Mail, RotateCcw, Save, Send, Sparkles, Beaker, PlayCircle } from "lucide-react";
 
 type TemplateKey =
   | "order-neu"
   | "order-in-bearbeitung"
   | "order-unterwegs"
   | "order-zugestellt"
-  | "order-nicht-zugestellt";
+  | "order-nicht-zugestellt"
+  | "order-zustellversuch-fehlgeschlagen";
 
 interface OverrideRow {
   template_name: TemplateKey;
@@ -34,10 +35,11 @@ const TEMPLATES: { key: TemplateKey; label: string; description: string }[] = [
   { key: "order-in-bearbeitung", label: "In Bearbeitung", description: "Bestellung wird vorbereitet." },
   { key: "order-unterwegs", label: "Unterwegs", description: "Fahrer ist mit ETA ±30 Min. unterwegs." },
   { key: "order-zugestellt", label: "Zugestellt", description: "Erfolgreich zugestellt (inkl. Bewertung)." },
-  { key: "order-nicht-zugestellt", label: "Nicht zugestellt", description: "Zustellung war nicht möglich." },
+  { key: "order-zustellversuch-fehlgeschlagen", label: "Zustellversuch fehlgeschlagen", description: "Versuch 1 oder 2 fehlgeschlagen, Wiederzustellung folgt kostenlos." },
+  { key: "order-nicht-zugestellt", label: "Nicht zugestellt (final)", description: "Endgültiges Scheitern nach 3 Versuchen." },
 ];
 
-const PLACEHOLDERS = ["{{kundenname}}", "{{haendlerName}}", "{{auftragsNr}}", "{{lieferadresse}}", "{{reason}}", "{{etaWindow}}", "{{etaCenter}}"];
+const PLACEHOLDERS = ["{{kundenname}}", "{{haendlerName}}", "{{auftragsNr}}", "{{lieferadresse}}", "{{reason}}", "{{etaWindow}}", "{{etaCenter}}", "{{attemptNumber}}", "{{nextAttemptNumber}}"];
 
 // Fields that map between DB columns and the data-edit-field markers in the rendered HTML.
 const EDITABLE_FIELDS: Array<{ marker: string; column: keyof OverrideRow }> = [
@@ -61,6 +63,7 @@ const EmailTemplatesPage = () => {
     "order-unterwegs": emptyOverride("order-unterwegs"),
     "order-zugestellt": emptyOverride("order-zugestellt"),
     "order-nicht-zugestellt": emptyOverride("order-nicht-zugestellt"),
+    "order-zustellversuch-fehlgeschlagen": emptyOverride("order-zustellversuch-fehlgeschlagen"),
   }));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -69,6 +72,9 @@ const EmailTemplatesPage = () => {
   const [testEmail, setTestEmail] = useState<string>("");
   const [testOrderNr, setTestOrderNr] = useState<string>("");
   const [testingOrder, setTestingOrder] = useState(false);
+  const [retryFlowEmail, setRetryFlowEmail] = useState<string>("");
+  const [retryFlowRunning, setRetryFlowRunning] = useState(false);
+  const [retryFlowLog, setRetryFlowLog] = useState<{ step: string; ok: boolean; detail?: string }[]>([]);
   const [dirty, setDirty] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const rowsRef = useRef(rows);
@@ -346,6 +352,80 @@ const EmailTemplatesPage = () => {
     }
   };
 
+  // Test-Workflow: simuliert die 3-Versuche-Sequenz, indem die drei E-Mails
+  // (Versuch 1 fehlgeschlagen → Versuch 2 fehlgeschlagen → final nicht zugestellt)
+  // hintereinander an die Test-Adresse gesendet werden. Verändert KEINE Bestellung.
+  const runRetryFlowTest = async () => {
+    const recipient = retryFlowEmail.trim();
+    if (!recipient || !/.+@.+\..+/.test(recipient)) {
+      toast.error("Bitte eine gültige Test-Adresse eingeben");
+      return;
+    }
+    setRetryFlowRunning(true);
+    setRetryFlowLog([]);
+    const append = (entry: { step: string; ok: boolean; detail?: string }) =>
+      setRetryFlowLog((prev) => [...prev, entry]);
+
+    const baseId = `retry-flow-test-${Date.now()}`;
+    const baseData = {
+      kundenname: "Max Mustermann",
+      haendlerName: "PMF Store",
+      auftragsNr: "EC-TEST-0000999",
+      lieferadresse: "Musterstraße 1, 12345 Berlin",
+      reason: "Empfänger nicht angetroffen",
+    };
+
+    const steps: Array<{
+      label: string;
+      template: TemplateKey;
+      data: Record<string, string>;
+      expect: string;
+    }> = [
+      {
+        label: "Versuch 1 fehlgeschlagen",
+        template: "order-zustellversuch-fehlgeschlagen",
+        data: { ...baseData, attemptNumber: "1", nextAttemptNumber: "2" },
+        expect: "Wiederzustellung-Mail (1/3)",
+      },
+      {
+        label: "Versuch 2 fehlgeschlagen",
+        template: "order-zustellversuch-fehlgeschlagen",
+        data: { ...baseData, attemptNumber: "2", nextAttemptNumber: "3" },
+        expect: "Wiederzustellung-Mail (2/3)",
+      },
+      {
+        label: "Versuch 3 fehlgeschlagen → final",
+        template: "order-nicht-zugestellt",
+        data: baseData,
+        expect: "Finale Nicht-Zugestellt-Mail",
+      },
+    ];
+
+    try {
+      for (const [i, step] of steps.entries()) {
+        const { error } = await supabase.functions.invoke("send-transactional-email", {
+          body: {
+            templateName: step.template,
+            recipientEmail: recipient,
+            idempotencyKey: `${baseId}-step-${i + 1}`,
+            templateData: step.data,
+          },
+        });
+        if (error) {
+          append({ step: step.label, ok: false, detail: `${step.expect} – Fehler: ${error.message}` });
+          toast.error(`Schritt ${i + 1} fehlgeschlagen: ${error.message}`);
+        } else {
+          append({ step: step.label, ok: true, detail: `${step.expect} eingereiht` });
+        }
+      }
+      toast.success(`Test-Workflow ausgeführt — 3 E-Mails an ${recipient} eingereiht`);
+    } catch (e: any) {
+      toast.error("Test-Workflow Fehler: " + (e?.message ?? e));
+    } finally {
+      setRetryFlowRunning(false);
+    }
+  };
+
   return (
     <AdminLayout title="Einstellungen">
       <SettingsTabs />
@@ -446,6 +526,36 @@ const EmailTemplatesPage = () => {
               <p className="mt-2 text-xs text-muted-foreground">
                 Sendet die ausgewählte Status-E-Mail mit den echten Daten der Bestellung. Wenn oben eine Test-Adresse eingetragen ist, geht die Mail dorthin — sonst an die im Auftrag hinterlegte Empfänger-Adresse. Die Bestellung selbst wird dabei <strong>nicht</strong> verändert.
               </p>
+            </div>
+            <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
+              <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-foreground">
+                <PlayCircle className="h-3.5 w-3.5 text-primary" /> Wiederzustellungs-Workflow testen (3 Versuche)
+              </div>
+              <p className="mb-2 text-xs text-muted-foreground">
+                Simuliert die komplette Sequenz: <strong>Versuch 1 fehlgeschlagen</strong> → <strong>Versuch 2 fehlgeschlagen</strong> → <strong>Versuch 3 endgültig nicht zugestellt</strong>. Sie erhalten dabei nacheinander 3 E-Mails an die angegebene Adresse: 2× „Zustellversuch fehlgeschlagen" (Wiederzustellung folgt) und 1× „Nicht zugestellt (final)". So lässt sich verifizieren, dass die finale Mail wirklich erst nach dem 3. Versuch verschickt wird. Verändert <strong>keine</strong> Bestellung.
+              </p>
+              <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                <Input
+                  type="email"
+                  placeholder="Test-Adresse für die 3 E-Mails"
+                  value={retryFlowEmail}
+                  onChange={(e) => setRetryFlowEmail(e.target.value)}
+                />
+                <Button onClick={runRetryFlowTest} variant="default" disabled={retryFlowRunning}>
+                  <PlayCircle className="mr-2 h-4 w-4" />
+                  {retryFlowRunning ? "Workflow läuft…" : "3-Versuche-Workflow starten"}
+                </Button>
+              </div>
+              {retryFlowLog.length > 0 ? (
+                <ul className="mt-3 space-y-1 text-xs">
+                  {retryFlowLog.map((entry, idx) => (
+                    <li key={idx} className={entry.ok ? "text-success" : "text-destructive"}>
+                      <strong>{idx + 1}. {entry.step}:</strong>{" "}
+                      {entry.ok ? "✓" : "✗"} {entry.detail}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           </CardHeader>
           <CardContent>
