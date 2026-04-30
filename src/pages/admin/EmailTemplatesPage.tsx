@@ -1,15 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { SettingsTabs } from "@/components/admin/SettingsTabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Mail, RotateCcw, Save, Send, Eye } from "lucide-react";
+import { Mail, RotateCcw, Save, Send, Sparkles } from "lucide-react";
 
 type TemplateKey =
   | "order-neu"
@@ -31,28 +30,23 @@ interface OverrideRow {
 }
 
 const TEMPLATES: { key: TemplateKey; label: string; description: string }[] = [
-  { key: "order-neu", label: "Neu", description: "Wird gesendet, wenn eine neue Bestellung eingeht." },
-  { key: "order-in-bearbeitung", label: "In Bearbeitung", description: "Wird gesendet, wenn die Bestellung vorbereitet wird." },
-  { key: "order-unterwegs", label: "Unterwegs", description: "Wird gesendet, sobald der Fahrer startet (mit ETA ±30 Min.)." },
-  { key: "order-zugestellt", label: "Zugestellt", description: "Wird nach erfolgreicher Zustellung gesendet (inkl. Bewertung)." },
-  { key: "order-nicht-zugestellt", label: "Nicht zugestellt", description: "Wird gesendet, wenn die Zustellung nicht möglich war." },
+  { key: "order-neu", label: "Neu", description: "Neue Bestellung eingegangen." },
+  { key: "order-in-bearbeitung", label: "In Bearbeitung", description: "Bestellung wird vorbereitet." },
+  { key: "order-unterwegs", label: "Unterwegs", description: "Fahrer ist mit ETA ±30 Min. unterwegs." },
+  { key: "order-zugestellt", label: "Zugestellt", description: "Erfolgreich zugestellt (inkl. Bewertung)." },
+  { key: "order-nicht-zugestellt", label: "Nicht zugestellt", description: "Zustellung war nicht möglich." },
 ];
 
 const PLACEHOLDERS = ["{{kundenname}}", "{{haendlerName}}", "{{auftragsNr}}", "{{lieferadresse}}", "{{reason}}", "{{etaWindow}}", "{{etaCenter}}"];
 
-const FIELD_DEFS: Array<{
-  key: keyof Omit<OverrideRow, "template_name" | "enabled">;
-  label: string;
-  type: "input" | "textarea";
-  hint?: string;
-}> = [
-  { key: "subject", label: "Betreff", type: "input", hint: "Wird in der Inbox angezeigt." },
-  { key: "preview", label: "Vorschau-Text", type: "input", hint: "Erscheint neben dem Betreff im Posteingang." },
-  { key: "greeting", label: "Anrede", type: "input", hint: "z. B. „Guten Tag {{kundenname}},“" },
-  { key: "intro", label: "Haupttext", type: "textarea" },
-  { key: "outro", label: "Schlussabsatz", type: "textarea" },
-  { key: "cta_label", label: "Button-Text", type: "input" },
-  { key: "footer", label: "Fußzeile", type: "input" },
+// Fields that map between DB columns and the data-edit-field markers in the rendered HTML.
+const EDITABLE_FIELDS: Array<{ marker: string; column: keyof OverrideRow }> = [
+  { marker: "preview", column: "preview" },
+  { marker: "greeting", column: "greeting" },
+  { marker: "intro", column: "intro" },
+  { marker: "outro", column: "outro" },
+  { marker: "ctaLabel", column: "cta_label" },
+  { marker: "footer", column: "footer" },
 ];
 
 const emptyOverride = (k: TemplateKey): OverrideRow => ({
@@ -71,9 +65,14 @@ const EmailTemplatesPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [previewHtml, setPreviewHtml] = useState<string>("");
-  const [previewSubject, setPreviewSubject] = useState<string>("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [testEmail, setTestEmail] = useState<string>("");
+  const [dirty, setDirty] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const activeRef = useRef(active);
+  activeRef.current = active;
 
   const current = rows[active];
 
@@ -119,35 +118,80 @@ const EmailTemplatesPage = () => {
     enabled: r.enabled,
   });
 
-  const refreshPreview = async () => {
+  const refreshPreview = useCallback(async () => {
     setPreviewLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("admin-preview-email", {
-        body: { templateName: active, overrideDraft: buildOverrideDraft(current) },
+        body: { templateName: activeRef.current, overrideDraft: buildOverrideDraft(rowsRef.current[activeRef.current]), editable: true },
       });
       if (error) throw error;
       setPreviewHtml((data as any).html);
-      setPreviewSubject((data as any).subject);
     } catch (e: any) {
       toast.error("Vorschau fehlgeschlagen: " + (e?.message ?? e));
     } finally {
       setPreviewLoading(false);
     }
-  };
+  }, []);
 
-  // Auto-refresh preview when switching template
+  // Refresh preview when switching template (after initial load)
   useEffect(() => {
     if (!loading) refreshPreview();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, loading]);
+  }, [active, loading, refreshPreview]);
 
-  const update = (field: keyof OverrideRow, value: any) => {
+  // Wire up inline editing inside the iframe each time the HTML changes.
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    const onLoad = () => {
+      const doc = iframe.contentDocument;
+      if (!doc) return;
+      // Inject editing styles
+      const style = doc.createElement("style");
+      style.textContent = `
+        [data-edit-field] {
+          outline: 1px dashed transparent;
+          outline-offset: 2px;
+          border-radius: 3px;
+          transition: outline-color 120ms, background-color 120ms;
+          cursor: text;
+        }
+        [data-edit-field]:hover { outline-color: #94a3b8; background: rgba(148,163,184,0.08); }
+        [data-edit-field]:focus { outline: 2px solid #16a34a; background: rgba(22,163,74,0.06); }
+      `;
+      doc.head.appendChild(style);
+
+      const fields = doc.querySelectorAll<HTMLElement>("[data-edit-field]");
+      fields.forEach((el) => {
+        el.setAttribute("contenteditable", "true");
+        el.setAttribute("spellcheck", "true");
+        el.addEventListener("input", () => {
+          const marker = el.getAttribute("data-edit-field") as string;
+          const def = EDITABLE_FIELDS.find((f) => f.marker === marker);
+          if (!def) return;
+          const value = (el.innerText ?? "").replace(/\u00a0/g, " ");
+          const tplKey = activeRef.current;
+          setRows((prev) => ({ ...prev, [tplKey]: { ...prev[tplKey], [def.column]: value } }));
+          setDirty(true);
+        });
+        el.addEventListener("paste", (e) => {
+          e.preventDefault();
+          const text = (e as ClipboardEvent).clipboardData?.getData("text/plain") ?? "";
+          doc.execCommand("insertText", false, text);
+        });
+      });
+    };
+    iframe.addEventListener("load", onLoad);
+    return () => iframe.removeEventListener("load", onLoad);
+  }, [previewHtml]);
+
+  const updateField = (field: keyof OverrideRow, value: any) => {
     setRows((prev) => ({ ...prev, [active]: { ...prev[active], [field]: value } }));
+    setDirty(true);
   };
 
   const save = async () => {
     setSaving(true);
-    const r = rows[active];
+    const r = rowsRef.current[activeRef.current];
     const payload = {
       template_name: r.template_name,
       subject: r.subject || null,
@@ -166,7 +210,7 @@ const EmailTemplatesPage = () => {
     if (error) toast.error("Speichern fehlgeschlagen: " + error.message);
     else {
       toast.success("Vorlage gespeichert");
-      refreshPreview();
+      setDirty(false);
     }
   };
 
@@ -181,6 +225,7 @@ const EmailTemplatesPage = () => {
       return;
     }
     setRows((prev) => ({ ...prev, [active]: emptyOverride(active) }));
+    setDirty(false);
     toast.success("Auf Standard zurückgesetzt");
     refreshPreview();
   };
@@ -190,8 +235,7 @@ const EmailTemplatesPage = () => {
       toast.error("Bitte eine gültige E-Mail-Adresse eingeben");
       return;
     }
-    // Save first to ensure preview matches what is sent
-    await save();
+    if (dirty) await save();
     const { error } = await supabase.functions.invoke("send-transactional-email", {
       body: {
         templateName: active,
@@ -212,17 +256,12 @@ const EmailTemplatesPage = () => {
     else toast.success(`Test-Mail an ${testEmail} eingereiht`);
   };
 
-  const placeholderHint = useMemo(
-    () => PLACEHOLDERS.join("  ·  "),
-    [],
-  );
-
   return (
     <AdminLayout title="Einstellungen">
       <SettingsTabs />
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr_1fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr]">
         {/* Sidebar Vorlagen */}
-        <Card>
+        <Card className="self-start">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <Mail className="h-4 w-4" /> Status-Vorlagen
@@ -232,7 +271,11 @@ const EmailTemplatesPage = () => {
             {TEMPLATES.map((t) => (
               <button
                 key={t.key}
-                onClick={() => setActive(t.key)}
+                onClick={() => {
+                  if (dirty && !confirm("Ungespeicherte Änderungen verwerfen?")) return;
+                  setDirty(false);
+                  setActive(t.key);
+                }}
                 className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
                   active === t.key
                     ? "bg-primary/10 text-primary font-medium"
@@ -246,92 +289,63 @@ const EmailTemplatesPage = () => {
           </CardContent>
         </Card>
 
-        {/* Editor */}
+        {/* Live editable preview */}
         <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Bearbeiten: {TEMPLATES.find((t) => t.key === active)?.label}</CardTitle>
-            <div className="flex items-center gap-2">
-              <Label htmlFor="enabled" className="text-xs">Aktiv</Label>
-              <Switch
-                id="enabled"
-                checked={current.enabled}
-                onCheckedChange={(v) => update("enabled", v)}
-              />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-xs text-muted-foreground">
-              Verfügbare Platzhalter: <span className="font-mono">{placeholderHint}</span>
-            </p>
-            {FIELD_DEFS.map((f) => (
-              <div key={f.key}>
-                <Label htmlFor={f.key}>{f.label}</Label>
-                {f.type === "textarea" ? (
-                  <Textarea
-                    id={f.key}
-                    rows={4}
-                    value={(current[f.key] as string) ?? ""}
-                    onChange={(e) => update(f.key, e.target.value)}
-                    disabled={loading}
-                    className="mt-1"
-                  />
-                ) : (
-                  <Input
-                    id={f.key}
-                    value={(current[f.key] as string) ?? ""}
-                    onChange={(e) => update(f.key, e.target.value)}
-                    disabled={loading}
-                    className="mt-1"
-                  />
-                )}
-                {f.hint ? <p className="mt-1 text-xs text-muted-foreground">{f.hint}</p> : null}
+          <CardHeader className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Live bearbeiten: {TEMPLATES.find((t) => t.key === active)?.label}
+              </CardTitle>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="enabled" className="text-xs">Aktiv</Label>
+                  <Switch id="enabled" checked={current.enabled} onCheckedChange={(v) => updateField("enabled", v)} />
+                </div>
+                <Button onClick={save} disabled={saving || loading || !dirty} size="sm">
+                  <Save className="mr-2 h-4 w-4" /> {saving ? "Speichere…" : dirty ? "Speichern" : "Gespeichert"}
+                </Button>
+                <Button variant="outline" size="sm" onClick={resetTemplate}>
+                  <RotateCcw className="mr-2 h-4 w-4" /> Zurücksetzen
+                </Button>
               </div>
-            ))}
-            <div className="flex flex-wrap gap-2 pt-2">
-              <Button onClick={save} disabled={saving || loading}>
-                <Save className="mr-2 h-4 w-4" /> {saving ? "Speichere…" : "Speichern"}
-              </Button>
-              <Button variant="outline" onClick={refreshPreview} disabled={previewLoading}>
-                <Eye className="mr-2 h-4 w-4" /> Vorschau aktualisieren
-              </Button>
-              <Button variant="outline" onClick={resetTemplate}>
-                <RotateCcw className="mr-2 h-4 w-4" /> Auf Standard zurücksetzen
-              </Button>
             </div>
-            <div className="border-t pt-4">
-              <Label htmlFor="test-email">Test-Mail senden an</Label>
-              <div className="mt-1 flex gap-2">
+            <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+              <div>
+                <Label htmlFor="subject" className="text-xs">Betreff</Label>
                 <Input
-                  id="test-email"
+                  id="subject"
+                  value={current.subject ?? ""}
+                  onChange={(e) => updateField("subject", e.target.value)}
+                  placeholder="Standard-Betreff verwenden"
+                  className="mt-1"
+                />
+              </div>
+              <div className="flex items-end gap-2">
+                <Input
                   type="email"
-                  placeholder="name@example.com"
+                  placeholder="Test-Mail an…"
                   value={testEmail}
                   onChange={(e) => setTestEmail(e.target.value)}
+                  className="md:w-[240px]"
                 />
                 <Button onClick={sendTest} variant="secondary">
                   <Send className="mr-2 h-4 w-4" /> Senden
                 </Button>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">Speichert die Vorlage und sendet eine Beispiel-Mail mit Beispieldaten.</p>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Vorschau */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Live-Vorschau</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Klicken Sie direkt in die Vorschau, um Texte zu bearbeiten. Verfügbare Platzhalter:{" "}
+              <span className="font-mono">{PLACEHOLDERS.join(" · ")}</span>
+            </p>
           </CardHeader>
           <CardContent>
-            <div className="mb-2 rounded-md bg-muted px-3 py-2 text-xs">
-              <span className="font-semibold">Betreff:</span> {previewSubject || <span className="text-muted-foreground">—</span>}
-            </div>
             <div className="overflow-hidden rounded-md border bg-white">
               <iframe
-                title="E-Mail-Vorschau"
+                ref={iframeRef}
+                title="E-Mail Live-Vorschau"
                 srcDoc={previewHtml}
-                className="h-[640px] w-full"
-                sandbox=""
+                className="h-[720px] w-full"
               />
             </div>
             {previewLoading ? <p className="mt-2 text-xs text-muted-foreground">Lade Vorschau…</p> : null}
