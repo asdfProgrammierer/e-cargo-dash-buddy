@@ -45,6 +45,11 @@ interface OrderInfo {
     toIso: string;
     centerIso: string;
   } | null;
+  delivery?: {
+    mode: string | null;
+    recipient: string | null;
+    note: string | null;
+  } | null;
 }
 interface HistoryEntry {
   status: string;
@@ -114,6 +119,18 @@ function statusVariant(status: string): "default" | "secondary" | "destructive" 
     default:
       return "outline";
   }
+}
+
+const DELIVERY_MODE_LABEL: Record<string, string> = {
+  persoenlich: "Persönlich übergeben",
+  briefkasten: "In den Briefkasten gelegt",
+  nachbar: "Beim Nachbarn abgegeben",
+  bemerkung: "Mit Bemerkung zugestellt",
+};
+
+function formatDeliveryMode(mode: string | null | undefined): string | null {
+  if (!mode) return null;
+  return DELIVERY_MODE_LABEL[mode] ?? mode;
 }
 
 async function callFunction<T>(
@@ -348,9 +365,33 @@ export default function TrackingPage() {
               </div>
             </div>
             {order.deliveredAt && (
-              <div className="flex items-center gap-2 text-success">
-                <CheckCircle2 className="h-4 w-4" />
-                <span>Zugestellt am {formatDateTime(order.deliveredAt)}</span>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-success">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Zugestellt am {formatDateTime(order.deliveredAt)}</span>
+                </div>
+                {order.delivery && (order.delivery.mode || order.delivery.recipient || order.delivery.note) && (
+                  <div className="rounded-lg border border-success/30 bg-success/5 p-3 space-y-1">
+                    {order.delivery.mode && (
+                      <p className="text-sm">
+                        <span className="font-medium">Übergabe: </span>
+                        {formatDeliveryMode(order.delivery.mode)}
+                      </p>
+                    )}
+                    {order.delivery.mode === "nachbar" && order.delivery.recipient && (
+                      <p className="text-sm">
+                        <span className="font-medium">Nachbar: </span>
+                        {order.delivery.recipient}
+                      </p>
+                    )}
+                    {order.delivery.note && (
+                      <p className="text-sm text-muted-foreground">
+                        <span className="font-medium text-foreground">Bemerkung: </span>
+                        {order.delivery.note}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             {order.status === "unterwegs" && (
@@ -400,8 +441,10 @@ export default function TrackingPage() {
             <CardTitle className="text-base">Lieferanweisungen</CardTitle>
             <CardDescription>
               {editable
-                ? "Hinterlassen Sie Hinweise für unseren Fahrer."
-                : "Anweisungen können nicht mehr geändert werden, da Ihre Bestellung bereits unterwegs ist."}
+                ? order.status === "unterwegs"
+                  ? "Bestellung ist unterwegs – Sie können Hinweise noch bis 1 Stunde vor der Zustellung hinterlassen."
+                  : "Hinterlassen Sie Hinweise für unseren Fahrer."
+                : "Anweisungen können nicht mehr geändert werden, da die Zustellung kurz bevorsteht."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

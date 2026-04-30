@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight, PenLine, Play, Home } from "lucide-react";
+import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight, PenLine, Play, Home, MessageSquare } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { SignaturePad, type SignaturePadHandle } from "@/components/driver/SignaturePad";
 import { buildOrderPdfBlob } from "@/lib/orderPdf";
@@ -60,6 +60,30 @@ const DELIVERY_MODES: { value: DeliveryMode; label: string }[] = [
   { value: "briefkasten", label: "Briefkasten" },
   { value: "nachbar", label: "An Nachbar" },
 ];
+
+// Trennt den vom Kunden gepflegten Lieferanweisungs-Block von sonstigen Notizen.
+const INSTRUCTION_START = "--- Lieferanweisung des Kunden ---";
+const INSTRUCTION_END = "--- Ende Lieferanweisung ---";
+
+function splitNotes(raw: string | null | undefined): {
+  customerInstructions: string | null;
+  internalNotes: string | null;
+} {
+  if (!raw) return { customerInstructions: null, internalNotes: null };
+  const startIdx = raw.indexOf(INSTRUCTION_START);
+  if (startIdx === -1) return { customerInstructions: null, internalNotes: raw.trim() || null };
+  const endIdx = raw.indexOf(INSTRUCTION_END, startIdx);
+  if (endIdx === -1) {
+    const block = raw.slice(startIdx + INSTRUCTION_START.length).trim();
+    const before = raw.slice(0, startIdx).trim();
+    return { customerInstructions: block || null, internalNotes: before || null };
+  }
+  const block = raw.slice(startIdx + INSTRUCTION_START.length, endIdx).trim();
+  const before = raw.slice(0, startIdx).trim();
+  const after = raw.slice(endIdx + INSTRUCTION_END.length).trim();
+  const internal = [before, after].filter(Boolean).join("\n\n").trim();
+  return { customerInstructions: block || null, internalNotes: internal || null };
+}
 
 const DriverRouteDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -484,7 +508,29 @@ const DriverRouteDetailPage = () => {
                       <span className="flex items-center gap-1"><Package className="h-3 w-3" />{o.pakete}</span>
                       <span>{o.auftrags_nr}</span>
                     </div>
-                    {o.notizen && <p className="text-xs mt-2 p-2 bg-muted rounded">{o.notizen}</p>}
+                    {(() => {
+                      const { customerInstructions, internalNotes } = splitNotes(o.notizen);
+                      return (
+                        <>
+                          {customerInstructions && (
+                            <div className="mt-2 p-2 rounded border-2 border-primary/40 bg-primary/10">
+                              <div className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-primary mb-1">
+                                <MessageSquare className="h-3 w-3" />
+                                Lieferanweisung des Kunden
+                              </div>
+                              <p className="text-xs whitespace-pre-line text-foreground">
+                                {customerInstructions}
+                              </p>
+                            </div>
+                          )}
+                          {internalNotes && (
+                            <p className="text-xs mt-2 p-2 bg-muted rounded whitespace-pre-line">
+                              {internalNotes}
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
                     {isSkipped && s.notiz && <p className="text-xs mt-2 p-2 bg-destructive/10 text-destructive rounded">Grund: {s.notiz}</p>}
                   </div>
                 </div>

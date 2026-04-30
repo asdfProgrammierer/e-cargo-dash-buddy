@@ -14,10 +14,13 @@ interface Props {
   haendlerName?: string
   auftragsNr?: string
   reviewUrl?: string
+  uebergabeArt?: string
+  nachbarName?: string
+  uebergabeBemerkung?: string
   __override?: OverrideShape
 }
 
-const Email = ({ kundenname, haendlerName, auftragsNr, reviewUrl, __override: o }: Props) => (
+const Email = ({ kundenname, haendlerName, auftragsNr, reviewUrl, uebergabeArt, nachbarName, uebergabeBemerkung, __override: o }: Props) => (
   <Html lang="de">
     <Head />
     <Preview>{pickText(o?.preview, 'Ihre Bestellung wurde erfolgreich zugestellt')}</Preview>
@@ -31,6 +34,24 @@ const Email = ({ kundenname, haendlerName, auftragsNr, reviewUrl, __override: o 
           <div style={card}>
             <Text style={cardLabel}>Auftragsnummer</Text>
             <Text style={cardValue}>{auftragsNr}</Text>
+          </div>
+        ) : null}
+        {uebergabeArt ? (
+          <div style={card}>
+            <Text style={cardLabel}>Übergabe</Text>
+            <Text style={cardValue}>{uebergabeArt}</Text>
+            {nachbarName ? (
+              <>
+                <Text style={{ ...cardLabel, marginTop: '10px' }}>Nachbar</Text>
+                <Text style={cardValue}>{nachbarName}</Text>
+              </>
+            ) : null}
+            {uebergabeBemerkung ? (
+              <>
+                <Text style={{ ...cardLabel, marginTop: '10px' }}>Bemerkung des Fahrers</Text>
+                <Text style={cardValue}>{uebergabeBemerkung}</Text>
+              </>
+            ) : null}
           </div>
         ) : null}
         <Text style={text}>{pick(o?.outro, 'Wir wünschen Ihnen viel Freude mit Ihrer Bestellung.', 'outro')}</Text>
@@ -56,5 +77,5 @@ export const template = {
   component: Email,
   subject: 'Ihre Bestellung wurde zugestellt',
   displayName: 'Bestellung – Zugestellt',
-  previewData: { kundenname: 'Max Mustermann', haendlerName: 'PMF Store', auftragsNr: 'EC-PMF-0000123', reviewUrl: REVIEW_FALLBACK_URL },
+  previewData: { kundenname: 'Max Mustermann', haendlerName: 'PMF Store', auftragsNr: 'EC-PMF-0000123', reviewUrl: REVIEW_FALLBACK_URL, uebergabeArt: 'Beim Nachbarn abgegeben', nachbarName: 'Familie Müller' },
 } satisfies TemplateEntry
