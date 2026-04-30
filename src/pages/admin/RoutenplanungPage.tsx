@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Plus, MapPin, Pencil, Trash2, ExternalLink, Printer } from "lucide-react";
+import { Plus, MapPin, Pencil, Trash2, ExternalLink, Printer, Compass } from "lucide-react";
 import { RouteBuilder } from "@/components/admin/RouteBuilder";
 import { RoutesOverviewMap } from "@/components/admin/RoutesOverviewMap";
 import { NewOrdersTable, type NewOrderRow } from "@/components/admin/NewOrdersTable";
