@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { buildEtaWindow, ETA_FALLBACK_TEXT } from "../_shared/eta.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -109,26 +110,15 @@ Deno.serve(async (req) => {
             return name;
           };
 
-          const fmt = (d: Date) =>
-            new Intl.DateTimeFormat("de-DE", {
-              hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin",
-            }).format(d);
-
           const origin = req.headers.get("origin") || "https://ecargo-logistic.de";
 
           for (const o of orderRows ?? []) {
             const email = (o.empfaenger_email ?? "").trim();
             if (!email) continue;
             const etaIso = etaByOrder.get(o.id);
-            let etaWindow: string | undefined;
-            let etaCenter: string | undefined;
-            if (etaIso) {
-              const eta = new Date(etaIso);
-              const from = new Date(eta.getTime() - 30 * 60 * 1000);
-              const to = new Date(eta.getTime() + 30 * 60 * 1000);
-              etaWindow = `${fmt(from)} – ${fmt(to)} Uhr`;
-              etaCenter = fmt(eta);
-            }
+            const eta = buildEtaWindow(etaIso ?? null);
+            const etaWindow = eta?.window ?? ETA_FALLBACK_TEXT;
+            const etaCenter = eta?.center;
             const haendlerName = await getMerchantName(o.user_id);
             const lieferadresse = [
               o.empfaenger_name,
@@ -144,7 +134,7 @@ Deno.serve(async (req) => {
               lieferadresse,
               trackingUrl,
             };
-            if (etaWindow) templateData.etaWindow = etaWindow;
+            templateData.etaWindow = etaWindow;
             if (etaCenter) templateData.etaCenter = etaCenter;
 
             const { error: mailErr } = await admin.functions.invoke("send-transactional-email", {
