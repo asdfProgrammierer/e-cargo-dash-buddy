@@ -197,6 +197,20 @@ Deno.serve(async (req) => {
               trackingUrl,
             };
             if (newOrderStatus === "nicht_zugestellt" && reason) templateData.reason = reason;
+            if (newOrderStatus === "zugestellt") {
+              const modeMap: Record<string, string> = {
+                persoenlich: "Persönlich übergeben",
+                briefkasten: "In den Briefkasten gelegt",
+                nachbar: "Beim Nachbarn abgegeben",
+                bemerkung: "Mit Bemerkung zugestellt",
+              };
+              const modeKey = (deliveryMode ?? "persoenlich") as string;
+              templateData.uebergabeArt = modeMap[modeKey] ?? modeKey;
+              if (modeKey === "nachbar" && deliveryRecipient) {
+                templateData.nachbarName = deliveryRecipient;
+              }
+              if (deliveryNote) templateData.uebergabeBemerkung = deliveryNote;
+            }
             const templateName = newOrderStatus === "zugestellt" ? "order-zugestellt" : "order-nicht-zugestellt";
             const { error: mailErr } = await userClient.functions.invoke("send-transactional-email", {
               body: {
