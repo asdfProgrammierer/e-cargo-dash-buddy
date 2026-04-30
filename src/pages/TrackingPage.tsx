@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Package, MapPin, CheckCircle2, Clock, AlertCircle, Lock } from "lucide-react";
+import { Loader2, Package, MapPin, CheckCircle2, Clock, AlertCircle, Lock, Truck } from "lucide-react";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -38,6 +38,13 @@ interface OrderInfo {
   updatedAt: string;
   deliveredAt: string | null;
   haendlerName: string;
+  eta: {
+    window: string;
+    center: string;
+    fromIso: string;
+    toIso: string;
+    centerIso: string;
+  } | null;
 }
 interface HistoryEntry {
   status: string;
@@ -344,6 +351,26 @@ export default function TrackingPage() {
               <div className="flex items-center gap-2 text-success">
                 <CheckCircle2 className="h-4 w-4" />
                 <span>Zugestellt am {formatDateTime(order.deliveredAt)}</span>
+              </div>
+            )}
+            {order.status === "unterwegs" && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <div className="flex items-start gap-2">
+                  <Truck className="h-4 w-4 mt-0.5 text-primary" />
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                      {order.eta ? "Voraussichtliches Lieferzeitfenster (±30 Min.)" : "Voraussichtliches Lieferzeitfenster"}
+                    </p>
+                    <p className="text-base font-medium text-foreground mt-1">
+                      {order.eta ? order.eta.window : "Wird Ihnen kurz vor der Zustellung mitgeteilt"}
+                    </p>
+                    {order.eta?.center && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Geplante Ankunft: ca. {order.eta.center} Uhr
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </CardContent>
