@@ -286,6 +286,26 @@ Deno.serve(async (req) => {
   // 4. Render React Email template to HTML and plain text
   // Lade Admin-Overrides (Texte aus DB) und injiziere sie in die Template-Props
   const override = await loadTemplateOverride(templateName, templateData)
+
+  // Wenn ein Override existiert und explizit deaktiviert wurde, Versand überspringen.
+  if (override && override.enabled === false) {
+    await supabase.from('email_send_log').insert({
+      message_id: messageId,
+      template_name: templateName,
+      recipient_email: effectiveRecipient,
+      status: 'suppressed',
+      error_message: 'Template disabled via admin override',
+    })
+    console.log('Email skipped — template disabled', { templateName, effectiveRecipient })
+    return new Response(
+      JSON.stringify({ success: false, reason: 'template_disabled' }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    )
+  }
+
   const propsForRender = { ...templateData, __override: override ?? undefined }
 
   const html = await renderAsync(
