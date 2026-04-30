@@ -15,15 +15,15 @@ interface Props {
 }
 
 const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, reason, trackingUrl, __override: o }: Props) => (
-  <Html lang="de">
+    <Html lang="de">
     <Head />
-    <Preview>{pickText(o?.preview, 'Ihre Bestellung konnte heute nicht zugestellt werden')}</Preview>
+    <Preview>{pickText(o?.preview, 'Ihre Bestellung konnte nach 3 Versuchen nicht zugestellt werden')}</Preview>
     <Body style={main}>
       <Container style={container}>
         <Text style={brand}>e-cargo</Text>
         <Text style={tagline}>Wir liefern 100% elektrisch.</Text>
         <Heading style={h1}>{pick(o?.greeting, `Guten Tag${kundenname ? ` ${kundenname}` : ''},`, 'greeting')}</Heading>
-        <Text style={text}>{pick(o?.intro, `leider konnten wir Ihre Bestellung von ${haendlerName ?? 'unserem Händler'} heute nicht an Sie zustellen.`, 'intro')}</Text>
+        <Text style={text}>{pick(o?.intro, `leider konnten wir Ihre Bestellung von ${haendlerName ?? 'unserem Händler'} auch nach drei Zustellversuchen nicht an Sie zustellen. Die Sendung geht zurück an den Händler.`, 'intro')}</Text>
         {reason ? (
           <div style={warnCard}>
             <Text style={warnLabel}>Grund</Text>
@@ -48,7 +48,7 @@ const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, reason, tr
             <Text style={ctaHint}>Zur Verifizierung wird Ihre Postleitzahl abgefragt.</Text>
           </div>
         ) : null}
-        <Text style={text}>{pick(o?.outro, 'Wir setzen uns in Kürze mit Ihnen oder Ihrem Händler in Verbindung, um einen erneuten Zustellversuch abzustimmen.', 'outro')}</Text>
+        <Text style={text}>{pick(o?.outro, 'Bitte wenden Sie sich direkt an Ihren Händler, um die weitere Vorgehensweise (Rückerstattung oder erneuter Versand) abzustimmen.', 'outro')}</Text>
         <Text style={footer}>{pick(o?.footer, 'e-cargo · Klimafreundliche Lieferungen direkt zu Ihnen.', 'footer')}</Text>
       </Container>
     </Body>
