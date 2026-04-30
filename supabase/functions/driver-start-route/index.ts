@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildEtaWindow, ETA_FALLBACK_TEXT } from "../_shared/eta.ts";
+import { buildTrackingUrl } from "../_shared/site-url.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -110,8 +111,6 @@ Deno.serve(async (req) => {
             return name;
           };
 
-          const origin = req.headers.get("origin") || "https://ecargo-logistic.de";
-
           for (const o of orderRows ?? []) {
             const email = (o.empfaenger_email ?? "").trim();
             if (!email) continue;
@@ -125,7 +124,7 @@ Deno.serve(async (req) => {
               o.empfaenger_adresse,
               [o.empfaenger_plz, o.empfaenger_stadt].filter(Boolean).join(" "),
             ].filter((x) => x && String(x).trim().length > 0).join(", ");
-            const trackingUrl = o.tracking_token ? `${origin}/track/${o.tracking_token}` : "";
+            const trackingUrl = buildTrackingUrl(o.tracking_token, req);
 
             const templateData: Record<string, string> = {
               kundenname: o.empfaenger_name,
