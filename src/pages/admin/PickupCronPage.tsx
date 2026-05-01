@@ -43,21 +43,6 @@ function formatBerlin(iso: string | null): string {
   });
 }
 
-function describeSchedule(cron: string): string {
-  // simple label for "5 12 * * *" → "Täglich 14:05 Berlin (Sommerzeit)"
-  const parts = cron.trim().split(/\s+/);
-  if (parts.length === 5 && parts[2] === "*" && parts[3] === "*" && parts[4] === "*") {
-    const min = parts[0].padStart(2, "0");
-    const hourUtc = parseInt(parts[1], 10);
-    if (!Number.isNaN(hourUtc)) {
-      const summer = (hourUtc + 2) % 24;
-      const winter = (hourUtc + 1) % 24;
-      return `Täglich ${String(summer).padStart(2, "0")}:${min} Berlin (Sommer) · ${String(winter).padStart(2, "0")}:${min} (Winter)`;
-    }
-  }
-  return cron;
-}
-
 const PickupCronPage = () => {
   const [status, setStatus] = useState<CronStatus | null>(null);
   const [runs, setRuns] = useState<CronRun[]>([]);
