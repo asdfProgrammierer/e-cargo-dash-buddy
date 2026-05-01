@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { PlayCircle, RefreshCw, Clock, CheckCircle2, XCircle } from "lucide-react";
 
@@ -24,6 +26,12 @@ interface CronRun {
   end_time: string | null;
   status: string;
   return_message: string | null;
+}
+
+interface PickupSettings {
+  deadline_hour: number;
+  deadline_minute: number;
+  updated_at: string;
 }
 
 function formatBerlin(iso: string | null): string {
@@ -55,12 +63,16 @@ const PickupCronPage = () => {
   const [runs, setRuns] = useState<CronRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [deadline, setDeadline] = useState<string>("14:00");
+  const [savedDeadline, setSavedDeadline] = useState<string>("14:00");
+  const [savingDeadline, setSavingDeadline] = useState(false);
 
   const load = async () => {
     setLoading(true);
-    const [statusRes, runsRes] = await Promise.all([
+    const [statusRes, runsRes, settingsRes] = await Promise.all([
       (supabase as any).rpc("admin_get_pickup_cron_status"),
       (supabase as any).rpc("admin_get_pickup_cron_runs", { _limit: 20 }),
+      (supabase as any).from("pickup_cron_settings").select("deadline_hour, deadline_minute, updated_at").eq("id", 1).single(),
     ]);
     if (statusRes.error) {
       toast.error("Cron-Status konnte nicht geladen werden");
@@ -72,6 +84,12 @@ const PickupCronPage = () => {
     } else {
       setRuns((runsRes.data as CronRun[]) ?? []);
     }
+    if (!settingsRes.error && settingsRes.data) {
+      const s = settingsRes.data as PickupSettings;
+      const formatted = `${String(s.deadline_hour).padStart(2, "0")}:${String(s.deadline_minute).padStart(2, "0")}`;
+      setDeadline(formatted);
+      setSavedDeadline(formatted);
+    }
     setLoading(false);
   };
 
@@ -82,7 +100,7 @@ const PickupCronPage = () => {
   const triggerNow = async () => {
     setRunning(true);
     const { data, error } = await supabase.functions.invoke("generate-pickup-orders", {
-      body: {},
+      body: { bypassDeadline: true },
     });
     setRunning(false);
     if (error) {
@@ -96,6 +114,32 @@ const PickupCronPage = () => {
     setTimeout(load, 500);
   };
 
+  const saveDeadline = async () => {
+    const match = /^(\d{1,2}):(\d{2})$/.exec(deadline.trim());
+    if (!match) {
+      toast.error("Bitte Format HH:MM verwenden");
+      return;
+    }
+    const hour = parseInt(match[1], 10);
+    const minute = parseInt(match[2], 10);
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+      toast.error("Ungültige Uhrzeit");
+      return;
+    }
+    setSavingDeadline(true);
+    const { error } = await (supabase as any).rpc("admin_set_pickup_deadline", {
+      _hour: hour,
+      _minute: minute,
+    });
+    setSavingDeadline(false);
+    if (error) {
+      toast.error(`Speichern fehlgeschlagen: ${error.message}`);
+      return;
+    }
+    setSavedDeadline(deadline);
+    toast.success(`Deadline auf ${deadline} Uhr (Berlin) gesetzt`);
+  };
+
   const lastRun = runs[0] ?? null;
 
   return (
@@ -103,6 +147,32 @@ const PickupCronPage = () => {
       <SettingsTabs />
 
       <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Tägliche Deadline (Berliner Zeit)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+              <div className="space-y-2">
+                <Label htmlFor="deadline">Uhrzeit</Label>
+                <Input
+                  id="deadline"
+                  type="time"
+                  value={deadline}
+                  onChange={(e) => setDeadline(e.target.value)}
+                  className="w-40"
+                />
+              </div>
+              <Button onClick={saveDeadline} disabled={savingDeadline || deadline === savedDeadline}>
+                {savingDeadline ? "Speichere..." : "Speichern"}
+              </Button>
+              <p className="text-xs text-muted-foreground sm:ml-2">
+                Aktuell aktiv: <span className="font-medium">{savedDeadline}</span> · Sommer-/Winterzeit wird automatisch berücksichtigt.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Cron-Job „Abholungen“</CardTitle>
