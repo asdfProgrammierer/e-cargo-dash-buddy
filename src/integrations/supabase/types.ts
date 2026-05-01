@@ -1018,6 +1018,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_get_pickup_cron_runs: {
+        Args: { _limit?: number }
+        Returns: {
+          end_time: string
+          jobid: number
+          return_message: string
+          runid: number
+          start_time: string
+          status: string
+        }[]
+      }
+      admin_get_pickup_cron_status: {
+        Args: never
+        Returns: {
+          active: boolean
+          command: string
+          jobid: number
+          jobname: string
+          schedule: string
+        }[]
+      }
       admin_set_merchant_code: {
         Args: { _merchant_code: string; _profile_id: string }
         Returns: string
