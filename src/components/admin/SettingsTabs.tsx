@@ -1,12 +1,13 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { MapPinned, Warehouse, Route as RouteIcon, Mail } from "lucide-react";
+import { MapPinned, Warehouse, Route as RouteIcon, Mail, PackageSearch } from "lucide-react";
 
 const tabs = [
   { to: "/admin/einstellungen/liefergebiet", label: "Liefergebiet", icon: MapPinned },
   { to: "/admin/einstellungen/depots", label: "Depots", icon: Warehouse },
   { to: "/admin/einstellungen/routen", label: "Routen", icon: RouteIcon },
   { to: "/admin/einstellungen/emails", label: "E-Mail-Vorlagen", icon: Mail },
+  { to: "/admin/einstellungen/abholungen", label: "Abholungen", icon: PackageSearch },
 ];
 
 export function SettingsTabs() {
