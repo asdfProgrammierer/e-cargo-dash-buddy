@@ -86,6 +86,7 @@ export function useOrderStore() {
       .from("orders")
       .select("*")
       .eq("user_id", user.id)
+      .eq("is_pickup", false)
       .order("created_at", { ascending: false });
     if (error) {
       toast.error("Aufträge konnten nicht geladen werden");
