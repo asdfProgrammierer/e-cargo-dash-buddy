@@ -568,6 +568,30 @@ export type Database = {
         }
         Relationships: []
       }
+      pickup_cron_settings: {
+        Row: {
+          deadline_hour: number
+          deadline_minute: number
+          id: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          deadline_hour?: number
+          deadline_minute?: number
+          id?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          deadline_hour?: number
+          deadline_minute?: number
+          id?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           ansprechpartner: string | null
@@ -1042,6 +1066,22 @@ export type Database = {
       admin_set_merchant_code: {
         Args: { _merchant_code: string; _profile_id: string }
         Returns: string
+      }
+      admin_set_pickup_deadline: {
+        Args: { _hour: number; _minute: number }
+        Returns: {
+          deadline_hour: number
+          deadline_minute: number
+          id: number
+          updated_at: string
+          updated_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pickup_cron_settings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       admin_update_order_status: {
         Args: { _order_id: string; _reason?: string; _status: string }
