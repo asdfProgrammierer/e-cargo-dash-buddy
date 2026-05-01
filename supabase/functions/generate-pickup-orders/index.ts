@@ -16,6 +16,19 @@ function isoWeekdayBerlin(date = new Date()): number {
   return map[fmt.format(date)] ?? 0;
 }
 
+function berlinHourMinute(date = new Date()): { hour: number; minute: number } {
+  const fmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Berlin",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(date);
+  const hour = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10);
+  const minute = parseInt(parts.find((p) => p.type === "minute")?.value ?? "0", 10);
+  return { hour, minute };
+}
+
 function berlinDateString(date = new Date()): string {
   const fmt = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Berlin",
@@ -65,13 +78,33 @@ Deno.serve(async (req) => {
     // Optional override via body
     let forceWeekday: number | null = null;
     let dryRun = false;
+    let bypassDeadline = false;
     if (req.method === "POST") {
       try {
         const body = await req.json();
         if (typeof body?.weekday === "number") forceWeekday = body.weekday;
         if (body?.dryRun === true) dryRun = true;
+        if (body?.bypassDeadline === true) bypassDeadline = true;
       } catch {
         // ignore
+      }
+    }
+
+    // Deadline-Gate: nur ausführen, wenn Berliner Zeit == eingestellte Deadline
+    if (!bypassDeadline) {
+      const { data: settings } = await supabase
+        .from("pickup_cron_settings")
+        .select("deadline_hour, deadline_minute")
+        .eq("id", 1)
+        .single();
+      const deadlineHour = settings?.deadline_hour ?? 14;
+      const deadlineMinute = settings?.deadline_minute ?? 0;
+      const { hour, minute } = berlinHourMinute();
+      if (hour !== deadlineHour || minute !== deadlineMinute) {
+        return new Response(
+          JSON.stringify({ skipped: true, reason: "deadline_not_reached", berlin: { hour, minute }, deadline: { hour: deadlineHour, minute: deadlineMinute } }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
+        );
       }
     }
 
