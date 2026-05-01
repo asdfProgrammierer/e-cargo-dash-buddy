@@ -253,12 +253,14 @@ export function useOrderStore() {
         (payload) => {
           if (payload.eventType === 'INSERT') {
             const newOrder = dbToOrder(payload.new as unknown as DbOrder);
+            if (newOrder.isPickup) return;
             setOrders((prev) => {
               if (prev.some((o) => o.id === newOrder.id)) return prev;
               return [newOrder, ...prev];
             });
           } else if (payload.eventType === 'UPDATE') {
             const updated = dbToOrder(payload.new as unknown as DbOrder);
+            if (updated.isPickup) return;
             setOrders((prev) => {
               const old = prev.find((o) => o.id === updated.id);
               if (old && old.status !== updated.status) {
