@@ -208,7 +208,7 @@ const PickupCronPage = () => {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Lokale Ausführung</p>
-                  <p className="text-sm">{describeSchedule(status.schedule)}</p>
+                  <p className="text-sm">Täglich um <span className="font-medium">{savedDeadline}</span> Berliner Zeit</p>
                 </div>
                 <div className="sm:col-span-2">
                   <p className="text-xs text-muted-foreground">Letzter Lauf</p>
