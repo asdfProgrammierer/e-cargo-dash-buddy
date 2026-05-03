@@ -605,6 +605,7 @@ export type Database = {
           merchant_code: string | null
           opening_hours: Json
           paketpreis: number | null
+          parent_user_id: string | null
           pickup_enabled: boolean
           pickup_time: string | null
           pickup_weekdays: number[]
@@ -629,6 +630,7 @@ export type Database = {
           merchant_code?: string | null
           opening_hours?: Json
           paketpreis?: number | null
+          parent_user_id?: string | null
           pickup_enabled?: boolean
           pickup_time?: string | null
           pickup_weekdays?: number[]
@@ -653,6 +655,7 @@ export type Database = {
           merchant_code?: string | null
           opening_hours?: Json
           paketpreis?: number | null
+          parent_user_id?: string | null
           pickup_enabled?: boolean
           pickup_time?: string | null
           pickup_weekdays?: number[]
@@ -1144,6 +1147,7 @@ export type Database = {
       }
       is_route_driver: { Args: { _route_id: string }; Returns: boolean }
       is_stop_route_driver: { Args: { _stop_id: string }; Returns: boolean }
+      merchant_owner_id: { Args: { _uid: string }; Returns: string }
       move_to_dlq: {
         Args: {
           dlq_name: string
