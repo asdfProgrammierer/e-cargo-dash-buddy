@@ -187,7 +187,7 @@ export function useOrderStore() {
         empfaengerAdresse: o.empfaengerAdresse,
         empfaengerPlz: o.empfaengerPlz,
         empfaengerStadt: o.empfaengerStadt,
-        haendlerUserId: user.id,
+        haendlerUserId: merchantId,
       });
     }
     return created;
@@ -245,12 +245,12 @@ export function useOrderStore() {
 
   // Realtime subscription for order updates
   useEffect(() => {
-    if (!user) return;
+    if (!merchantId) return;
     const channel = supabase
       .channel('orders-realtime')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${user.id}` },
+        { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${merchantId}` },
         (payload) => {
           if (payload.eventType === 'INSERT') {
             const newOrder = dbToOrder(payload.new as unknown as DbOrder);
@@ -277,7 +277,7 @@ export function useOrderStore() {
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user]);
+  }, [merchantId]);
 
   return { orders, loading, addOrder, addOrders, updateStatus, deleteOrder, updateOrder };
 }
