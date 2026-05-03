@@ -28,6 +28,7 @@ import DepotsPage from "./pages/admin/DepotsPage";
 import RouteSettingsPage from "./pages/admin/RouteSettingsPage";
 import EmailTemplatesPage from "./pages/admin/EmailTemplatesPage";
 import PickupCronPage from "./pages/admin/PickupCronPage";
+import NotificationsPage from "./pages/admin/NotificationsPage";
 import NotFound from "./pages/NotFound";
 import UnsubscribePage from "./pages/UnsubscribePage";
 import TrackingPage from "./pages/TrackingPage";
@@ -130,6 +131,7 @@ const AppRoutes = () => (
     <Route path="/admin/einstellungen/routen" element={<AdminRoute><RouteSettingsPage /></AdminRoute>} />
     <Route path="/admin/einstellungen/emails" element={<AdminRoute><EmailTemplatesPage /></AdminRoute>} />
     <Route path="/admin/einstellungen/abholungen" element={<AdminRoute><PickupCronPage /></AdminRoute>} />
+    <Route path="/admin/benachrichtigungen" element={<AdminRoute><NotificationsPage /></AdminRoute>} />
     <Route path="/admin/liefergebiet" element={<Navigate to="/admin/einstellungen/liefergebiet" replace />} />
     <Route path="/fahrer/login" element={<DriverLoginPage />} />
     <Route path="/fahrer" element={<DriverRoute><DriverHomePage /></DriverRoute>} />
