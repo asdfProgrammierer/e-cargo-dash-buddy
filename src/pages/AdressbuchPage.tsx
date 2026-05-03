@@ -44,7 +44,8 @@ const emptyForm = {
 };
 
 const AdressbuchPage = () => {
-  const { user } = useAuth();
+  const { user, ownerUserId } = useAuth();
+  const merchantId = ownerUserId ?? user?.id ?? null;
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -58,7 +59,6 @@ const AdressbuchPage = () => {
     const { data, error } = await supabase
       .from("address_book")
       .select("*")
-      .eq("user_id", user.id)
       .order("is_favorite", { ascending: false })
       .order("ansprechpartner", { ascending: true });
     if (error) {
@@ -79,8 +79,9 @@ const AdressbuchPage = () => {
       return;
     }
 
+    if (!merchantId) return;
     const payload = {
-      user_id: user.id,
+      user_id: merchantId,
       firma_name: form.firma_name || null,
       ansprechpartner: form.ansprechpartner,
       email: form.email || null,

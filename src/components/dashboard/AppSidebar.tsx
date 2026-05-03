@@ -23,14 +23,14 @@ const navItems = [
   { title: "Aufträge", url: "/auftraege", icon: Package },
   { title: "Adressbuch", url: "/adressbuch", icon: BookUser },
   { title: "Excel Import", url: "/import", icon: Upload },
-  { title: "Online-Shop", url: "/online-shop", icon: ShoppingBag },
+  { title: "Online-Shop", url: "/online-shop", icon: ShoppingBag, mainOnly: true },
   { title: "Mein Profil", url: "/profil", icon: UserCircle },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { signOut, user } = useAuth();
+  const { signOut, user, isSubAccount } = useAuth();
   const isAdmin = useAdminCheck();
 
   return (
@@ -54,7 +54,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {navItems.filter((item) => !((item as any).mainOnly && isSubAccount)).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink

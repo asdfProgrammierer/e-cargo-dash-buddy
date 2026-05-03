@@ -68,7 +68,8 @@ const emptyForm = {
 };
 
 export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
-  const { user } = useAuth();
+  const { user, ownerUserId } = useAuth();
+  const merchantId = ownerUserId ?? user?.id ?? null;
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [profileLoaded, setProfileLoaded] = useState(false);
@@ -79,13 +80,13 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
 
   // Load profile data once
   useEffect(() => {
-    if (!user || profileLoaded) return;
+    if (!merchantId || profileLoaded) return;
     const load = async () => {
       const { data } = await supabase
         .from("profiles")
         .select("*")
-        .eq("user_id", user.id)
-        .single();
+        .eq("user_id", merchantId)
+        .maybeSingle();
 
       if (data) {
         const name = data.firma_name || data.ansprechpartner || "";
@@ -96,22 +97,21 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
       setProfileLoaded(true);
     };
     load();
-  }, [user, profileLoaded]);
+  }, [merchantId, profileLoaded]);
 
   // Load address book contacts
   useEffect(() => {
-    if (!user) return;
+    if (!merchantId) return;
     const load = async () => {
       const { data } = await supabase
         .from("address_book")
         .select("id, firma_name, ansprechpartner, email, telefon, strasse, plz, stadt")
-        .eq("user_id", user.id)
         .order("is_favorite", { ascending: false })
         .order("ansprechpartner", { ascending: true });
       if (data) setContacts(data);
     };
     load();
-  }, [user]);
+  }, [merchantId]);
 
   useEffect(() => {
     if (!user) return;
@@ -161,9 +161,9 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
       return;
     }
 
-    if (form.saveToAddressBook && user) {
+    if (form.saveToAddressBook && merchantId) {
       const { error } = await supabase.from("address_book").insert({
-        user_id: user.id,
+        user_id: merchantId,
         ansprechpartner: form.empfaengerName,
         strasse: form.empfaengerAdresse || null,
         plz: form.empfaengerPlz || null,
@@ -178,7 +178,6 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
         const { data } = await supabase
           .from("address_book")
           .select("id, firma_name, ansprechpartner, email, telefon, strasse, plz, stadt")
-          .eq("user_id", user.id)
           .order("is_favorite", { ascending: false })
           .order("ansprechpartner", { ascending: true });
         if (data) setContacts(data);
