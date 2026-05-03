@@ -76,16 +76,17 @@ function dbToOrder(row: DbOrder): Order {
 }
 
 export function useOrderStore() {
-  const { user } = useAuth();
+  const { user, ownerUserId } = useAuth();
+  const merchantId = ownerUserId ?? user?.id ?? null;
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchOrders = useCallback(async () => {
-    if (!user) { setOrders([]); setLoading(false); return; }
+    if (!merchantId) { setOrders([]); setLoading(false); return; }
     const { data, error } = await supabase
       .from("orders")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", merchantId)
       .eq("is_pickup", false)
       .order("created_at", { ascending: false });
     if (error) {
@@ -95,16 +96,16 @@ export function useOrderStore() {
       setOrders((data as unknown as DbOrder[]).map(dbToOrder));
     }
     setLoading(false);
-  }, [user]);
+  }, [merchantId]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
   const addOrder = async (order: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">) => {
-    if (!user) return null;
+    if (!merchantId) return null;
     const { data, error } = await supabase
       .from("orders")
       .insert({
-        user_id: user.id,
+        user_id: merchantId,
         auftrags_nr: "",
         absender_name: order.absenderName,
         absender_adresse: order.absenderAdresse,
@@ -140,15 +141,15 @@ export function useOrderStore() {
       empfaengerAdresse: newOrder.empfaengerAdresse,
       empfaengerPlz: newOrder.empfaengerPlz,
       empfaengerStadt: newOrder.empfaengerStadt,
-      haendlerUserId: user.id,
+      haendlerUserId: merchantId,
     });
     return newOrder;
   };
 
   const addOrders = async (newOrders: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">[]) => {
-    if (!user) return [];
+    if (!merchantId) return [];
     const rows = newOrders.map((o) => ({
-      user_id: user.id,
+      user_id: merchantId,
       auftrags_nr: "",
       absender_name: o.absenderName,
       absender_adresse: o.absenderAdresse,
