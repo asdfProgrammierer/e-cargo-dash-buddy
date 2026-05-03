@@ -117,7 +117,8 @@ function downloadTemplate() {
 }
 
 export function ExcelImport({ onImport }: ExcelImportProps) {
-  const { user } = useAuth();
+  const { user, ownerUserId } = useAuth();
+  const merchantId = ownerUserId ?? user?.id ?? null;
   const [preview, setPreview] = useState<PreviewRow[]>([]);
   const [fileName, setFileName] = useState("");
   const [editingRow, setEditingRow] = useState<number | null>(null);
@@ -126,13 +127,13 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
 
   // Load profile for sender defaults
   useEffect(() => {
-    if (!user) return;
+    if (!merchantId) return;
     const load = async () => {
       const { data } = await supabase
         .from("profiles")
         .select("firma_name, ansprechpartner, strasse, plz, stadt")
-        .eq("user_id", user.id)
-        .single();
+        .eq("user_id", merchantId)
+        .maybeSingle();
       if (data) {
         const name = data.firma_name || data.ansprechpartner || "";
         const parts = [data.strasse, data.plz, data.stadt].filter(Boolean);
@@ -140,7 +141,7 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
       }
     };
     load();
-  }, [user]);
+  }, [merchantId]);
 
   useEffect(() => {
     if (!user) return;
