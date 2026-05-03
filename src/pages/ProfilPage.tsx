@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { SubAccountsCard } from "@/components/profile/SubAccountsCard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,7 @@ import {
 } from "@/components/profile/OpeningHoursEditor";
 
 const ProfilPage = () => {
-  const { user } = useAuth();
+  const { user, isSubAccount } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -140,6 +141,21 @@ const ProfilPage = () => {
   return (
     <DashboardLayout title="Mein Profil">
       <div className="max-w-2xl space-y-6">
+        {isSubAccount && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" />
+                Sub-Account
+              </CardTitle>
+              <CardDescription>
+                Du nutzt einen Sub-Account. Firmen- und Versanddaten werden vom Hauptkonto verwaltet.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
+        {!isSubAccount && (
+          <>
         {/* Logo Card */}
         <Card>
           <CardHeader>
@@ -293,6 +309,9 @@ const ProfilPage = () => {
             )}
           </CardContent>
         </Card>
+        <SubAccountsCard />
+          </>
+        )}
       </div>
     </DashboardLayout>
   );
