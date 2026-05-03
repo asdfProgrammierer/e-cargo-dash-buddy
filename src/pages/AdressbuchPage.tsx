@@ -44,7 +44,8 @@ const emptyForm = {
 };
 
 const AdressbuchPage = () => {
-  const { user } = useAuth();
+  const { user, ownerUserId } = useAuth();
+  const merchantId = ownerUserId ?? user?.id ?? null;
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -78,8 +79,9 @@ const AdressbuchPage = () => {
       return;
     }
 
+    if (!merchantId) return;
     const payload = {
-      user_id: (await supabase.from("profiles").select("parent_user_id").eq("user_id", user.id).maybeSingle()).data?.parent_user_id ?? user.id,
+      user_id: merchantId,
       firma_name: form.firma_name || null,
       ansprechpartner: form.ansprechpartner,
       email: form.email || null,
