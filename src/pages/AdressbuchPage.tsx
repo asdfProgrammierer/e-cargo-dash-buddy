@@ -58,7 +58,6 @@ const AdressbuchPage = () => {
     const { data, error } = await supabase
       .from("address_book")
       .select("*")
-      .eq("user_id", user.id)
       .order("is_favorite", { ascending: false })
       .order("ansprechpartner", { ascending: true });
     if (error) {
@@ -80,7 +79,7 @@ const AdressbuchPage = () => {
     }
 
     const payload = {
-      user_id: user.id,
+      user_id: (await supabase.from("profiles").select("parent_user_id").eq("user_id", user.id).maybeSingle()).data?.parent_user_id ?? user.id,
       firma_name: form.firma_name || null,
       ansprechpartner: form.ansprechpartner,
       email: form.email || null,
