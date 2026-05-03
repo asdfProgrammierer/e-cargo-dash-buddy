@@ -10,7 +10,18 @@ import { Button } from "@/components/ui/button";
 import { MerchantInvoiceDialog } from "@/components/admin/MerchantInvoiceDialog";
 import { PickupSettingsCell } from "@/components/admin/PickupSettingsCell";
 import { toast } from "sonner";
-import { Search, Building2, ChevronRight } from "lucide-react";
+import { Search, Building2, ChevronRight, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface MerchantProfile {
   id: string;
@@ -34,6 +45,7 @@ const HaendlerVerwaltungPage = () => {
   const [loading, setLoading] = useState(true);
   const [merchantCodes, setMerchantCodes] = useState<Record<string, string>>({});
   const [savingCodeId, setSavingCodeId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchMerchants = async () => {
     const { data, error } = await supabase
@@ -118,6 +130,20 @@ const HaendlerVerwaltungPage = () => {
     );
   });
 
+  const deleteMerchant = async (profile: MerchantProfile) => {
+    setDeletingId(profile.id);
+    const { data, error } = await supabase.functions.invoke("admin-delete-merchant", {
+      body: { profile_id: profile.id },
+    });
+    setDeletingId(null);
+    if (error || (data as any)?.error) {
+      toast.error((data as any)?.error ?? error?.message ?? "Löschen fehlgeschlagen");
+      return;
+    }
+    setMerchants((prev) => prev.filter((m) => m.id !== profile.id));
+    toast.success("Händler gelöscht");
+  };
+
   return (
     <AdminLayout title="Händlerverwaltung">
       <div className="space-y-4">
@@ -146,19 +172,20 @@ const HaendlerVerwaltungPage = () => {
                 <TableHead>Abholung</TableHead>
                 <TableHead>Rechnung</TableHead>
                 <TableHead className="text-right">Freigabe</TableHead>
+                <TableHead className="w-12 text-right">Löschen</TableHead>
                 <TableHead className="w-8" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                    <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
                     Lade Händler...
                   </TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                    <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
                     Keine Händler gefunden
                   </TableCell>
                 </TableRow>
@@ -233,6 +260,39 @@ const HaendlerVerwaltungPage = () => {
                         checked={m.approved}
                         onCheckedChange={() => toggleApproval(m)}
                       />
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            disabled={deletingId === m.id}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Händler endgültig löschen?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {m.firma_name || m.ansprechpartner || "Dieser Händler"} und alle zugehörigen Daten
+                              (Aufträge, Adressbuch, Sub-Accounts, Shop-Verbindungen) werden unwiderruflich gelöscht.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteMerchant(m)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Löschen
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </TableCell>
                     <TableCell className="w-8">
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
