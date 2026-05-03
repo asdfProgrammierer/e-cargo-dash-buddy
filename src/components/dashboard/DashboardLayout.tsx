@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { BerlinClock } from "@/components/dashboard/BerlinClock";
+import { NotificationBell } from "@/components/NotificationBell";
 
 interface DashboardLayoutProps {
   title: string;
@@ -19,7 +20,10 @@ export function DashboardLayout({ title, children }: DashboardLayoutProps) {
               <SidebarTrigger />
               <h1 className="text-lg font-semibold text-foreground">{title}</h1>
             </div>
-            <BerlinClock />
+            <div className="flex items-center gap-3">
+              <NotificationBell />
+              <BerlinClock />
+            </div>
           </header>
           <main className="flex-1 p-6">{children}</main>
         </div>

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Leaf, LogOut, ArrowLeft, UserCircle, Truck, MapPin, Settings2 } from "lucide-react";
+import { LayoutDashboard, Users, Leaf, LogOut, ArrowLeft, UserCircle, Truck, MapPin, Settings2, Bell } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
@@ -24,6 +24,7 @@ const navItems = [
   { title: "Händlerverwaltung", url: "/admin/haendler", icon: Users },
   { title: "Fahrer", url: "/admin/fahrer", icon: UserCircle },
   { title: "Fahrzeuge", url: "/admin/fahrzeuge", icon: Truck },
+  { title: "Benachrichtigungen", url: "/admin/benachrichtigungen", icon: Bell },
   { title: "Einstellungen", url: "/admin/einstellungen", icon: Settings2 },
 ];
 

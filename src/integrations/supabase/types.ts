@@ -440,6 +440,62 @@ export type Database = {
           },
         ]
       }
+      notification_reads: {
+        Row: {
+          notification_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          notification_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          notification_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_reads_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          audience: string
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          target_user_id: string | null
+          title: string
+        }
+        Insert: {
+          audience: string
+          body: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          target_user_id?: string | null
+          title: string
+        }
+        Update: {
+          audience?: string
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          target_user_id?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
       order_status_history: {
         Row: {
           changed_by: string | null
