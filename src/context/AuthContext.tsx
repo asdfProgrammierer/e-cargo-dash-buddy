@@ -7,6 +7,8 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   approved: boolean | null;
+  ownerUserId: string | null;
+  isSubAccount: boolean | null;
   signOut: () => Promise<void>;
 }
 
@@ -16,14 +18,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [approved, setApproved] = useState<boolean | null>(null);
+  const [ownerUserId, setOwnerUserId] = useState<string | null>(null);
+  const [isSubAccount, setIsSubAccount] = useState<boolean | null>(null);
 
   const fetchApproval = async (userId: string) => {
     const { data } = await supabase
       .from("profiles")
-      .select("approved")
+      .select("approved, parent_user_id")
       .eq("user_id", userId)
-      .single();
+      .maybeSingle();
+    const parent = (data as any)?.parent_user_id ?? null;
     setApproved(data?.approved ?? false);
+    setOwnerUserId(parent ?? userId);
+    setIsSubAccount(!!parent);
   };
 
   useEffect(() => {
@@ -34,6 +41,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           fetchApproval(session.user.id);
         } else {
           setApproved(null);
+          setOwnerUserId(null);
+          setIsSubAccount(null);
         }
         setLoading(false);
       }
@@ -55,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user: session?.user ?? null, loading, approved, signOut }}>
+    <AuthContext.Provider value={{ session, user: session?.user ?? null, loading, approved, ownerUserId, isSubAccount, signOut }}>
       {children}
     </AuthContext.Provider>
   );
