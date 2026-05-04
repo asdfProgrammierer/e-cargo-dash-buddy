@@ -25,6 +25,8 @@ import {
 import { Order, OrderStatus, STATUS_LABELS, STATUS_COLORS, MAX_DELIVERY_ATTEMPTS } from "@/types/order";
 import { getZoneBadgeStyle } from "@/lib/deliveryZones";
 import { getOrderZoneMeta, printShippingLabels } from "@/lib/shippingLabels";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const STATUS_OPTIONS: OrderStatus[] = ["neu", "in_bearbeitung", "unterwegs", "zugestellt", "nicht_zugestellt", "storniert"];
 
@@ -149,6 +151,21 @@ export function OrderDetailSheet({
 
   const printLabel = async () => {
     await printShippingLabels([order]);
+  };
+
+  const [dhlLoading, setDhlLoading] = useState(false);
+  const createDhlLabel = async () => {
+    if (!order) return;
+    setDhlLoading(true);
+    const { data, error } = await supabase.functions.invoke("create-dhl-label", {
+      body: { orderId: order.id },
+    });
+    setDhlLoading(false);
+    if (error || (data as any)?.error) {
+      toast.error((data as any)?.error || "DHL-Label konnte nicht erstellt werden");
+    } else {
+      toast.success("DHL-Label erstellt");
+    }
   };
 
   const requestStatusUpdate = async (status: OrderStatus) => {
