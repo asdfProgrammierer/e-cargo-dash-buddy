@@ -594,6 +594,28 @@ const HaendlerDetailPage = () => {
                   <Switch checked={profile.approved} onCheckedChange={toggleApproval} />
                 </div>
 
+                <div className="rounded-lg border border-border p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2">
+                      <Package className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <div>
+                        <p className="font-medium text-sm">DHL-Versand außerhalb des Liefergebiets</p>
+                        <p className="text-xs text-muted-foreground">
+                          Wenn aktiviert, wird automatisch ein DHL-Label über unser Geschäftskunden-Konto erstellt,
+                          sobald die Empfänger-PLZ außerhalb des e-cargo Liefergebiets liegt. Der Händlercode dient als Kostenstelle für die DHL-Abrechnung.
+                        </p>
+                      </div>
+                    </div>
+                    <Switch checked={profile.dhl_enabled} onCheckedChange={toggleDhl} />
+                  </div>
+                  {profile.dhl_enabled && !profile.merchant_code && (
+                    <p className="text-xs text-warning flex items-center gap-1.5">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      Bitte zuerst einen Händlercode hinterlegen (wird als Kostenstelle übermittelt).
+                    </p>
+                  )}
+                </div>
+
                 <div className="flex items-center gap-2 rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   <p>Änderungen an der Freigabe wirken sich sofort auf den Zugang des Händlers aus.</p>
