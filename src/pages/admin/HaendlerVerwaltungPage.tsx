@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MerchantInvoiceDialog } from "@/components/admin/MerchantInvoiceDialog";
-import { PickupSettingsCell } from "@/components/admin/PickupSettingsCell";
 import { toast } from "sonner";
 import { Search, Building2, ChevronRight, Trash2 } from "lucide-react";
 import {
@@ -43,8 +42,6 @@ const HaendlerVerwaltungPage = () => {
   const [merchants, setMerchants] = useState<MerchantProfile[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  const [merchantCodes, setMerchantCodes] = useState<Record<string, string>>({});
-  const [savingCodeId, setSavingCodeId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchMerchants = async () => {
@@ -61,12 +58,6 @@ const HaendlerVerwaltungPage = () => {
         pickup_weekdays: Array.isArray(m.pickup_weekdays) ? m.pickup_weekdays : [],
       })) as MerchantProfile[];
       setMerchants(merchantRows);
-      setMerchantCodes(
-        merchantRows.reduce<Record<string, string>>((acc, merchant) => {
-          acc[merchant.id] = merchant.merchant_code ?? "";
-          return acc;
-        }, {})
-      );
     }
     setLoading(false);
   };
@@ -89,34 +80,6 @@ const HaendlerVerwaltungPage = () => {
       );
       toast.success(newVal ? "Händler freigeschaltet" : "Händler gesperrt");
     }
-  };
-
-  const saveMerchantCode = async (profile: MerchantProfile) => {
-    const normalizedCode = (merchantCodes[profile.id] ?? "").trim().toUpperCase();
-
-    if (!/^[A-Z0-9]{3}$/.test(normalizedCode)) {
-      toast.error("Der Händlercode muss genau 3 Zeichen haben");
-      return;
-    }
-
-    setSavingCodeId(profile.id);
-    const { data, error } = await (supabase as any).rpc("admin_set_merchant_code", {
-      _profile_id: profile.id,
-      _merchant_code: normalizedCode,
-    });
-    setSavingCodeId(null);
-
-    if (error) {
-      toast.error(error.message?.includes("duplicate") ? "Dieser Händlercode ist bereits vergeben" : "Händlercode konnte nicht gespeichert werden");
-      return;
-    }
-
-    const savedCode = typeof data === "string" ? data : normalizedCode;
-    setMerchantCodes((prev) => ({ ...prev, [profile.id]: savedCode }));
-    setMerchants((prev) => prev.map((merchant) => (
-      merchant.id === profile.id ? { ...merchant, merchant_code: savedCode } : merchant
-    )));
-    toast.success("Händlercode gespeichert und Aufträge neu nummeriert");
   };
 
   const filtered = merchants.filter((m) => {
@@ -166,10 +129,8 @@ const HaendlerVerwaltungPage = () => {
                 <TableHead>Stadt</TableHead>
                 <TableHead>Telefon</TableHead>
                 <TableHead>Paketpreis</TableHead>
-                <TableHead>Code</TableHead>
                 <TableHead>Registriert am</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Abholung</TableHead>
                 <TableHead>Rechnung</TableHead>
                 <TableHead className="text-right">Freigabe</TableHead>
                 <TableHead className="w-12 text-right">Löschen</TableHead>
@@ -179,13 +140,13 @@ const HaendlerVerwaltungPage = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                    <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                     Lade Händler...
                   </TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                    <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                     Keine Händler gefunden
                   </TableCell>
                 </TableRow>
@@ -206,28 +167,6 @@ const HaendlerVerwaltungPage = () => {
                          ? new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(m.paketpreis)
                          : "–"}
                      </TableCell>
-                     <TableCell onClick={(e) => e.stopPropagation()}>
-                       <div className="flex min-w-[180px] items-center gap-2">
-                         <Input
-                           value={merchantCodes[m.id] ?? ""}
-                           onChange={(e) => setMerchantCodes((prev) => ({
-                             ...prev,
-                             [m.id]: e.target.value.toUpperCase().slice(0, 3),
-                           }))}
-                           placeholder="PMF"
-                           className="h-8 uppercase"
-                         />
-                         <Button
-                           type="button"
-                           variant="outline"
-                           size="sm"
-                           onClick={() => saveMerchantCode(m)}
-                           disabled={savingCodeId === m.id}
-                         >
-                           {savingCodeId === m.id ? "..." : "Speichern"}
-                         </Button>
-                       </div>
-                     </TableCell>
                     <TableCell>
                       {new Date(m.created_at).toLocaleDateString("de-DE")}
                     </TableCell>
@@ -236,22 +175,6 @@ const HaendlerVerwaltungPage = () => {
                         {m.approved ? "Aktiv" : "Ausstehend"}
                       </Badge>
                     </TableCell>
-                     <TableCell onClick={(e) => e.stopPropagation()}>
-                       <PickupSettingsCell
-                         profileId={m.id}
-                         pickupEnabled={m.pickup_enabled}
-                         pickupWeekdays={m.pickup_weekdays}
-                         onChange={(next) =>
-                           setMerchants((prev) =>
-                             prev.map((row) =>
-                               row.id === m.id
-                                 ? { ...row, pickup_enabled: next.pickup_enabled, pickup_weekdays: next.pickup_weekdays }
-                                 : row,
-                             ),
-                           )
-                         }
-                       />
-                     </TableCell>
                      <TableCell onClick={(e) => e.stopPropagation()}>
                        <MerchantInvoiceDialog merchant={m} />
                      </TableCell>
