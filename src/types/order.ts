@@ -23,6 +23,8 @@ export interface Order {
   notizen?: string;
   deliveryAttempts?: number;
   isPickup?: boolean;
+  dhlLabelUrl?: string;
+  dhlTrackingNumber?: string;
 }
 
 export const STATUS_LABELS: Record<OrderStatus, string> = {
