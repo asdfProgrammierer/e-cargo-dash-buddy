@@ -4,6 +4,28 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { sendOrderStatusEmail } from "@/lib/orderEmail";
+import { fetchCoveredPostcodes, isCheckablePostcode, isCoveredPostcode } from "@/lib/deliveryCoverage";
+
+async function maybeCreateDhlLabel(order: Order, merchantId: string, covered: Set<string>) {
+  try {
+    if (!isCheckablePostcode(order.empfaengerPlz)) return;
+    if (isCoveredPostcode(order.empfaengerPlz, covered)) return;
+    const { data: profile } = await supabase
+      .from("profiles").select("dhl_enabled").eq("user_id", merchantId).maybeSingle();
+    if (!(profile as any)?.dhl_enabled) return;
+    const { error } = await supabase.functions.invoke("create-dhl-label", {
+      body: { orderId: order.id },
+    });
+    if (error) {
+      console.warn("DHL label creation failed", error);
+      toast.error(`DHL-Label für ${order.auftragsNr} konnte nicht erstellt werden`);
+    } else {
+      toast.success(`DHL-Label für ${order.auftragsNr} erstellt`);
+    }
+  } catch (err) {
+    console.warn("DHL label trigger error", err);
+  }
+}
 
 async function geocodeOrder(order: Order) {
   if (!order.empfaengerStadt) return;
@@ -48,6 +70,8 @@ interface DbOrder {
   updated_at: string;
   delivery_attempts?: number | null;
   is_pickup?: boolean | null;
+  dhl_label_url?: string | null;
+  dhl_tracking_number?: string | null;
 }
 
 function dbToOrder(row: DbOrder): Order {
@@ -72,6 +96,8 @@ function dbToOrder(row: DbOrder): Order {
     notizen: row.notizen ?? undefined,
     deliveryAttempts: typeof row.delivery_attempts === "number" ? row.delivery_attempts : 0,
     isPickup: row.is_pickup === true,
+    dhlLabelUrl: row.dhl_label_url ?? undefined,
+    dhlTrackingNumber: row.dhl_tracking_number ?? undefined,
   };
 }
 
@@ -132,6 +158,12 @@ export function useOrderStore() {
     const newOrder = dbToOrder(data as unknown as DbOrder);
     setOrders((prev) => [newOrder, ...prev]);
     void geocodeOrder(newOrder);
+    void (async () => {
+      try {
+        const covered = await fetchCoveredPostcodes();
+        await maybeCreateDhlLabel(newOrder, merchantId, covered);
+      } catch {}
+    })();
     void sendOrderStatusEmail({
       orderId: newOrder.id,
       auftragsNr: newOrder.auftragsNr,
@@ -177,6 +209,12 @@ export function useOrderStore() {
     for (const o of created) {
       void geocodeOrder(o);
     }
+    void (async () => {
+      try {
+        const covered = await fetchCoveredPostcodes();
+        for (const o of created) await maybeCreateDhlLabel(o, merchantId, covered);
+      } catch {}
+    })();
     for (const o of created) {
       void sendOrderStatusEmail({
         orderId: o.id,

@@ -25,6 +25,8 @@ import {
 import { Order, OrderStatus, STATUS_LABELS, STATUS_COLORS, MAX_DELIVERY_ATTEMPTS } from "@/types/order";
 import { getZoneBadgeStyle } from "@/lib/deliveryZones";
 import { getOrderZoneMeta, printShippingLabels } from "@/lib/shippingLabels";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const STATUS_OPTIONS: OrderStatus[] = ["neu", "in_bearbeitung", "unterwegs", "zugestellt", "nicht_zugestellt", "storniert"];
 
@@ -149,6 +151,21 @@ export function OrderDetailSheet({
 
   const printLabel = async () => {
     await printShippingLabels([order]);
+  };
+
+  const [dhlLoading, setDhlLoading] = useState(false);
+  const createDhlLabel = async () => {
+    if (!order) return;
+    setDhlLoading(true);
+    const { data, error } = await supabase.functions.invoke("create-dhl-label", {
+      body: { orderId: order.id },
+    });
+    setDhlLoading(false);
+    if (error || (data as any)?.error) {
+      toast.error((data as any)?.error || "DHL-Label konnte nicht erstellt werden");
+    } else {
+      toast.success("DHL-Label erstellt");
+    }
   };
 
   const requestStatusUpdate = async (status: OrderStatus) => {
@@ -468,6 +485,20 @@ export function OrderDetailSheet({
             <Printer className="mr-2 h-4 w-4" />
             Versandetikett drucken
           </Button>
+
+          {order.dhlLabelUrl ? (
+            <a href={order.dhlLabelUrl} target="_blank" rel="noopener noreferrer" className="block">
+              <Button variant="outline" className="w-full">
+                <Printer className="mr-2 h-4 w-4" />
+                DHL-Label öffnen ({order.dhlTrackingNumber})
+              </Button>
+            </a>
+          ) : (
+            <Button variant="outline" className="w-full" onClick={createDhlLabel} disabled={dhlLoading}>
+              <Package className="mr-2 h-4 w-4" />
+              {dhlLoading ? "DHL-Label wird erstellt..." : "DHL-Label erzeugen"}
+            </Button>
+          )}
 
           {canUpdateStatus && (
             <div className="space-y-2">

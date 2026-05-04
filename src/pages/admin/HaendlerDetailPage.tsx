@@ -16,7 +16,7 @@ import { PickupSettingsCell } from "@/components/admin/PickupSettingsCell";
 import {
   ArrowLeft, Building2, User, MapPin, Phone, Mail, Globe, FileText,
   Key, Link2, Webhook, Copy, ShoppingBag, CheckCircle2, AlertCircle,
-  Calendar, Shield, Truck
+  Calendar, Shield, Truck, Package
 } from "lucide-react";
 
 interface MerchantProfile {
@@ -37,6 +37,7 @@ interface MerchantProfile {
   approved: boolean;
   pickup_enabled: boolean;
   pickup_weekdays: number[];
+  dhl_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -100,6 +101,7 @@ const HaendlerDetailPage = () => {
           ...p,
           pickup_enabled: p.pickup_enabled ?? false,
           pickup_weekdays: Array.isArray(p.pickup_weekdays) ? p.pickup_weekdays : [],
+          dhl_enabled: p.dhl_enabled ?? false,
         } as MerchantProfile);
 
         // Now fetch shop connections and orders using user_id
@@ -140,6 +142,17 @@ const HaendlerDetailPage = () => {
     } else {
       setProfile({ ...profile, approved: newVal });
       toast.success(newVal ? "Händler freigeschaltet" : "Händler gesperrt");
+    }
+  };
+
+  const toggleDhl = async (next: boolean) => {
+    if (!profile) return;
+    const { error } = await (supabase as any).from("profiles").update({ dhl_enabled: next }).eq("id", profile.id);
+    if (error) {
+      toast.error("DHL-Einstellung konnte nicht gespeichert werden");
+    } else {
+      setProfile({ ...profile, dhl_enabled: next });
+      toast.success(next ? "DHL-Versand aktiviert" : "DHL-Versand deaktiviert");
     }
   };
 
@@ -579,6 +592,28 @@ const HaendlerDetailPage = () => {
                     </p>
                   </div>
                   <Switch checked={profile.approved} onCheckedChange={toggleApproval} />
+                </div>
+
+                <div className="rounded-lg border border-border p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2">
+                      <Package className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <div>
+                        <p className="font-medium text-sm">DHL-Versand außerhalb des Liefergebiets</p>
+                        <p className="text-xs text-muted-foreground">
+                          Wenn aktiviert, wird automatisch ein DHL-Label über unser Geschäftskunden-Konto erstellt,
+                          sobald die Empfänger-PLZ außerhalb des e-cargo Liefergebiets liegt. Der Händlercode dient als Kostenstelle für die DHL-Abrechnung.
+                        </p>
+                      </div>
+                    </div>
+                    <Switch checked={profile.dhl_enabled} onCheckedChange={toggleDhl} />
+                  </div>
+                  {profile.dhl_enabled && !profile.merchant_code && (
+                    <p className="text-xs text-warning flex items-center gap-1.5">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      Bitte zuerst einen Händlercode hinterlegen (wird als Kostenstelle übermittelt).
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
