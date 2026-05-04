@@ -16,7 +16,7 @@ import { PickupSettingsCell } from "@/components/admin/PickupSettingsCell";
 import {
   ArrowLeft, Building2, User, MapPin, Phone, Mail, Globe, FileText,
   Key, Link2, Webhook, Copy, ShoppingBag, CheckCircle2, AlertCircle,
-  Calendar, Shield, Truck
+  Calendar, Shield, Truck, Package
 } from "lucide-react";
 
 interface MerchantProfile {
@@ -37,6 +37,7 @@ interface MerchantProfile {
   approved: boolean;
   pickup_enabled: boolean;
   pickup_weekdays: number[];
+  dhl_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -100,6 +101,7 @@ const HaendlerDetailPage = () => {
           ...p,
           pickup_enabled: p.pickup_enabled ?? false,
           pickup_weekdays: Array.isArray(p.pickup_weekdays) ? p.pickup_weekdays : [],
+          dhl_enabled: p.dhl_enabled ?? false,
         } as MerchantProfile);
 
         // Now fetch shop connections and orders using user_id
@@ -140,6 +142,17 @@ const HaendlerDetailPage = () => {
     } else {
       setProfile({ ...profile, approved: newVal });
       toast.success(newVal ? "Händler freigeschaltet" : "Händler gesperrt");
+    }
+  };
+
+  const toggleDhl = async (next: boolean) => {
+    if (!profile) return;
+    const { error } = await (supabase as any).from("profiles").update({ dhl_enabled: next }).eq("id", profile.id);
+    if (error) {
+      toast.error("DHL-Einstellung konnte nicht gespeichert werden");
+    } else {
+      setProfile({ ...profile, dhl_enabled: next });
+      toast.success(next ? "DHL-Versand aktiviert" : "DHL-Versand deaktiviert");
     }
   };
 
