@@ -1,0 +1,216 @@
+// DHL Parcel DE Shipping V2 – create label for a single order.
+// Auth: API key header + HTTP Basic (CIG credentials).
+// Cost center = merchant_code so DHL invoices can be split per merchant.
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+const DHL_ENDPOINT = "https://api-eu.dhl.com/parcel/de/shipping/v2/orders";
+
+function splitStreet(street: string): { name: string; number: string } {
+  const trimmed = (street || "").trim();
+  const m = trimmed.match(/^(.*?)\s+([0-9].*)$/);
+  if (m) return { name: m[1].trim(), number: m[2].trim() };
+  return { name: trimmed || "-", number: "-" };
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const apiKey = Deno.env.get("DHL_API_KEY");
+    const username = Deno.env.get("DHL_USERNAME");
+    const password = Deno.env.get("DHL_PASSWORD");
+    const billingNumber = Deno.env.get("DHL_BILLING_NUMBER");
+    if (!apiKey || !username || !password || !billingNumber) {
+      return new Response(JSON.stringify({ error: "DHL credentials missing" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: userRes } = await supabase.auth.getUser();
+    const user = userRes?.user;
+    if (!user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const orderId = body?.orderId as string | undefined;
+    if (!orderId) {
+      return new Response(JSON.stringify({ error: "orderId required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Service-role read for full data + permission check via merchant ownership / admin.
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    const { data: order, error: orderErr } = await admin
+      .from("orders").select("*").eq("id", orderId).single();
+    if (orderErr || !order) {
+      return new Response(JSON.stringify({ error: "Order not found" }), {
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Permission: caller must be admin OR own (or be sub-account of) the merchant.
+    const { data: callerRoles } = await admin.from("user_roles").select("role").eq("user_id", user.id);
+    const isAdmin = (callerRoles ?? []).some((r: any) => r.role === "admin");
+    let allowed = isAdmin;
+    if (!allowed) {
+      const { data: callerProfile } = await admin
+        .from("profiles").select("user_id, parent_user_id").eq("user_id", user.id).maybeSingle();
+      const ownerId = callerProfile?.parent_user_id ?? user.id;
+      allowed = ownerId === order.user_id;
+    }
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: merchant } = await admin
+      .from("profiles").select("merchant_code, dhl_enabled, firma_name")
+      .eq("user_id", order.user_id).maybeSingle();
+    if (!merchant?.dhl_enabled) {
+      return new Response(JSON.stringify({ error: "DHL nicht für diesen Händler aktiviert" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const recipientStreet = splitStreet(order.empfaenger_adresse || "");
+    const weightKg = Math.max(0.1, Number(order.gewicht) || 1);
+
+    const dhlPayload = {
+      profile: "STANDARD_GRUPPENPROFIL",
+      shipments: [
+        {
+          product: "V01PAK",
+          billingNumber,
+          refNo: (order.auftrags_nr || order.id).slice(0, 35),
+          costCenter: (merchant.merchant_code || "").slice(0, 50),
+          shipper: {
+            name1: (merchant.firma_name || "e-cargo").slice(0, 50),
+            addressStreet: "Versandzentrum",
+            addressHouse: "1",
+            postalCode: "44135",
+            city: "Dortmund",
+            country: "DEU",
+          },
+          consignee: {
+            name1: (order.empfaenger_name || "").slice(0, 50),
+            addressStreet: recipientStreet.name.slice(0, 50),
+            addressHouse: recipientStreet.number.slice(0, 10),
+            postalCode: order.empfaenger_plz || "",
+            city: order.empfaenger_stadt || "",
+            country: "DEU",
+            email: order.empfaenger_email || undefined,
+            phone: order.empfaenger_telefon || undefined,
+          },
+          details: {
+            weight: { uom: "kg", value: weightKg },
+            ...(order.package_length_cm && order.package_width_cm && order.package_height_cm ? {
+              dim: {
+                uom: "cm",
+                length: Number(order.package_length_cm),
+                width: Number(order.package_width_cm),
+                height: Number(order.package_height_cm),
+              },
+            } : {}),
+          },
+        },
+      ],
+    };
+
+    const dhlResp = await fetch(`${DHL_ENDPOINT}?validate=false`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "dhl-api-key": apiKey,
+        Authorization: "Basic " + btoa(`${username}:${password}`),
+      },
+      body: JSON.stringify(dhlPayload),
+    });
+
+    const dhlJson = await dhlResp.json().catch(() => ({}));
+    if (!dhlResp.ok) {
+      console.error("DHL error", dhlResp.status, dhlJson);
+      return new Response(JSON.stringify({ error: "DHL API Fehler", status: dhlResp.status, details: dhlJson }), {
+        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const item = dhlJson?.items?.[0];
+    const shipmentNo: string | undefined = item?.shipmentNo;
+    const labelB64: string | undefined = item?.label?.b64;
+    const labelUrl: string | undefined = item?.label?.url;
+
+    if (!shipmentNo) {
+      return new Response(JSON.stringify({ error: "Kein Label in DHL-Antwort", details: dhlJson }), {
+        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Upload label PDF to storage if base64 present
+    let storedUrl: string | null = labelUrl ?? null;
+    if (labelB64) {
+      const bytes = Uint8Array.from(atob(labelB64), (c) => c.charCodeAt(0));
+      const path = `dhl/${order.id}-${shipmentNo}.pdf`;
+      const { error: upErr } = await admin.storage
+        .from("delivery-notes")
+        .upload(path, bytes, { contentType: "application/pdf", upsert: true });
+      if (!upErr) {
+        const { data: signed } = await admin.storage
+          .from("delivery-notes")
+          .createSignedUrl(path, 60 * 60 * 24 * 365);
+        storedUrl = signed?.signedUrl ?? storedUrl;
+      } else {
+        console.warn("Label upload failed", upErr);
+      }
+    }
+
+    await admin.from("orders").update({
+      dhl_label_url: storedUrl,
+      dhl_tracking_number: shipmentNo,
+      dhl_shipment_no: shipmentNo,
+      dhl_label_created_at: new Date().toISOString(),
+    }).eq("id", order.id);
+
+    return new Response(JSON.stringify({
+      success: true,
+      shipmentNo,
+      trackingNumber: shipmentNo,
+      labelUrl: storedUrl,
+    }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    console.error("create-dhl-label error", err);
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
