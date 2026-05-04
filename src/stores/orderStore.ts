@@ -70,6 +70,8 @@ interface DbOrder {
   updated_at: string;
   delivery_attempts?: number | null;
   is_pickup?: boolean | null;
+  dhl_label_url?: string | null;
+  dhl_tracking_number?: string | null;
 }
 
 function dbToOrder(row: DbOrder): Order {
@@ -94,6 +96,8 @@ function dbToOrder(row: DbOrder): Order {
     notizen: row.notizen ?? undefined,
     deliveryAttempts: typeof row.delivery_attempts === "number" ? row.delivery_attempts : 0,
     isPickup: row.is_pickup === true,
+    dhlLabelUrl: row.dhl_label_url ?? undefined,
+    dhlTrackingNumber: row.dhl_tracking_number ?? undefined,
   };
 }
 
