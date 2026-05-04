@@ -12,10 +12,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { PickupSettingsCell } from "@/components/admin/PickupSettingsCell";
 import {
   ArrowLeft, Building2, User, MapPin, Phone, Mail, Globe, FileText,
   Key, Link2, Webhook, Copy, ShoppingBag, CheckCircle2, AlertCircle,
-  Calendar, Shield
+  Calendar, Shield, Truck
 } from "lucide-react";
 
 interface MerchantProfile {
@@ -34,6 +35,8 @@ interface MerchantProfile {
   paketpreis: number | null;
   merchant_code: string | null;
   approved: boolean;
+  pickup_enabled: boolean;
+  pickup_weekdays: number[];
   created_at: string;
   updated_at: string;
 }
@@ -92,7 +95,12 @@ const HaendlerDetailPage = () => {
       ]);
 
       if (profileRes.data) {
-        setProfile(profileRes.data as MerchantProfile);
+        const p: any = profileRes.data;
+        setProfile({
+          ...p,
+          pickup_enabled: p.pickup_enabled ?? false,
+          pickup_weekdays: Array.isArray(p.pickup_weekdays) ? p.pickup_weekdays : [],
+        } as MerchantProfile);
 
         // Now fetch shop connections and orders using user_id
         const userId = profileRes.data.user_id;
@@ -535,6 +543,30 @@ const HaendlerDetailPage = () => {
                       {savingMerchantCode ? "Speichern..." : "Code speichern"}
                     </Button>
                   </div>
+                </div>
+
+                <div className="rounded-lg border border-border p-4 space-y-3">
+                  <div className="flex items-start gap-2">
+                    <Truck className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="font-medium text-sm">Tägliche Abholung</p>
+                      <p className="text-xs text-muted-foreground">
+                        Aktiviert die automatische Erstellung täglicher Abhol-Aufträge an den ausgewählten Wochentagen.
+                      </p>
+                    </div>
+                  </div>
+                  <PickupSettingsCell
+                    profileId={profile.id}
+                    pickupEnabled={profile.pickup_enabled}
+                    pickupWeekdays={profile.pickup_weekdays}
+                    onChange={(next) =>
+                      setProfile((prev) => prev ? {
+                        ...prev,
+                        pickup_enabled: next.pickup_enabled,
+                        pickup_weekdays: next.pickup_weekdays,
+                      } : prev)
+                    }
+                  />
                 </div>
 
                 <div className="flex items-center justify-between rounded-lg border border-border p-4">
