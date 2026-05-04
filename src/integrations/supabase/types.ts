@@ -542,6 +542,10 @@ export type Database = {
           created_at: string
           delivered_at: string | null
           delivery_attempts: number
+          dhl_label_created_at: string | null
+          dhl_label_url: string | null
+          dhl_shipment_no: string | null
+          dhl_tracking_number: string | null
           empfaenger_adresse: string | null
           empfaenger_email: string | null
           empfaenger_name: string
@@ -571,6 +575,10 @@ export type Database = {
           created_at?: string
           delivered_at?: string | null
           delivery_attempts?: number
+          dhl_label_created_at?: string | null
+          dhl_label_url?: string | null
+          dhl_shipment_no?: string | null
+          dhl_tracking_number?: string | null
           empfaenger_adresse?: string | null
           empfaenger_email?: string | null
           empfaenger_name: string
@@ -600,6 +608,10 @@ export type Database = {
           created_at?: string
           delivered_at?: string | null
           delivery_attempts?: number
+          dhl_label_created_at?: string | null
+          dhl_label_url?: string | null
+          dhl_shipment_no?: string | null
+          dhl_tracking_number?: string | null
           empfaenger_adresse?: string | null
           empfaenger_email?: string | null
           empfaenger_name?: string
@@ -654,6 +666,7 @@ export type Database = {
           approved: boolean
           avatar_url: string | null
           created_at: string
+          dhl_enabled: boolean
           firma_name: string | null
           id: string
           land: string | null
@@ -679,6 +692,7 @@ export type Database = {
           approved?: boolean
           avatar_url?: string | null
           created_at?: string
+          dhl_enabled?: boolean
           firma_name?: string | null
           id?: string
           land?: string | null
@@ -704,6 +718,7 @@ export type Database = {
           approved?: boolean
           avatar_url?: string | null
           created_at?: string
+          dhl_enabled?: boolean
           firma_name?: string | null
           id?: string
           land?: string | null
@@ -1151,6 +1166,10 @@ export type Database = {
           created_at: string
           delivered_at: string | null
           delivery_attempts: number
+          dhl_label_created_at: string | null
+          dhl_label_url: string | null
+          dhl_shipment_no: string | null
+          dhl_tracking_number: string | null
           empfaenger_adresse: string | null
           empfaenger_email: string | null
           empfaenger_name: string
