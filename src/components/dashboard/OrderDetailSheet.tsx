@@ -486,6 +486,20 @@ export function OrderDetailSheet({
             Versandetikett drucken
           </Button>
 
+          {order.dhlLabelUrl ? (
+            <a href={order.dhlLabelUrl} target="_blank" rel="noopener noreferrer" className="block">
+              <Button variant="outline" className="w-full">
+                <Printer className="mr-2 h-4 w-4" />
+                DHL-Label öffnen ({order.dhlTrackingNumber})
+              </Button>
+            </a>
+          ) : (
+            <Button variant="outline" className="w-full" onClick={createDhlLabel} disabled={dhlLoading}>
+              <Package className="mr-2 h-4 w-4" />
+              {dhlLoading ? "DHL-Label wird erstellt..." : "DHL-Label erzeugen"}
+            </Button>
+          )}
+
           {canUpdateStatus && (
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status ändern</p>
