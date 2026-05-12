@@ -43,14 +43,22 @@ function toIso3(country: string | null | undefined): string {
   return map[c] ?? (c.length === 3 ? c.toUpperCase() : "DEU");
 }
 
-function pickProduct(countryIso3: string, weightKg: number): string {
-  if (countryIso3 === "DEU") {
-    return weightKg < 2 ? "V62KP" : "V01PAK";
-  }
-  if (EU_COUNTRIES.has(countryIso3)) {
-    return weightKg < 2 ? "V66KPI" : "V54EPAK";
-  }
-  return weightKg < 2 ? "V66KPI" : "V53WPAK";
+// Kleinpaket-/Warenpost-Limits: max 1 kg und Maße 35,3 × 25 × 8 cm
+function fitsKleinpaket(weightKg: number, l?: number, w?: number, h?: number): boolean {
+  if (weightKg > 1) return false;
+  if (l == null || w == null || h == null) return true; // ohne Maße erlauben
+  const dims = [l, w, h].sort((a, b) => b - a); // sortiert: längste zuerst
+  return dims[0] <= 35.3 && dims[1] <= 25 && dims[2] <= 8;
+}
+
+function pickProduct(
+  countryIso3: string, weightKg: number,
+  l?: number, w?: number, h?: number,
+): string {
+  const small = fitsKleinpaket(weightKg, l, w, h);
+  if (countryIso3 === "DEU") return small ? "V62KP" : "V01PAK";
+  if (EU_COUNTRIES.has(countryIso3)) return small ? "V66KPI" : "V54EPAK";
+  return small ? "V66KPI" : "V53WPAK";
 }
 
 Deno.serve(async (req) => {
@@ -136,7 +144,12 @@ Deno.serve(async (req) => {
     const recipientStreet = splitStreet(order.empfaenger_adresse || "");
     const weightKg = Math.max(0.1, Number(order.gewicht) || 1);
     const countryIso3 = toIso3((order as any).empfaenger_land);
-    const productCode = pickProduct(countryIso3, weightKg);
+    const productCode = pickProduct(
+      countryIso3, weightKg,
+      order.package_length_cm ? Number(order.package_length_cm) : undefined,
+      order.package_width_cm ? Number(order.package_width_cm) : undefined,
+      order.package_height_cm ? Number(order.package_height_cm) : undefined,
+    );
 
     const { data: productRow } = await admin
       .from("dhl_products").select("billing_number").eq("code", productCode).maybeSingle();
@@ -147,14 +160,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Preis ermitteln: Händler-Override > globaler Default
-    const { data: priceRows } = await admin
-      .from("dhl_pricing").select("price_netto, user_id")
+    // Preis: Tier mit kleinstem max_weight_kg >= weight; Händler-Override schlägt Default
+    const { data: tierRows } = await admin
+      .from("dhl_price_tiers")
+      .select("user_id, max_weight_kg, price_netto")
       .eq("product_code", productCode)
-      .or(`user_id.eq.${order.user_id},user_id.is.null`);
-    const merchantPrice = priceRows?.find((r: any) => r.user_id === order.user_id)?.price_netto;
-    const globalPrice = priceRows?.find((r: any) => r.user_id === null)?.price_netto;
-    const priceNetto = merchantPrice ?? globalPrice ?? 0;
+      .or(`user_id.eq.${order.user_id},user_id.is.null`)
+      .order("max_weight_kg", { ascending: true });
+    const candidates = (tierRows ?? []) as Array<{ user_id: string | null; max_weight_kg: number; price_netto: number }>;
+    const pickTier = (rows: typeof candidates) =>
+      rows.find((r) => Number(r.max_weight_kg) >= weightKg)
+      ?? rows[rows.length - 1]; // schwerstes Tier als Fallback
+    const merchantTier = pickTier(candidates.filter((r) => r.user_id === order.user_id));
+    const globalTier = pickTier(candidates.filter((r) => r.user_id === null));
+    const chosenTier = merchantTier ?? globalTier;
+    const priceNetto = Number(chosenTier?.price_netto ?? 0);
 
     const dhlPayload = {
       profile: "STANDARD_GRUPPENPROFIL",
