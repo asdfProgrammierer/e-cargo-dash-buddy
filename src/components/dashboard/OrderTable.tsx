@@ -153,9 +153,15 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
                 <TableCell className="text-center">{order.pakete}</TableCell>
                 <TableCell className="text-right">{order.gewicht} kg</TableCell>
                 <TableCell>
-                  <Badge variant="secondary" className={`${STATUS_COLORS[order.status]} border-0 text-xs`}>
-                    {STATUS_LABELS[order.status]}
-                  </Badge>
+                  {order.dhlTrackingNumber ? (
+                    <Badge variant="secondary" className="border-0 text-xs bg-yellow-400 text-yellow-950 hover:bg-yellow-400">
+                      DHL
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className={`${STATUS_COLORS[order.status]} border-0 text-xs`}>
+                      {STATUS_LABELS[order.status]}
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell className="text-muted-foreground text-sm">{order.erstelltAm}</TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
