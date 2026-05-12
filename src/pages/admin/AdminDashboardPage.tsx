@@ -46,6 +46,8 @@ type RecentOrder = {
   status: OrderStatus;
   notizen: string | null;
   created_at: string;
+  dhl_tracking_number: string | null;
+  dhl_label_url: string | null;
 };
 
 type OrderHistoryEntry = {
