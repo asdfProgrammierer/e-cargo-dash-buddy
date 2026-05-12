@@ -5,12 +5,8 @@ import { DhlPricingTable } from "@/components/admin/DhlPricingTable";
 
 export default function DhlSettingsPage() {
   return (
-    <AdminLayout>
+    <AdminLayout title="Einstellungen">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">DHL Versand</h1>
-          <p className="text-sm text-muted-foreground">Globale Standardpreise und Abrechnungsnummern verwalten.</p>
-        </div>
         <SettingsTabs />
         <Card>
           <CardHeader>
