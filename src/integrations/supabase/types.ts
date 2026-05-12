@@ -213,6 +213,68 @@ export type Database = {
         }
         Relationships: []
       }
+      dhl_pricing: {
+        Row: {
+          created_at: string
+          id: string
+          price_netto: number
+          product_code: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          price_netto?: number
+          product_code: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          price_netto?: number
+          product_code?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dhl_pricing_product_code_fkey"
+            columns: ["product_code"]
+            isOneToOne: false
+            referencedRelation: "dhl_products"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      dhl_products: {
+        Row: {
+          active: boolean
+          billing_number: string | null
+          code: string
+          label: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          billing_number?: string | null
+          code: string
+          label: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          billing_number?: string | null
+          code?: string
+          label?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       drivers: {
         Row: {
           auth_user_id: string | null
@@ -544,6 +606,8 @@ export type Database = {
           delivery_attempts: number
           dhl_label_created_at: string | null
           dhl_label_url: string | null
+          dhl_price_netto: number | null
+          dhl_product_code: string | null
           dhl_shipment_no: string | null
           dhl_tracking_number: string | null
           empfaenger_adresse: string | null
@@ -577,6 +641,8 @@ export type Database = {
           delivery_attempts?: number
           dhl_label_created_at?: string | null
           dhl_label_url?: string | null
+          dhl_price_netto?: number | null
+          dhl_product_code?: string | null
           dhl_shipment_no?: string | null
           dhl_tracking_number?: string | null
           empfaenger_adresse?: string | null
@@ -610,6 +676,8 @@ export type Database = {
           delivery_attempts?: number
           dhl_label_created_at?: string | null
           dhl_label_url?: string | null
+          dhl_price_netto?: number | null
+          dhl_product_code?: string | null
           dhl_shipment_no?: string | null
           dhl_tracking_number?: string | null
           empfaenger_adresse?: string | null
@@ -1168,6 +1236,8 @@ export type Database = {
           delivery_attempts: number
           dhl_label_created_at: string | null
           dhl_label_url: string | null
+          dhl_price_netto: number | null
+          dhl_product_code: string | null
           dhl_shipment_no: string | null
           dhl_tracking_number: string | null
           empfaenger_adresse: string | null
