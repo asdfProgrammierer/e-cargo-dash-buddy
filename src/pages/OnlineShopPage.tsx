@@ -74,19 +74,28 @@ const OnlineShopPage = () => {
     if (!cleanDomain) { toast.error("Shop-Domain fehlt"); return; }
     if (!connection && !token.trim()) { toast.error("Access Token erforderlich"); return; }
     setSaving(true);
-    const payload: Record<string, unknown> = {
+    const fullDomain = cleanDomain.includes(".") ? cleanDomain : `${cleanDomain}.myshopify.com`;
+    const updatePayload = {
       user_id: merchantId,
       platform: "shopify",
-      shop_domain: cleanDomain.includes(".") ? cleanDomain : `${cleanDomain}.myshopify.com`,
-      api_url: cleanDomain.includes(".") ? cleanDomain : `${cleanDomain}.myshopify.com`,
+      shop_domain: fullDomain,
+      api_url: fullDomain,
       auto_fulfill: autoFulfill,
       active: true,
+      ...(token.trim() ? { api_key: token.trim() } : {}),
     };
-    if (token.trim()) payload.api_key = token.trim();
-
+    const insertPayload = {
+      user_id: merchantId,
+      platform: "shopify",
+      shop_domain: fullDomain,
+      api_url: fullDomain,
+      auto_fulfill: autoFulfill,
+      active: true,
+      api_key: token.trim(),
+    };
     const { error } = connection
-      ? await supabase.from("shop_connections").update(payload).eq("id", connection.id)
-      : await supabase.from("shop_connections").insert({ ...payload, api_key: token.trim() });
+      ? await supabase.from("shop_connections").update(updatePayload).eq("id", connection.id)
+      : await supabase.from("shop_connections").insert(insertPayload);
     setSaving(false);
     if (error) { toast.error("Speichern fehlgeschlagen: " + error.message); return; }
     toast.success("Shopify-Verbindung gespeichert");
