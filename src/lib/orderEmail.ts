@@ -44,13 +44,19 @@ async function getMerchantName(userId: string): Promise<string> {
   return name;
 }
 
-async function getTrackingToken(orderId: string): Promise<string | null> {
+async function getTrackingInfo(
+  orderId: string,
+): Promise<{ trackingToken: string | null; dhlTrackingNumber: string | null }> {
   const { data } = await supabase
     .from("orders")
-    .select("tracking_token")
+    .select("tracking_token, dhl_tracking_number")
     .eq("id", orderId)
     .maybeSingle();
-  return (data as { tracking_token?: string | null } | null)?.tracking_token ?? null;
+  const row = data as { tracking_token?: string | null; dhl_tracking_number?: string | null } | null;
+  return {
+    trackingToken: row?.tracking_token ?? null,
+    dhlTrackingNumber: row?.dhl_tracking_number ?? null,
+  };
 }
 
 function buildLieferadresse(p: OrderEmailPayload): string {
@@ -74,8 +80,10 @@ export async function sendOrderStatusEmail(payload: OrderEmailPayload): Promise<
 
   try {
     const haendlerName = await getMerchantName(payload.haendlerUserId);
-    const token = await getTrackingToken(payload.orderId);
-    const trackingUrl = buildTrackingUrl(token);
+    const { trackingToken, dhlTrackingNumber } = await getTrackingInfo(payload.orderId);
+    // Bei DHL-Aufträgen senden wir keine eigenen Status-Mails – DHL informiert den Kunden.
+    if (dhlTrackingNumber && dhlTrackingNumber.trim().length > 0) return;
+    const trackingUrl = buildTrackingUrl(trackingToken);
     const templateData: Record<string, string> = {
       kundenname: payload.empfaengerName,
       haendlerName,
