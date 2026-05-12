@@ -18,6 +18,41 @@ function splitStreet(street: string): { name: string; number: string } {
   return { name: trimmed || "-", number: "-" };
 }
 
+// EU-Länder (ISO3) für Produktauswahl V54EPAK
+const EU_COUNTRIES = new Set([
+  "AUT","BEL","BGR","HRV","CYP","CZE","DNK","EST","FIN","FRA","GRC","HUN",
+  "IRL","ITA","LVA","LTU","LUX","MLT","NLD","POL","PRT","ROU","SVK","SVN",
+  "ESP","SWE",
+]);
+
+function toIso3(country: string | null | undefined): string {
+  const c = (country || "Deutschland").trim().toLowerCase();
+  const map: Record<string, string> = {
+    "deutschland":"DEU","germany":"DEU","de":"DEU",
+    "österreich":"AUT","austria":"AUT","at":"AUT",
+    "schweiz":"CHE","switzerland":"CHE","ch":"CHE",
+    "niederlande":"NLD","netherlands":"NLD","nl":"NLD",
+    "belgien":"BEL","belgium":"BEL","be":"BEL",
+    "frankreich":"FRA","france":"FRA","fr":"FRA",
+    "italien":"ITA","italy":"ITA","it":"ITA",
+    "spanien":"ESP","spain":"ESP","es":"ESP",
+    "polen":"POL","poland":"POL","pl":"POL",
+    "luxemburg":"LUX","luxembourg":"LUX","lu":"LUX",
+    "dänemark":"DNK","denmark":"DNK","dk":"DNK",
+  };
+  return map[c] ?? (c.length === 3 ? c.toUpperCase() : "DEU");
+}
+
+function pickProduct(countryIso3: string, weightKg: number): string {
+  if (countryIso3 === "DEU") {
+    return weightKg < 2 ? "V62KP" : "V01PAK";
+  }
+  if (EU_COUNTRIES.has(countryIso3)) {
+    return weightKg < 2 ? "V66KPI" : "V54EPAK";
+  }
+  return weightKg < 2 ? "V66KPI" : "V53WPAK";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -25,8 +60,7 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get("DHL_API_KEY");
     const username = Deno.env.get("DHL_USERNAME");
     const password = Deno.env.get("DHL_PASSWORD");
-    const billingNumber = Deno.env.get("DHL_BILLING_NUMBER");
-    if (!apiKey || !username || !password || !billingNumber) {
+    if (!apiKey || !username || !password) {
       return new Response(JSON.stringify({ error: "DHL credentials missing" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -101,21 +135,41 @@ Deno.serve(async (req) => {
 
     const recipientStreet = splitStreet(order.empfaenger_adresse || "");
     const weightKg = Math.max(0.1, Number(order.gewicht) || 1);
+    const countryIso3 = toIso3((order as any).empfaenger_land);
+    const productCode = pickProduct(countryIso3, weightKg);
+
+    const { data: productRow } = await admin
+      .from("dhl_products").select("billing_number").eq("code", productCode).maybeSingle();
+    const billingNumber = productRow?.billing_number;
+    if (!billingNumber) {
+      return new Response(JSON.stringify({ error: `Keine Abrechnungsnummer für ${productCode} hinterlegt` }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Preis ermitteln: Händler-Override > globaler Default
+    const { data: priceRows } = await admin
+      .from("dhl_pricing").select("price_netto, user_id")
+      .eq("product_code", productCode)
+      .or(`user_id.eq.${order.user_id},user_id.is.null`);
+    const merchantPrice = priceRows?.find((r: any) => r.user_id === order.user_id)?.price_netto;
+    const globalPrice = priceRows?.find((r: any) => r.user_id === null)?.price_netto;
+    const priceNetto = merchantPrice ?? globalPrice ?? 0;
 
     const dhlPayload = {
       profile: "STANDARD_GRUPPENPROFIL",
       shipments: [
         {
-          product: "V01PAK",
+          product: productCode === "RETOURE" ? "V01PAK" : productCode,
           billingNumber,
           refNo: (order.auftrags_nr || order.id).slice(0, 35),
           costCenter: (merchant.merchant_code || "").slice(0, 50),
           shipper: {
             name1: (merchant.firma_name || "e-cargo").slice(0, 50),
-            addressStreet: "Versandzentrum",
-            addressHouse: "1",
-            postalCode: "44135",
-            city: "Dortmund",
+            addressStreet: "Haldenstraße",
+            addressHouse: "58",
+            postalCode: "44809",
+            city: "Bochum",
             country: "DEU",
           },
           consignee: {
@@ -124,7 +178,7 @@ Deno.serve(async (req) => {
             addressHouse: recipientStreet.number.slice(0, 10),
             postalCode: order.empfaenger_plz || "",
             city: order.empfaenger_stadt || "",
-            country: "DEU",
+            country: countryIso3,
             email: order.empfaenger_email || undefined,
             phone: order.empfaenger_telefon || undefined,
           },
@@ -196,6 +250,8 @@ Deno.serve(async (req) => {
       dhl_tracking_number: shipmentNo,
       dhl_shipment_no: shipmentNo,
       dhl_label_created_at: new Date().toISOString(),
+      dhl_product_code: productCode,
+      dhl_price_netto: priceNetto,
     }).eq("id", order.id);
 
     return new Response(JSON.stringify({
@@ -203,6 +259,8 @@ Deno.serve(async (req) => {
       shipmentNo,
       trackingNumber: shipmentNo,
       labelUrl: storedUrl,
+      productCode,
+      priceNetto,
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

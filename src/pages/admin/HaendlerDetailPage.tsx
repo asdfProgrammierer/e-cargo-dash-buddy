@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { PickupSettingsCell } from "@/components/admin/PickupSettingsCell";
+import { DhlPricingTable } from "@/components/admin/DhlPricingTable";
 import {
   ArrowLeft, Building2, User, MapPin, Phone, Mail, Globe, FileText,
   Key, Link2, Webhook, Copy, ShoppingBag, CheckCircle2, AlertCircle,
@@ -613,6 +614,12 @@ const HaendlerDetailPage = () => {
                       <AlertCircle className="h-3.5 w-3.5" />
                       Bitte zuerst einen Händlercode hinterlegen (wird als Kostenstelle übermittelt).
                     </p>
+                  )}
+                  {profile.dhl_enabled && (
+                    <div className="pt-3 border-t border-border">
+                      <p className="text-sm font-medium mb-2">Individuelle DHL-Preise (netto, €)</p>
+                      <DhlPricingTable merchantUserId={profile.user_id} />
+                    </div>
                   )}
                 </div>
 
