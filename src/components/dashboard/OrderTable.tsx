@@ -55,12 +55,19 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
   const printBulkLabels = async () => {
     const selectedOrders = orders.filter((o) => selected.has(o.id));
     if (selectedOrders.length === 0) return;
-    await printShippingLabels(selectedOrders);
+    const dhlOrders = selectedOrders.filter((o) => o.dhlLabelUrl);
+    const standardOrders = selectedOrders.filter((o) => !o.dhlLabelUrl);
+    dhlOrders.forEach((o) => window.open(o.dhlLabelUrl!, "_blank", "noopener,noreferrer"));
+    if (standardOrders.length > 0) await printShippingLabels(standardOrders);
     setSelected(new Set());
   };
 
   const printLabel = async (e: React.MouseEvent, order: Order) => {
     e.stopPropagation();
+    if (order.dhlLabelUrl) {
+      window.open(order.dhlLabelUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
     await printShippingLabels([order]);
   };
 
