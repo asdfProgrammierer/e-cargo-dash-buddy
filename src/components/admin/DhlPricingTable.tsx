@@ -2,9 +2,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Package } from "lucide-react";
+import { Loader2, Package, Plus, Trash2 } from "lucide-react";
 
 interface DhlProduct {
   code: string;
@@ -13,88 +12,64 @@ interface DhlProduct {
   sort_order: number;
 }
 
-interface PricingRow {
+interface Tier {
+  id?: string;
   product_code: string;
   user_id: string | null;
+  max_weight_kg: number;
   price_netto: number;
 }
 
 interface Props {
-  /** When set, edits are saved as merchant overrides for that user_id; defaults editable too. */
+  /** Wenn gesetzt: Override-Modus für diesen Händler. Sonst globale Defaults. */
   merchantUserId?: string;
-  /** When true, lets admin edit global default prices. */
-  editGlobal?: boolean;
 }
 
-export function DhlPricingTable({ merchantUserId, editGlobal = false }: Props) {
+export function DhlPricingTable({ merchantUserId }: Props) {
   const [products, setProducts] = useState<DhlProduct[]>([]);
-  const [globals, setGlobals] = useState<Record<string, number>>({});
-  const [overrides, setOverrides] = useState<Record<string, number | null>>({});
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [globalTiers, setGlobalTiers] = useState<Tier[]>([]);
+  const [merchantTiers, setMerchantTiers] = useState<Tier[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<string | null>(null);
 
-  useEffect(() => {
-    void load();
-  }, [merchantUserId]);
+  useEffect(() => { void load(); }, [merchantUserId]);
 
   async function load() {
     setLoading(true);
-    const [{ data: prod }, { data: prices }] = await Promise.all([
+    const [{ data: prod }, { data: tiers }] = await Promise.all([
       (supabase as any).from("dhl_products").select("*").order("sort_order"),
-      (supabase as any).from("dhl_pricing").select("product_code,user_id,price_netto"),
+      (supabase as any).from("dhl_price_tiers").select("*").order("max_weight_kg", { ascending: true }),
     ]);
     setProducts((prod ?? []) as DhlProduct[]);
-    const g: Record<string, number> = {};
-    const o: Record<string, number | null> = {};
-    for (const r of (prices ?? []) as PricingRow[]) {
-      if (r.user_id === null) g[r.product_code] = Number(r.price_netto);
-      else if (merchantUserId && r.user_id === merchantUserId) o[r.product_code] = Number(r.price_netto);
-    }
-    setGlobals(g);
-    setOverrides(o);
-    setDrafts({});
+    const all = (tiers ?? []) as Tier[];
+    setGlobalTiers(all.filter((t) => t.user_id === null));
+    setMerchantTiers(merchantUserId ? all.filter((t) => t.user_id === merchantUserId) : []);
     setLoading(false);
   }
 
-  async function saveRow(code: string, kind: "global" | "override") {
-    const raw = drafts[`${kind}:${code}`];
-    if (raw === undefined) return;
-    const value = Number(raw.replace(",", "."));
-    if (!isFinite(value) || value < 0) { toast.error("Ungültiger Preis"); return; }
-    setSaving(`${kind}:${code}`);
-    const userId = kind === "global" ? null : merchantUserId!;
-    // upsert by composite key
-    const { error } = await (supabase as any)
-      .from("dhl_pricing")
-      .upsert(
-        { product_code: code, user_id: userId, price_netto: value },
-        { onConflict: userId === null ? "product_code" : "product_code,user_id" } as any,
-      );
-    setSaving(null);
-    if (error) {
-      // fallback manual update if upsert conflict spec fails
-      const q = (supabase as any).from("dhl_pricing");
-      const { data: existing } = userId === null
-        ? await q.select("id").eq("product_code", code).is("user_id", null).maybeSingle()
-        : await q.select("id").eq("product_code", code).eq("user_id", userId).maybeSingle();
-      if (existing?.id) {
-        await (supabase as any).from("dhl_pricing").update({ price_netto: value }).eq("id", existing.id);
-      } else {
-        await (supabase as any).from("dhl_pricing").insert({ product_code: code, user_id: userId, price_netto: value });
-      }
+  async function saveTier(t: Tier) {
+    if (!isFinite(t.max_weight_kg) || t.max_weight_kg <= 0) { toast.error("Ungültiges Gewicht"); return; }
+    if (!isFinite(t.price_netto) || t.price_netto < 0) { toast.error("Ungültiger Preis"); return; }
+    const payload = {
+      product_code: t.product_code,
+      user_id: t.user_id,
+      max_weight_kg: t.max_weight_kg,
+      price_netto: t.price_netto,
+    };
+    if (t.id) {
+      const { error } = await (supabase as any).from("dhl_price_tiers").update(payload).eq("id", t.id);
+      if (error) { toast.error(error.message); return; }
+    } else {
+      const { error } = await (supabase as any).from("dhl_price_tiers").insert(payload);
+      if (error) { toast.error(error.message); return; }
     }
-    toast.success("Preis gespeichert");
+    toast.success("Staffel gespeichert");
     await load();
   }
 
-  async function removeOverride(code: string) {
-    if (!merchantUserId) return;
-    setSaving(`override:${code}`);
-    await (supabase as any).from("dhl_pricing")
-      .delete().eq("product_code", code).eq("user_id", merchantUserId);
-    setSaving(null);
-    toast.success("Händler-Preis entfernt – globaler Default gilt");
+  async function deleteTier(id: string) {
+    const { error } = await (supabase as any).from("dhl_price_tiers").delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Staffel gelöscht");
     await load();
   }
 
@@ -103,68 +78,88 @@ export function DhlPricingTable({ merchantUserId, editGlobal = false }: Props) {
   }
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-12 gap-2 px-3 text-xs font-medium text-muted-foreground">
-        <div className="col-span-5">Produkt</div>
-        <div className="col-span-3">EKP</div>
-        <div className="col-span-2 text-right">Default €</div>
-        <div className="col-span-2 text-right">{merchantUserId ? "Override €" : ""}</div>
-      </div>
+    <div className="space-y-4">
       {products.map((p) => {
-        const gKey = `global:${p.code}`;
-        const oKey = `override:${p.code}`;
-        const gVal = drafts[gKey] ?? (globals[p.code]?.toFixed(2) ?? "0.00");
-        const oVal = drafts[oKey] ?? (overrides[p.code]?.toFixed(2) ?? "");
+        const tiers = (merchantUserId ? merchantTiers : globalTiers)
+          .filter((t) => t.product_code === p.code)
+          .sort((a, b) => a.max_weight_kg - b.max_weight_kg);
+        const globalForProduct = globalTiers
+          .filter((t) => t.product_code === p.code)
+          .sort((a, b) => a.max_weight_kg - b.max_weight_kg);
+
         return (
-          <div key={p.code} className="grid grid-cols-12 gap-2 items-center rounded-lg border border-border p-3">
-            <div className="col-span-5 flex items-center gap-2">
-              <Package className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">{p.label}</p>
-                <p className="text-[10px] text-muted-foreground font-mono">{p.code}</p>
+          <div key={p.code} className="rounded-lg border border-border p-3 space-y-2">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">{p.label}</p>
+                  <p className="text-[10px] text-muted-foreground font-mono">
+                    {p.code} · EKP {p.billing_number ?? "—"}
+                  </p>
+                </div>
               </div>
+              <Button size="sm" variant="outline" onClick={() => saveTier({
+                product_code: p.code,
+                user_id: merchantUserId ?? null,
+                max_weight_kg: tiers.length ? Math.max(...tiers.map((t) => t.max_weight_kg)) + 1 : 1,
+                price_netto: 0,
+              })}>
+                <Plus className="h-3.5 w-3.5 mr-1" /> Staffel
+              </Button>
             </div>
-            <div className="col-span-3 text-xs font-mono text-muted-foreground">
-              {p.billing_number ?? "—"}
-            </div>
-            <div className="col-span-2 flex items-center justify-end gap-1">
-              {editGlobal ? (
-                <>
-                  <Input
-                    type="text" inputMode="decimal" className="h-8 w-20 text-right"
-                    value={gVal}
-                    onChange={(e) => setDrafts((d) => ({ ...d, [gKey]: e.target.value }))}
-                  />
-                  <Button size="sm" variant="outline" disabled={saving === gKey || drafts[gKey] === undefined}
-                    onClick={() => saveRow(p.code, "global")}>OK</Button>
-                </>
-              ) : (
-                <span className="text-sm font-mono">{(globals[p.code] ?? 0).toFixed(2)}</span>
-              )}
-            </div>
-            <div className="col-span-2 flex items-center justify-end gap-1">
-              {merchantUserId && (
-                <>
-                  <Input
-                    type="text" inputMode="decimal" className="h-8 w-20 text-right"
-                    placeholder={(globals[p.code] ?? 0).toFixed(2)}
-                    value={oVal}
-                    onChange={(e) => setDrafts((d) => ({ ...d, [oKey]: e.target.value }))}
-                  />
-                  <Button size="sm" variant="outline" disabled={saving === oKey || drafts[oKey] === undefined}
-                    onClick={() => saveRow(p.code, "override")}>OK</Button>
-                  {overrides[p.code] !== undefined && (
-                    <Button size="sm" variant="ghost" onClick={() => removeOverride(p.code)} title="Override entfernen">×</Button>
-                  )}
-                </>
-              )}
-            </div>
+
+            {tiers.length === 0 && (
+              <p className="text-xs text-muted-foreground italic">
+                {merchantUserId
+                  ? `Keine individuellen Staffeln – globale Defaults werden verwendet (${globalForProduct.length} Stufen).`
+                  : "Noch keine Staffeln definiert."}
+              </p>
+            )}
+
+            {tiers.length > 0 && (
+              <div className="space-y-1">
+                <div className="grid grid-cols-12 gap-2 px-2 text-[10px] font-medium text-muted-foreground uppercase">
+                  <div className="col-span-5">bis Gewicht (kg)</div>
+                  <div className="col-span-5">Preis netto (€)</div>
+                  <div className="col-span-2"></div>
+                </div>
+                {tiers.map((t) => (
+                  <TierRow key={t.id} tier={t} onSave={saveTier} onDelete={deleteTier} />
+                ))}
+              </div>
+            )}
           </div>
         );
       })}
-      <p className="text-xs text-muted-foreground px-1">
-        Default = globaler Preis für alle Händler. Override = individueller Händler-Preis (überschreibt Default für diesen Händler).
+      <p className="text-xs text-muted-foreground">
+        Die niedrigste Staffel, deren Maximalgewicht das Auftragsgewicht abdeckt, wird verwendet.
+        {merchantUserId && " Händler-Staffeln überschreiben die globalen Defaults für dieses Produkt vollständig."}
       </p>
+    </div>
+  );
+}
+
+function TierRow({ tier, onSave, onDelete }: { tier: Tier; onSave: (t: Tier) => void; onDelete: (id: string) => void }) {
+  const [w, setW] = useState(String(tier.max_weight_kg));
+  const [p, setP] = useState(tier.price_netto.toFixed(2));
+  const dirty = w !== String(tier.max_weight_kg) || p !== tier.price_netto.toFixed(2);
+
+  return (
+    <div className="grid grid-cols-12 gap-2 items-center">
+      <Input className="col-span-5 h-8" type="text" inputMode="decimal" value={w} onChange={(e) => setW(e.target.value)} />
+      <Input className="col-span-5 h-8" type="text" inputMode="decimal" value={p} onChange={(e) => setP(e.target.value)} />
+      <div className="col-span-2 flex gap-1 justify-end">
+        <Button size="sm" variant="outline" disabled={!dirty}
+          onClick={() => onSave({ ...tier, max_weight_kg: Number(w.replace(",", ".")), price_netto: Number(p.replace(",", ".")) })}>
+          OK
+        </Button>
+        {tier.id && (
+          <Button size="sm" variant="ghost" onClick={() => onDelete(tier.id!)}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

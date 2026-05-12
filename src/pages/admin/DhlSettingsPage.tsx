@@ -17,7 +17,7 @@ export default function DhlSettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <DhlPricingTable editGlobal />
+            <DhlPricingTable />
           </CardContent>
         </Card>
       </div>

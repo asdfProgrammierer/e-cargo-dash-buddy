@@ -213,10 +213,11 @@ export type Database = {
         }
         Relationships: []
       }
-      dhl_pricing: {
+      dhl_price_tiers: {
         Row: {
           created_at: string
           id: string
+          max_weight_kg: number
           price_netto: number
           product_code: string
           updated_at: string
@@ -225,6 +226,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          max_weight_kg: number
           price_netto?: number
           product_code: string
           updated_at?: string
@@ -233,6 +235,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          max_weight_kg?: number
           price_netto?: number
           product_code?: string
           updated_at?: string
@@ -240,7 +243,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "dhl_pricing_product_code_fkey"
+            foreignKeyName: "dhl_price_tiers_product_code_fkey"
             columns: ["product_code"]
             isOneToOne: false
             referencedRelation: "dhl_products"
