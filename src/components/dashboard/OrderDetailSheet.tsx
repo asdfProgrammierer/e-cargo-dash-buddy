@@ -76,6 +76,7 @@ export function OrderDetailSheet({
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmReactivate, setConfirmReactivate] = useState(false);
   const [zoneMeta, setZoneMeta] = useState<{ label: string; color?: string | null } | null>(null);
+  const [dhlLoading, setDhlLoading] = useState(false);
   const currentStep = order ? STATUS_ORDER[order.status] : 0;
   const canEdit = order ? isEditable(order.status) : false;
   const isCancelled = order?.status === "storniert";
@@ -153,7 +154,6 @@ export function OrderDetailSheet({
     await printShippingLabels([order]);
   };
 
-  const [dhlLoading, setDhlLoading] = useState(false);
   const createDhlLabel = async () => {
     if (!order) return;
     setDhlLoading(true);
