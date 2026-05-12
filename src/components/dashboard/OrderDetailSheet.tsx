@@ -21,6 +21,7 @@ import {
   Printer,
   Save,
   X,
+  ExternalLink,
 } from "lucide-react";
 import { Order, OrderStatus, STATUS_LABELS, STATUS_COLORS, MAX_DELIVERY_ATTEMPTS } from "@/types/order";
 import { getZoneBadgeStyle } from "@/lib/deliveryZones";
@@ -198,9 +199,15 @@ export function OrderDetailSheet({
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-3">
               <span className="font-mono text-base">{order.auftragsNr}</span>
-              <Badge variant="secondary" className={`${STATUS_COLORS[order.status]} border-0 text-xs`}>
-                {STATUS_LABELS[order.status]}
-              </Badge>
+              {order.dhlTrackingNumber ? (
+                <Badge variant="secondary" className="border-0 text-xs bg-yellow-400 text-yellow-950 hover:bg-yellow-400">
+                  DHL
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className={`${STATUS_COLORS[order.status]} border-0 text-xs`}>
+                  {STATUS_LABELS[order.status]}
+                </Badge>
+              )}
               {(order.deliveryAttempts ?? 0) > 0 ? (
                 <Badge variant="outline" className="border-warning/40 bg-warning/10 text-warning text-xs">
                   Versuch {order.deliveryAttempts} von {MAX_DELIVERY_ATTEMPTS}
@@ -216,7 +223,20 @@ export function OrderDetailSheet({
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">
             Sendungsverlauf
           </h3>
-          {isCancelled ? (
+          {order.dhlTrackingNumber ? (
+            <a
+              href={`https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=${encodeURIComponent(order.dhlTrackingNumber)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between gap-3 rounded-lg bg-yellow-400/15 border border-yellow-400/40 p-4 hover:bg-yellow-400/25 transition-colors"
+            >
+              <div className="flex flex-col">
+                <span className="text-xs text-muted-foreground">DHL Sendungsverfolgung</span>
+                <span className="font-mono text-sm font-medium">{order.dhlTrackingNumber}</span>
+              </div>
+              <ExternalLink className="h-4 w-4 text-muted-foreground" />
+            </a>
+          ) : isCancelled ? (
             <div className="flex items-center gap-3 rounded-lg bg-destructive/10 p-4">
               <XCircle className="h-5 w-5 text-destructive" />
               <span className="font-medium text-destructive">Auftrag storniert</span>
