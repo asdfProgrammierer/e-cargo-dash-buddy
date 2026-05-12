@@ -79,7 +79,7 @@ const AdminDashboardPage = () => {
         supabase.from("orders").select("*", { count: "exact", head: true }),
         supabase
           .from("orders")
-          .select("id, user_id, auftrags_nr, absender_name, absender_adresse, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_email, empfaenger_telefon, pakete, gewicht, package_length_cm, package_width_cm, package_height_cm, status, notizen, created_at")
+          .select("id, user_id, auftrags_nr, absender_name, absender_adresse, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_email, empfaenger_telefon, pakete, gewicht, package_length_cm, package_width_cm, package_height_cm, status, notizen, created_at, dhl_tracking_number, dhl_label_url")
           .order("created_at", { ascending: false }),
       ]);
 
@@ -369,9 +369,15 @@ const AdminDashboardPage = () => {
                       {dateTimeFormatter.format(new Date(order.created_at))}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary" className={STATUS_COLORS[order.status]}>
-                        {STATUS_LABELS[order.status]}
-                      </Badge>
+                      {order.dhl_tracking_number ? (
+                        <Badge variant="secondary" className="border-0 bg-yellow-400 text-yellow-950 hover:bg-yellow-400">
+                          DHL
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className={STATUS_COLORS[order.status]}>
+                          {STATUS_LABELS[order.status]}
+                        </Badge>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
