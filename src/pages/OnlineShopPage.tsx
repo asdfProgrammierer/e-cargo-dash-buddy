@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, AlertCircle, ShoppingBag, Package } from "lucide-react";
+import { CheckCircle2, AlertCircle, ShoppingBag, Package, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useOrders } from "@/context/OrderContext";
@@ -37,6 +39,7 @@ const OnlineShopPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const loadConnection = useCallback(async () => {
     if (!merchantId) return;
@@ -51,6 +54,30 @@ const OnlineShopPage = () => {
   }, [merchantId]);
 
   useEffect(() => { void loadConnection(); }, [loadConnection]);
+
+  const triggerSync = useCallback(async () => {
+    if (!connection) return;
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("shopify-sync", {
+        body: { connectionId: connection.id },
+      });
+      if (error) throw error;
+      const result = (data as { results?: Array<{ imported?: number; skippedPlz?: number; skippedDup?: number; error?: string }> })?.results?.[0];
+      if (result?.error) {
+        toast.error("Sync fehlgeschlagen", { description: result.error });
+      } else {
+        toast.success("Sync abgeschlossen", {
+          description: `Importiert: ${result?.imported ?? 0} · Außerhalb PLZ: ${result?.skippedPlz ?? 0} · Bereits vorhanden: ${result?.skippedDup ?? 0}`,
+        });
+      }
+      await loadConnection();
+    } catch (err) {
+      toast.error("Sync fehlgeschlagen", { description: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setSyncing(false);
+    }
+  }, [connection, loadConnection]);
 
   const shopOrders = useMemo(
     () => orders.filter((o) => (o.notizen ?? "").toLowerCase().includes("[shopify")
@@ -90,7 +117,13 @@ const OnlineShopPage = () => {
                     : ""}
                 </p>
               </div>
-              <Badge variant="secondary">Auto-Sync alle 15 Min</Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">Auto-Sync alle 15 Min</Badge>
+                <Button size="sm" variant="outline" onClick={triggerSync} disabled={syncing}>
+                  <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
+                  {syncing ? "Synchronisiere…" : "Jetzt synchronisieren"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : (
