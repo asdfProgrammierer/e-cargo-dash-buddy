@@ -357,8 +357,34 @@ export async function printShippingLabels(orders: Order[]) {
   win.document.write(html);
   win.document.close();
   setTimeout(() => win.print(), 300);
+
+  // Für Shop-Bestellungen (Shopify): nach dem Druck die Etikett-Info an den Shop
+  // zurückmelden (Order-Note + Fulfillment). Fire-and-forget.
+  void pushShopFulfillmentsForOrders(orders.map((o) => o.id));
 }
 
 export async function getOrderZoneMeta(order: Order) {
   return getZoneMetaForPostcode(order.empfaengerPlz);
+}
+
+async function pushShopFulfillmentsForOrders(orderIds: string[]) {
+  if (orderIds.length === 0) return;
+  try {
+    const { data } = await supabase
+      .from("orders")
+      .select("id, shop_connection_id, external_order_ref, shopify_fulfilled_at")
+      .in("id", orderIds);
+    const targets = (data ?? []).filter(
+      (o) => o.shop_connection_id && o.external_order_ref && !o.shopify_fulfilled_at,
+    );
+    await Promise.all(
+      targets.map((o) =>
+        supabase.functions.invoke("shopify-push-fulfillments", {
+          body: { orderId: o.id },
+        }),
+      ),
+    );
+  } catch (e) {
+    console.warn("shop fulfillment push failed", e);
+  }
 }
