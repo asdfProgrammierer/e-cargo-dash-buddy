@@ -482,21 +482,6 @@ const HaendlerDetailPage = () => {
                   <Input className="mt-1.5" type="password" placeholder="sk_live_..." value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
                 </div>
                 <div>
-                  <Label>Webhook-Secret (optional)</Label>
-                  <Input className="mt-1.5" type="password" placeholder="whsec_..." value={webhookSecret} onChange={(e) => setWebhookSecret(e.target.value)} />
-                </div>
-
-                <div>
-                  <Label>Webhook-URL für den Shop</Label>
-                  <div className="mt-1.5 flex gap-2">
-                    <Input value={webhookUrl} readOnly className="font-mono text-xs" />
-                    <Button variant="outline" size="icon" onClick={copyWebhookUrl}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
                   <Label>Notizen</Label>
                   <Textarea className="mt-1.5" placeholder="Interne Notizen zur Anbindung..." value={shopNotizen} onChange={(e) => setShopNotizen(e.target.value)} rows={3} />
                 </div>
@@ -512,6 +497,15 @@ const HaendlerDetailPage = () => {
                 <div className="flex gap-2 pt-2">
                   <Button onClick={saveShopConnection} disabled={savingShop} className="flex-1">
                     {savingShop ? "Speichern..." : shopConn ? "Verbindung aktualisieren" : "Verbindung speichern"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={testShopConnection}
+                    disabled={testingShop || !shopConn}
+                    title={!shopConn ? "Erst speichern, dann testen" : "Verbindung testen"}
+                  >
+                    <Plug className="h-4 w-4 mr-2" />
+                    {testingShop ? "Teste..." : "Verbindung testen"}
                   </Button>
                   {shopConn && (
                     <Button variant="outline" className="text-destructive" onClick={deleteShopConnection}>
