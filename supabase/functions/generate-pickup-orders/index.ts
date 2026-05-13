@@ -39,6 +39,28 @@ function berlinDateString(date = new Date()): string {
   return fmt.format(date); // YYYY-MM-DD
 }
 
+function berlinDayRangeUtc(date = new Date()): { startUtc: string; endUtc: string } {
+  // Find UTC offset (in minutes) for Europe/Berlin at the given instant
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Berlin",
+    timeZoneName: "shortOffset",
+    hour: "2-digit",
+    hour12: false,
+  });
+  const parts = dtf.formatToParts(date);
+  const tzName = parts.find((p) => p.type === "timeZoneName")?.value ?? "GMT+1";
+  const match = /GMT([+-]?\d{1,2})(?::(\d{2}))?/.exec(tzName);
+  const offsetHours = match ? parseInt(match[1], 10) : 1;
+  const offsetMinutes = match && match[2] ? parseInt(match[2], 10) : 0;
+  const sign = offsetHours >= 0 ? "+" : "-";
+  const hh = String(Math.abs(offsetHours)).padStart(2, "0");
+  const mm = String(offsetMinutes).padStart(2, "0");
+  const today = berlinDateString(date);
+  const startUtc = new Date(`${today}T00:00:00${sign}${hh}:${mm}`);
+  const endUtc = new Date(startUtc.getTime() + 24 * 60 * 60 * 1000);
+  return { startUtc: startUtc.toISOString(), endUtc: endUtc.toISOString() };
+}
+
 async function geocode(strasse: string, plz: string, stadt: string): Promise<{ lat: number; lng: number } | null> {
   const apiKey = Deno.env.get("ORS_API_KEY");
   if (!apiKey) return null;
@@ -110,6 +132,7 @@ Deno.serve(async (req) => {
 
     const weekday = forceWeekday ?? isoWeekdayBerlin();
     const today = berlinDateString();
+    const { startUtc, endUtc } = berlinDayRangeUtc();
 
     const { data: merchants, error: mErr } = await supabase
       .from("profiles")
@@ -129,6 +152,26 @@ Deno.serve(async (req) => {
     const results: Array<{ merchant: string; status: string; orderId?: string; reason?: string }> = [];
 
     for (const m of eligible) {
+      // Nur Abholung erstellen, wenn der Händler heute (Berlin) auch eine reguläre Bestellung erstellt hat
+      const { data: todaysOrders, error: ordErr } = await supabase
+        .from("orders")
+        .select("id")
+        .eq("user_id", m.user_id)
+        .eq("is_pickup", false)
+        .gte("created_at", startUtc)
+        .lt("created_at", endUtc)
+        .limit(1);
+
+      if (ordErr) {
+        results.push({ merchant: m.firma_name ?? m.id, status: "error", reason: ordErr.message });
+        continue;
+      }
+
+      if (!todaysOrders || todaysOrders.length === 0) {
+        results.push({ merchant: m.firma_name ?? m.id, status: "skipped_no_orders" });
+        continue;
+      }
+
       // Skip if a pickup order for this merchant already exists today
       const { data: existing, error: exErr } = await supabase
         .from("orders")
