@@ -16,7 +16,7 @@ import { PickupSettingsCell } from "@/components/admin/PickupSettingsCell";
 import { DhlPricingTable } from "@/components/admin/DhlPricingTable";
 import {
   ArrowLeft, Building2, User, MapPin, Phone, Mail, Globe, FileText,
-  Key, Link2, Webhook, Copy, ShoppingBag, CheckCircle2, AlertCircle,
+  Key, Link2, ShoppingBag, CheckCircle2, AlertCircle, Plug,
   Calendar, Shield, Truck, Package
 } from "lucide-react";
 
@@ -49,7 +49,6 @@ interface ShopConnection {
   platform: string;
   api_url: string;
   api_key: string;
-  webhook_secret: string | null;
   active: boolean;
   notizen: string | null;
   created_at: string;
@@ -76,7 +75,6 @@ const HaendlerDetailPage = () => {
   const [platform, setPlatform] = useState("");
   const [apiUrl, setApiUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [webhookSecret, setWebhookSecret] = useState("");
   const [shopActive, setShopActive] = useState(false);
   const [shopNotizen, setShopNotizen] = useState("");
   const [savingShop, setSavingShop] = useState(false);
@@ -84,8 +82,7 @@ const HaendlerDetailPage = () => {
   const [merchantCode, setMerchantCode] = useState("");
   const [savingPrice, setSavingPrice] = useState(false);
   const [savingMerchantCode, setSavingMerchantCode] = useState(false);
-
-  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL || ""}/functions/v1/shop-webhook`;
+  const [testingShop, setTestingShop] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -118,7 +115,6 @@ const HaendlerDetailPage = () => {
           setPlatform(s.platform);
           setApiUrl(s.api_url);
           setApiKey(s.api_key);
-          setWebhookSecret(s.webhook_secret || "");
           setShopActive(s.active);
           setShopNotizen(s.notizen || "");
         }
@@ -224,7 +220,6 @@ const HaendlerDetailPage = () => {
       platform,
       api_url: apiUrl,
       api_key: apiKey,
-      webhook_secret: webhookSecret || null,
       active: shopActive,
       notizen: shopNotizen || null,
     };
@@ -255,16 +250,31 @@ const HaendlerDetailPage = () => {
       setPlatform("");
       setApiUrl("");
       setApiKey("");
-      setWebhookSecret("");
       setShopActive(false);
       setShopNotizen("");
       toast.success("Shop-Verbindung gelöscht");
     }
   };
 
-  const copyWebhookUrl = () => {
-    navigator.clipboard.writeText(webhookUrl);
-    toast.success("Webhook-URL kopiert");
+  const testShopConnection = async () => {
+    if (!shopConn) {
+      toast.error("Bitte zuerst die Verbindung speichern");
+      return;
+    }
+    setTestingShop(true);
+    const { data, error } = await supabase.functions.invoke("shopify-test-connection", {
+      body: { connectionId: shopConn.id },
+    });
+    setTestingShop(false);
+    if (error) {
+      toast.error(`Test fehlgeschlagen: ${error.message}`);
+      return;
+    }
+    if (data?.ok) {
+      toast.success(`Verbindung erfolgreich: ${data.shop?.name ?? data.shop?.domain ?? "OK"}`);
+    } else {
+      toast.error(`Verbindung fehlgeschlagen: ${data?.error ?? "Unbekannter Fehler"}`);
+    }
   };
 
   if (loading) {
@@ -472,21 +482,6 @@ const HaendlerDetailPage = () => {
                   <Input className="mt-1.5" type="password" placeholder="sk_live_..." value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
                 </div>
                 <div>
-                  <Label>Webhook-Secret (optional)</Label>
-                  <Input className="mt-1.5" type="password" placeholder="whsec_..." value={webhookSecret} onChange={(e) => setWebhookSecret(e.target.value)} />
-                </div>
-
-                <div>
-                  <Label>Webhook-URL für den Shop</Label>
-                  <div className="mt-1.5 flex gap-2">
-                    <Input value={webhookUrl} readOnly className="font-mono text-xs" />
-                    <Button variant="outline" size="icon" onClick={copyWebhookUrl}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
                   <Label>Notizen</Label>
                   <Textarea className="mt-1.5" placeholder="Interne Notizen zur Anbindung..." value={shopNotizen} onChange={(e) => setShopNotizen(e.target.value)} rows={3} />
                 </div>
@@ -502,6 +497,15 @@ const HaendlerDetailPage = () => {
                 <div className="flex gap-2 pt-2">
                   <Button onClick={saveShopConnection} disabled={savingShop} className="flex-1">
                     {savingShop ? "Speichern..." : shopConn ? "Verbindung aktualisieren" : "Verbindung speichern"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={testShopConnection}
+                    disabled={testingShop || !shopConn}
+                    title={!shopConn ? "Erst speichern, dann testen" : "Verbindung testen"}
+                  >
+                    <Plug className="h-4 w-4 mr-2" />
+                    {testingShop ? "Teste..." : "Verbindung testen"}
                   </Button>
                   {shopConn && (
                     <Button variant="outline" className="text-destructive" onClick={deleteShopConnection}>
