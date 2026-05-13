@@ -274,6 +274,18 @@ Deno.serve(async (req) => {
       dhl_price_netto: priceNetto,
     }).eq("id", order.id);
 
+    // Wenn die Order aus einem Shop stammt: sofort an Shopify zurückmelden
+    // (Order-Note mit Label-Link + Fulfillment). Fire-and-forget.
+    if ((order as any).shop_connection_id && (order as any).external_order_ref) {
+      try {
+        await admin.functions.invoke("shopify-push-fulfillments", {
+          body: { orderId: order.id },
+        });
+      } catch (e) {
+        console.warn("shopify push after dhl label failed", e);
+      }
+    }
+
     return new Response(JSON.stringify({
       success: true,
       shipmentNo,
