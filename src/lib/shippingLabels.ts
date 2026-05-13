@@ -107,8 +107,6 @@ function renderSingleLabel(order: Order, zone: ZoneMeta | null, qrCodeDataUrl: s
           <div class="barcode">${escapeHtml(order.auftragsNr.replace(/-/g, " "))}</div>
         </div>
 
-        ${order.notizen ? `<div class="section notes"><div class="section-title">Hinweise</div><div class="section-content">${escapeHtml(order.notizen)}</div></div>` : ""}
-
         <div class="footer">
           <span>Bitte Zone bei der Sortierung beachten</span>
           <span>Thermodruck 100×150 mm</span>
