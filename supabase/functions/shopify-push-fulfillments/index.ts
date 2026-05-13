@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 const SHOPIFY_API_VERSION = "2024-10";
+const LABEL_NOTE_MARKER = "[e-cargo-label]";
 
 function normalizeDomain(input: string | null | undefined): string | null {
   if (!input) return null;
@@ -45,6 +46,55 @@ async function pushFulfillment(
     return { orderId: order.id, error: "Verbindung unvollständig" };
   }
 
+  const isDhl = !!order.dhl_tracking_number;
+
+  // Tracking-Info: bevorzugt DHL, sonst e-cargo Tracking
+  const trackingNumber = order.dhl_tracking_number?.trim() || order.auftrags_nr;
+  const ecargoTrackingUrl = buildTrackingUrl(order.tracking_token, req);
+  const dhlTrackingUrl = order.dhl_tracking_number
+    ? `https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=${encodeURIComponent(order.dhl_tracking_number)}`
+    : null;
+  const trackingUrl = dhlTrackingUrl || ecargoTrackingUrl;
+  const trackingCompany = isDhl ? "DHL" : "e-cargo";
+
+  // Label-Link für die Order-Note: bevorzugt direkt das DHL-Label-PDF (signed URL),
+  // sonst die e-cargo Tracking-Seite, von der aus der Händler das Label drucken kann.
+  let labelLink: string | null = order.dhl_label_url ?? null;
+  if (isDhl && order.dhl_label_url) {
+    // Wenn dhl_label_url ein Storage-Pfad statt einer signed URL ist, signieren.
+    if (!/^https?:\/\//i.test(order.dhl_label_url)) {
+      const { data: signed } = await admin.storage
+        .from("delivery-notes")
+        .createSignedUrl(order.dhl_label_url, 60 * 60 * 24 * 7);
+      labelLink = signed?.signedUrl ?? labelLink;
+    }
+  }
+  if (!labelLink) labelLink = ecargoTrackingUrl;
+
+  // 0. Order-Note in Shopify ergänzen (idempotent über Marker)
+  if (labelLink) {
+    try {
+      const noteRes = await shopifyFetch(
+        domain, conn.api_key,
+        `/orders/${order.external_order_ref}.json?fields=note`,
+      );
+      if (noteRes.ok) {
+        const noteJson = await noteRes.json() as { order?: { note?: string | null } };
+        const existing = (noteJson.order?.note ?? "").trim();
+        if (!existing.includes(LABEL_NOTE_MARKER)) {
+          const block = `${LABEL_NOTE_MARKER}\nVersand durch e-cargo (${trackingCompany})\nEtikett: ${labelLink}${trackingUrl ? `\nTracking: ${trackingUrl}` : ""}`;
+          const newNote = existing ? `${existing}\n\n${block}` : block;
+          await shopifyFetch(domain, conn.api_key, `/orders/${order.external_order_ref}.json`, {
+            method: "PUT",
+            body: JSON.stringify({ order: { id: Number(order.external_order_ref), note: newNote } }),
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("note update failed", order.id, e);
+    }
+  }
+
   // 1. Fulfillment Orders abrufen
   const foRes = await shopifyFetch(
     domain, conn.api_key,
@@ -66,20 +116,13 @@ async function pushFulfillment(
     return { orderId: order.id, skipped: "no open fulfillment orders" };
   }
 
-  // Tracking-Info: bevorzugt DHL, sonst e-cargo Tracking
-  const trackingNumber = order.dhl_tracking_number?.trim()
-    || order.auftrags_nr;
-  const trackingUrl = order.dhl_label_url?.trim()
-    ? `https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=${encodeURIComponent(order.dhl_tracking_number ?? "")}`
-    : buildTrackingUrl(order.tracking_token, req);
-  const trackingCompany = order.dhl_tracking_number ? "DHL" : "e-cargo";
-
   const fulRes = await shopifyFetch(domain, conn.api_key, `/fulfillments.json`, {
     method: "POST",
     body: JSON.stringify({
       fulfillment: {
         message: "Versand durch e-cargo",
-        notify_customer: true,
+        // Bei DHL keine Shopify-Kundenmail (konsistent mit unterdrückter e-cargo Mail).
+        notify_customer: !isDhl,
         tracking_info: {
           number: trackingNumber,
           url: trackingUrl || undefined,
@@ -116,16 +159,20 @@ Deno.serve(async (req) => {
     let body: { orderId?: string } = {};
     try { body = await req.json(); } catch { /* ignore */ }
 
-    // Trigger: orders, die zu Shopify gehören, schon mind. unterwegs sind und noch
-    // nicht zurückgemeldet wurden.
+    // Trigger: Shopify-Orders mit fertigem Etikett (DHL ODER e-cargo Druck) bzw. ab
+    // Status 'in_bearbeitung' / 'unterwegs' / 'zugestellt'.
     let q = admin
       .from("orders")
       .select("id, external_order_ref, shop_connection_id, status, tracking_token, dhl_tracking_number, dhl_label_url, auftrags_nr")
       .not("shop_connection_id", "is", null)
       .not("external_order_ref", "is", null)
-      .is("shopify_fulfilled_at", null)
-      .in("status", ["unterwegs", "zugestellt"]);
-    if (body.orderId) q = q.eq("id", body.orderId);
+      .is("shopify_fulfilled_at", null);
+    if (body.orderId) {
+      q = q.eq("id", body.orderId);
+    } else {
+      // Cron-Run: nur Orders mit Label oder fortgeschrittenem Status.
+      q = q.or("dhl_label_url.not.is.null,status.in.(in_bearbeitung,unterwegs,zugestellt)");
+    }
 
     const { data: orders, error: oErr } = await q;
     if (oErr) throw oErr;

@@ -1,33 +1,65 @@
+# Plan: Versandetiketten in Shopify bereitstellen
+
 ## Ziel
-Automatisch generierte Abhol-Aufträge sollen für Admins in der Routenplanung wie normale Sendungen erscheinen — sichtbar in „Neue Sendungen", auf der Karte, und vor allem **einer Route zuweisbar**.
+Sobald für eine Shopify-Bestellung ein Versandetikett (DHL **oder** e-cargo) erstellt wurde, bekommt der Händler in seiner Shopify-Order:
+1. Eine **Order-Note** mit direktem Download-Link zum Label-PDF.
+2. Ein **Fulfillment** mit Tracking-Nummer + Tracking-URL (wie heute, nur jetzt früher ausgelöst).
 
-## Problem heute
-Die Edge Function `generate-pickup-orders` erstellt zwar Aufträge mit `status='neu'`, **aber ohne Geokoordinaten** (`lat`/`lng` bleiben null). Die `NewOrdersTable` deaktiviert die Checkbox für Aufträge ohne Koordinaten — dadurch tauchen Abholungen zwar in der Liste auf, lassen sich aber nicht in eine Route hinzufügen und erscheinen auch nicht auf der Karte.
+## Trigger ändern
+Aktuell läuft `shopify-push-fulfillments` erst bei Status `unterwegs`/`zugestellt`. Neuer Trigger:
+- Sobald `dhl_label_url` gesetzt wird (DHL-Fall) **oder**
+- sobald für eine e-cargo-Order ein Etikett gedruckt wurde (wir nutzen hier `tracking_token`, das ohnehin existiert, und triggern beim ersten Aufruf von „Etikett drucken" für Shopify-Orders).
 
-Zusätzlich ist die Adresse unsauber gefüllt: `empfaenger_adresse` enthält nur die Straße (statt der vollen Adresse), was die Geocodierung erschwert.
+Auswahl-Query in der Edge-Function wird erweitert auf:
+```
+shop_connection_id IS NOT NULL
+AND external_order_ref IS NOT NULL
+AND shopify_fulfilled_at IS NULL
+AND (dhl_label_url IS NOT NULL OR status IN ('in_bearbeitung','unterwegs','zugestellt'))
+```
 
-## Änderungen
+## Edge Function: `shopify-push-fulfillments` erweitern
 
-### 1. Edge Function `generate-pickup-orders` erweitern
-- Adresse korrekt zusammensetzen: `empfaenger_adresse = "{strasse}"`, `empfaenger_plz`, `empfaenger_stadt` (wie heute) — aber zusätzlich:
-- **Direkt nach dem Insert geocodieren**: ORS Forward-Geocoding (gleicher Endpoint wie `geocode-address`, mit `ORS_API_KEY` aus Secrets) aufrufen und `lat`, `lng`, `geocoded_at` auf der neuen Order setzen.
-- Falls Geocoding fehlschlägt → Order trotzdem behalten, aber im Result-Log vermerken (`geocode_failed`).
+### 1. Label-URL ermitteln
+- DHL-Order: `dhl_label_url` ist bereits ein Pfad im `delivery-notes` Bucket. Wir erzeugen eine **signed URL** (7 Tage Gültigkeit) via `admin.storage.from('delivery-notes').createSignedUrl(path, 60*60*24*7)`.
+- e-cargo-Order (kein DHL): Link zur eigenen Tracking-/Label-Seite. Da unser Label clientseitig gedruckt wird, hinterlegen wir die Tracking-URL (`buildTrackingUrl(...)`) — der Händler kann das e-cargo-Label im Portal ausdrucken. (Optional Folge-Iteration: Label serverseitig rendern und in Storage ablegen.)
 
-### 2. Admin-Sicht in `RoutenplanungPage.tsx`
-- `loadNewOrders`-Query um `is_pickup` und `notizen` erweitern, an `NewOrdersTable` weiterreichen.
+### 2. Order-Note in Shopify schreiben
+Vor dem Fulfillment-Call ein PUT auf `/orders/{id}.json`:
+```json
+{ "order": { "id": ..., "note": "Versandetikett (e-cargo): <signed_url>\nTracking: <tracking_url>" } }
+```
+- Wenn bereits eine Note existiert, **anhängen** statt überschreiben (vorher `GET /orders/{id}.json?fields=note` lesen, neuen Block per Trennlinie ergänzen, idempotent über Marker `[e-cargo-label]`).
 
-### 3. `NewOrdersTable.tsx`
-- `NewOrderRow` Interface um `is_pickup?: boolean` ergänzen.
-- In der Tabellenzeile neben der Auftrags-Nr. einen **gelben „Abholung"-Badge** anzeigen (gleicher Stil wie in `OrderTable.tsx`), damit Admins die Sendungen sofort erkennen.
-- Funktional ändert sich nichts — sobald die Pickup-Orders Koordinaten haben, sind sie wie jede andere neue Sendung selektierbar, kartierbar und einer Route zuweisbar.
+### 3. Fulfillment unverändert
+Tracking-Info wie heute. `notify_customer` bleibt `true` (DHL-Sonderfall: für DHL-Orders bereits in `orderEmail.ts` unterdrückt — Shopify-seitige Customer-Mail ist davon unabhängig; falls auch hier unterdrückt werden soll, `notify_customer: false` setzen — siehe offene Frage unten).
 
-### 4. Optional: Fallback-Geocoding für Bestands-Abholungen
-Einmaliger Re-Geocoding-Lauf der bereits ohne Koordinaten erstellten Pickup-Orders über die bestehende Logik — kann der Admin auch durch erneutes Triggern der Funktion (mit Cleanup) lösen, daher hier nicht zwingend nötig.
+### 4. Idempotenz
+- `shopify_fulfilled_at` markiert Push als erledigt (bereits vorhanden).
+- Neuer Spalten-Marker nicht nötig — Note-Block wird über Marker-String idempotent.
 
-## Geänderte / neue Dateien
-- `supabase/functions/generate-pickup-orders/index.ts` — Geocoding-Schritt nach Insert.
-- `src/pages/admin/RoutenplanungPage.tsx` — `is_pickup` mitladen und durchreichen.
-- `src/components/admin/NewOrdersTable.tsx` — Interface + Abholung-Badge in der Zeile.
+## Auslöser
 
-## Ergebnis
-Abhol-Aufträge erscheinen morgens automatisch in der Admin-Routenplanung mit klarem „Abholung"-Badge, sind auf der Karte sichtbar und können wie jede andere Sendung per Klick einer Tour zugeordnet werden.
+### A. DHL-Label
+In `create-dhl-label/index.ts`: nach erfolgreichem Speichern von `dhl_label_url` zusätzlich `supabase.functions.invoke('shopify-push-fulfillments', { body: { orderId } })` (fire-and-forget).
+
+### B. e-cargo Label-Druck
+In `src/lib/shippingLabels.ts` → `printShippingLabels`: für jede Order mit `shop_connection_id` + `external_order_ref` einmalig die Edge-Function triggern (oder serverseitig: separater Button „An Shopify melden" — fragt offene Frage 2).
+
+### C. Cron bleibt
+15-Min-Cron als Fallback (deckt Edge-Cases ab, in denen der Direkt-Trigger fehlschlug).
+
+## Anzeige im Frontend
+`OnlineShopPage.tsx` (Händler-Sicht) bekommt pro Order zusätzlich:
+- Badge „An Shopify gemeldet" (grün) wenn `shopify_fulfilled_at` gesetzt.
+- Sonst: „Wartet auf Etikett".
+
+## Offene Fragen
+1. Bei **DHL-Orders** soll laut Memo *keine* Kundenbenachrichtigung von e-cargo rausgehen. Soll auch Shopify den Kunden **nicht** automatisch per Mail über das Fulfillment informieren (`notify_customer: false`)?
+2. Soll der e-cargo-Label-Push **automatisch** beim Drucken passieren oder nur über einen separaten Button im Auftragsdetail?
+
+## Geänderte Dateien (Vorschau)
+- `supabase/functions/shopify-push-fulfillments/index.ts` — Query, Note-Update, Signed-URL
+- `supabase/functions/create-dhl-label/index.ts` — Direkt-Trigger nach Label
+- `src/lib/shippingLabels.ts` oder `OrderDetailSheet.tsx` — e-cargo Trigger (abhängig von Frage 2)
+- `src/pages/OnlineShopPage.tsx` — Status-Badge

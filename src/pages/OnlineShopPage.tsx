@@ -40,6 +40,7 @@ const OnlineShopPage = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [fulfilledMap, setFulfilledMap] = useState<Record<string, string>>({});
 
   const loadConnection = useCallback(async () => {
     if (!merchantId) return;
@@ -86,6 +87,25 @@ const OnlineShopPage = () => {
       || (o.notizen ?? "").toLowerCase().includes("woocommerce")),
     [orders],
   );
+
+  useEffect(() => {
+    const ids = shopOrders.map((o) => o.id);
+    if (ids.length === 0) { setFulfilledMap({}); return; }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("orders")
+        .select("id, shopify_fulfilled_at")
+        .in("id", ids);
+      if (cancelled) return;
+      const map: Record<string, string> = {};
+      (data ?? []).forEach((row) => {
+        if (row.shopify_fulfilled_at) map[row.id] = row.shopify_fulfilled_at;
+      });
+      setFulfilledMap(map);
+    })();
+    return () => { cancelled = true; };
+  }, [shopOrders]);
 
   const currentOrder = selectedOrder ? orders.find((o) => o.id === selectedOrder.id) ?? null : null;
 
@@ -159,12 +179,22 @@ const OnlineShopPage = () => {
                 <p>Noch keine Bestellungen aus dem Shop übertragen.</p>
               </div>
             ) : (
-              <OrderTable
-                orders={shopOrders}
-                onDelete={deleteOrder}
-                onSelect={(o) => { setSelectedOrder(o); setSheetOpen(true); }}
-                onCancel={(id) => updateStatus(id, "storniert")}
-              />
+              <>
+                <div className="mb-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-success" /> An Shopify gemeldet: {Object.keys(fulfilledMap).length}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-muted-foreground/40" /> Wartet auf Etikett: {shopOrders.length - Object.keys(fulfilledMap).length}
+                  </span>
+                </div>
+                <OrderTable
+                  orders={shopOrders}
+                  onDelete={deleteOrder}
+                  onSelect={(o) => { setSelectedOrder(o); setSheetOpen(true); }}
+                  onCancel={(id) => updateStatus(id, "storniert")}
+                />
+              </>
             )}
           </CardContent>
         </Card>
