@@ -1,6 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { MapPinned, Warehouse, Route as RouteIcon, Mail, PackageSearch, Truck } from "lucide-react";
+import { MapPinned, Warehouse, Route as RouteIcon, Mail, PackageSearch, Truck, KeyRound } from "lucide-react";
 
 const tabs = [
   { to: "/admin/einstellungen/liefergebiet", label: "Liefergebiet", icon: MapPinned },
@@ -9,6 +9,7 @@ const tabs = [
   { to: "/admin/einstellungen/emails", label: "E-Mail-Vorlagen", icon: Mail },
   { to: "/admin/einstellungen/abholungen", label: "Abholungen", icon: PackageSearch },
   { to: "/admin/einstellungen/dhl", label: "DHL Versand", icon: Truck },
+  { to: "/admin/einstellungen/konto", label: "Konto", icon: KeyRound },
 ];
 
 export function SettingsTabs() {

@@ -29,6 +29,7 @@ import RouteSettingsPage from "./pages/admin/RouteSettingsPage";
 import EmailTemplatesPage from "./pages/admin/EmailTemplatesPage";
 import PickupCronPage from "./pages/admin/PickupCronPage";
 import DhlSettingsPage from "./pages/admin/DhlSettingsPage";
+import AccountSettingsPage from "./pages/admin/AccountSettingsPage";
 import NotificationsPage from "./pages/admin/NotificationsPage";
 import NotFound from "./pages/NotFound";
 import UnsubscribePage from "./pages/UnsubscribePage";
@@ -133,6 +134,7 @@ const AppRoutes = () => (
     <Route path="/admin/einstellungen/emails" element={<AdminRoute><EmailTemplatesPage /></AdminRoute>} />
     <Route path="/admin/einstellungen/abholungen" element={<AdminRoute><PickupCronPage /></AdminRoute>} />
     <Route path="/admin/einstellungen/dhl" element={<AdminRoute><DhlSettingsPage /></AdminRoute>} />
+    <Route path="/admin/einstellungen/konto" element={<AdminRoute><AccountSettingsPage /></AdminRoute>} />
     <Route path="/admin/benachrichtigungen" element={<AdminRoute><NotificationsPage /></AdminRoute>} />
     <Route path="/admin/liefergebiet" element={<Navigate to="/admin/einstellungen/liefergebiet" replace />} />
     <Route path="/fahrer/login" element={<DriverLoginPage />} />
