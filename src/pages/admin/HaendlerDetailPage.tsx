@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { PickupSettingsCell } from "@/components/admin/PickupSettingsCell";
 import { DhlPricingTable } from "@/components/admin/DhlPricingTable";
+import { AdminCreateOrderDialog } from "@/components/admin/AdminCreateOrderDialog";
 import {
   ArrowLeft, Building2, User, MapPin, Phone, Mail, Globe, FileText,
   Key, Link2, ShoppingBag, CheckCircle2, AlertCircle, Plug,
@@ -316,6 +317,13 @@ const HaendlerDetailPage = () => {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <AdminCreateOrderDialog
+                merchantUserId={profile.user_id}
+                merchantLabel={profile.firma_name || profile.ansprechpartner || undefined}
+                defaultSenderName={profile.firma_name || profile.ansprechpartner || ""}
+                defaultSenderAddress={[profile.strasse, profile.plz, profile.stadt].filter(Boolean).join(", ")}
+                onCreated={() => setOrderCount((c) => c + 1)}
+              />
               <span className="text-sm text-muted-foreground">Freigabe</span>
               <Switch checked={profile.approved} onCheckedChange={toggleApproval} />
             </div>
