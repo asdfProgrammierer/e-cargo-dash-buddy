@@ -11,6 +11,7 @@ import { Users, UserCheck, UserX, Package } from "lucide-react";
 import { STATUS_COLORS, STATUS_LABELS, type OrderStatus } from "@/types/order";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 import { sendOrderStatusEmail } from "@/lib/orderEmail";
+import { AdminCreateOrderDialog } from "@/components/admin/AdminCreateOrderDialog";
 
 type DashboardStats = {
   total: number;
@@ -309,6 +310,21 @@ const AdminDashboardPage = () => {
 
   return (
     <AdminLayout title="Admin Dashboard">
+      <div className="mb-4 flex justify-end">
+        <AdminCreateOrderDialog
+          onCreated={() => {
+            // soft reload of orders list
+            (async () => {
+              const { data } = await supabase
+                .from("orders")
+                .select("id, user_id, auftrags_nr, absender_name, absender_adresse, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_email, empfaenger_telefon, pakete, gewicht, package_length_cm, package_width_cm, package_height_cm, status, notizen, created_at, dhl_tracking_number, dhl_label_url")
+                .order("created_at", { ascending: false });
+              setOrders((data as RecentOrder[] | null) ?? []);
+              setStats((s) => ({ ...s, orders: s.orders + 1 }));
+            })();
+          }}
+        />
+      </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
           <Card key={c.label}>
