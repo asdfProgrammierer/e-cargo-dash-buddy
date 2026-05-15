@@ -13,13 +13,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface AdminCreateOrderDialogProps {
-  merchantUserId: string;
+  merchantUserId?: string;
   merchantLabel?: string;
   defaultSenderName?: string;
   defaultSenderAddress?: string;
   onCreated?: () => void;
+}
+
+interface MerchantOption {
+  user_id: string;
+  label: string;
+  senderName: string;
+  senderAddress: string;
 }
 
 const emptyForm = {
@@ -49,6 +57,46 @@ export function AdminCreateOrderDialog({
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [merchants, setMerchants] = useState<MerchantOption[]>([]);
+  const [selectedMerchantId, setSelectedMerchantId] = useState<string>("");
+
+  const needsMerchantPicker = !merchantUserId;
+  const effectiveMerchantId = merchantUserId ?? selectedMerchantId;
+
+  useEffect(() => {
+    if (!open || !needsMerchantPicker || merchants.length > 0) return;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id, firma_name, ansprechpartner, strasse, plz, stadt")
+        .eq("approved", true)
+        .is("parent_user_id", null)
+        .order("firma_name", { ascending: true });
+      if (data) {
+        setMerchants(
+          data.map((p) => ({
+            user_id: p.user_id,
+            label: p.firma_name?.trim() || p.ansprechpartner?.trim() || "Unbekannter Händler",
+            senderName: p.firma_name?.trim() || p.ansprechpartner?.trim() || "",
+            senderAddress: [p.strasse, p.plz, p.stadt].filter(Boolean).join(", "),
+          })),
+        );
+      }
+    })();
+  }, [open, needsMerchantPicker, merchants.length]);
+
+  // When merchant changes via picker, refresh sender defaults
+  useEffect(() => {
+    if (!needsMerchantPicker || !selectedMerchantId) return;
+    const m = merchants.find((x) => x.user_id === selectedMerchantId);
+    if (m) {
+      setForm((prev) => ({
+        ...prev,
+        absenderName: m.senderName,
+        absenderAdresse: m.senderAddress,
+      }));
+    }
+  }, [selectedMerchantId, merchants, needsMerchantPicker]);
 
   useEffect(() => {
     if (open) {
@@ -65,13 +113,17 @@ export function AdminCreateOrderDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!effectiveMerchantId) {
+      toast.error("Bitte einen Händler auswählen");
+      return;
+    }
     if (!form.absenderName || !form.empfaengerName || !form.empfaengerStadt) {
       toast.error("Bitte alle Pflichtfelder ausfüllen");
       return;
     }
     setSubmitting(true);
     const { error } = await supabase.from("orders").insert({
-      user_id: merchantUserId,
+      user_id: effectiveMerchantId,
       auftrags_nr: "",
       absender_name: form.absenderName,
       absender_adresse: form.absenderAdresse,
@@ -96,6 +148,7 @@ export function AdminCreateOrderDialog({
     }
     toast.success("Auftrag erfolgreich angelegt");
     setForm(emptyForm);
+    setSelectedMerchantId("");
     setOpen(false);
     onCreated?.();
   };
@@ -115,6 +168,23 @@ export function AdminCreateOrderDialog({
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 pt-2">
+          {needsMerchantPicker && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Händler *</Label>
+              <Select value={selectedMerchantId} onValueChange={setSelectedMerchantId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Händler auswählen…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {merchants.map((m) => (
+                    <SelectItem key={m.user_id} value={m.user_id}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="rounded-lg bg-muted/50 p-3 space-y-3">
             <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
               <Building2 className="h-3.5 w-3.5" />
