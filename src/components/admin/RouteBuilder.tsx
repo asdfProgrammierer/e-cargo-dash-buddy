@@ -338,8 +338,9 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
         const el = document.createElement("div");
         el.className = `flex h-7 w-7 items-center justify-center rounded-full ${bg} text-white text-xs font-bold border-2 border-white shadow cursor-pointer`;
         el.textContent = String(idx + 1);
+        const esc = (v: string) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
         const m = new maplibregl.Marker({ element: el }).setLngLat([Number(s.orders.lng), Number(s.orders.lat)])
-          .setPopup(new maplibregl.Popup({ offset: 16 }).setHTML(`<strong>${s.orders.empfaenger_name}</strong><br/>${s.orders.auftrags_nr}`))
+          .setPopup(new maplibregl.Popup({ offset: 16 }).setHTML(`<strong>${esc(s.orders.empfaenger_name)}</strong><br/>${esc(s.orders.auftrags_nr)}`))
           .addTo(map);
         markersRef.current.push(m);
         bounds.extend([Number(s.orders.lng), Number(s.orders.lat)]);
