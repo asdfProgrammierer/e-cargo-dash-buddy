@@ -91,9 +91,9 @@ Deno.serve(async (req) => {
     .limit(1)
     .maybeSingle()
 
-  // ETA-Fenster (nur sinnvoll im Status "unterwegs")
+  // ETA-Fenster (sinnvoll ab Status "in_bearbeitung", solange noch nicht zugestellt)
   let etaWindow: { window: string; center: string; fromIso: string; toIso: string; centerIso: string } | null = null
-  if (order.status === 'unterwegs') {
+  if (order.status === 'in_bearbeitung' || order.status === 'unterwegs') {
     etaWindow = buildEtaWindow(stopRow?.eta ?? null)
   }
 

@@ -407,13 +407,13 @@ export default function TrackingPage() {
                 )}
               </div>
             )}
-            {order.status === "unterwegs" && (
+            {(order.status === "unterwegs" || order.status === "in_bearbeitung") && (
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
                 <div className="flex items-start gap-2">
                   <Truck className="h-4 w-4 mt-0.5 text-primary" />
                   <div className="flex-1">
                     <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                      Voraussichtliches Lieferzeitfenster
+                      {order.status === "unterwegs" ? "Voraussichtliches Lieferzeitfenster" : "Voraussichtliche Zustellung"}
                     </p>
                     <p className="text-base font-medium text-foreground mt-1">
                       {order.eta ? order.eta.window : "Wird Ihnen kurz vor der Zustellung mitgeteilt"}
@@ -461,13 +461,13 @@ export default function TrackingPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {order.status === "unterwegs" && (
+            {(order.status === "unterwegs" || order.status === "in_bearbeitung") && (
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
                 <div className="flex items-start gap-2">
                   <Truck className="h-4 w-4 mt-0.5 text-primary" />
                   <div className="flex-1">
                     <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                      Voraussichtliches Lieferzeitfenster
+                      {order.status === "unterwegs" ? "Voraussichtliches Lieferzeitfenster" : "Voraussichtliche Zustellung"}
                     </p>
                     <p className="text-base font-medium text-foreground mt-1">
                       {order.eta ? order.eta.window : "Wird Ihnen kurz vor der Zustellung mitgeteilt"}
