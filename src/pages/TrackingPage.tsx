@@ -41,6 +41,7 @@ interface OrderInfo {
   eta: {
     window: string;
     center: string;
+    date: string;
     fromIso: string;
     toIso: string;
     centerIso: string;
@@ -418,6 +419,9 @@ export default function TrackingPage() {
                     <p className="text-base font-medium text-foreground mt-1">
                       {order.eta ? order.eta.window : "Wird Ihnen kurz vor der Zustellung mitgeteilt"}
                     </p>
+                    {order.eta && (
+                      <p className="text-xs text-muted-foreground mt-0.5 capitalize">{order.eta.date}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -472,6 +476,9 @@ export default function TrackingPage() {
                     <p className="text-base font-medium text-foreground mt-1">
                       {order.eta ? order.eta.window : "Wird Ihnen kurz vor der Zustellung mitgeteilt"}
                     </p>
+                    {order.eta && (
+                      <p className="text-xs text-muted-foreground mt-0.5 capitalize">{order.eta.date}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -522,7 +529,7 @@ export default function TrackingPage() {
         </Card>
 
         <p className="text-center text-xs text-muted-foreground">
-          Klimaneutrale Zustellung per Lastenrad · e-cargo
+          Wir liefern 100% elektrisch · e-cargo
         </p>
       </div>
     </div>

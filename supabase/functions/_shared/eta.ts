@@ -10,11 +10,21 @@ const fmtBerlin = (d: Date) =>
     timeZone: "Europe/Berlin",
   }).format(d);
 
+const fmtBerlinDate = (d: Date) =>
+  new Intl.DateTimeFormat("de-DE", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "Europe/Berlin",
+  }).format(d);
+
 export const ETA_FALLBACK_TEXT = "Wird Ihnen kurz vor der Zustellung mitgeteilt";
 
 export interface EtaWindow {
   window: string;
   center: string;
+  date: string;
   fromIso: string;
   toIso: string;
   centerIso: string;
@@ -30,6 +40,7 @@ export function buildEtaWindow(input: string | Date | null | undefined, plusMinu
   return {
     window: `${fmtBerlin(from)} – ${fmtBerlin(to)} Uhr`,
     center: fmtBerlin(eta),
+    date: fmtBerlinDate(eta),
     fromIso: from.toISOString(),
     toIso: to.toISOString(),
     centerIso: eta.toISOString(),
