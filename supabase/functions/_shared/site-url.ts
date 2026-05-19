@@ -10,7 +10,7 @@
 // Header zeigt dann oft auf die Lovable-Preview, nicht auf die Kundendomain.
 // Deshalb wird die Lovable-Preview hier explizit verworfen.
 
-const DEFAULT_SITE_URL = "https://ecargo-logistic.de";
+const DEFAULT_SITE_URL = "https://ecargo-connect.ecargo-logistik.de";
 
 const PREVIEW_HOST_SUFFIXES = [
   ".lovable.app",
@@ -38,7 +38,7 @@ function normalize(url: string | null | undefined): string | null {
 }
 
 /**
- * Liefert die Origin (z.B. "https://ecargo-logistic.de") für Tracking-Links.
+ * Liefert die Origin (z.B. "https://ecargo-connect.ecargo-logistik.de") für Tracking-Links.
  * Nimmt optional den Request entgegen, um Origin/Referer als Quelle zu nutzen.
  */
 export function getPublicSiteUrl(req?: Request): string {
