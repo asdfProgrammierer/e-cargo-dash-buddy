@@ -529,7 +529,7 @@ export default function TrackingPage() {
         </Card>
 
         <p className="text-center text-xs text-muted-foreground">
-          Klimaneutrale Zustellung per Lastenrad · e-cargo
+          Wir liefern 100% elektrisch · e-cargo
         </p>
       </div>
     </div>
