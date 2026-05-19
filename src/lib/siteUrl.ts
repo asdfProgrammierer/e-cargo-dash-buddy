@@ -10,7 +10,7 @@
 // (z.B. Admin-Test-Versand). Ohne diese Logik landen Test-Mails mit
 // id-preview--*.lovable.app-Links beim Endkunden.
 
-const DEFAULT_SITE_URL = "https://ecargo-logistic.de";
+const DEFAULT_SITE_URL = "https://ecargo-connect.ecargo-logistik.de";
 
 const PREVIEW_HOST_SUFFIXES = [
   ".lovable.app",
