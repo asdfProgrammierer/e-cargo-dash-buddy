@@ -41,6 +41,7 @@ interface OrderInfo {
   eta: {
     window: string;
     center: string;
+    date: string;
     fromIso: string;
     toIso: string;
     centerIso: string;
