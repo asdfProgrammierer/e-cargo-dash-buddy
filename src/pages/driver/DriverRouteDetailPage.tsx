@@ -184,7 +184,7 @@ const DriverRouteDetailPage = () => {
       if (msg === "Ungültige Sitzung" || msg === "Nicht authentifiziert" || /401|403/.test(String(msg))) {
         toast.error("Sitzung abgelaufen, bitte erneut anmelden");
         await supabase.auth.signOut();
-        navigate("/fahrer/login");
+        window.location.href = "/fahrer/login";
         return;
       }
       toast.error(msg);
