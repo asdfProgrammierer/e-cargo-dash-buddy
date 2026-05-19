@@ -35,7 +35,6 @@ function rateLimited(ip: string): boolean {
 }
 
 const AUFTRAGS_NR_RE = /^EC-[A-Z0-9]+-P?\d{7}$/;
-const PLZ_RE = /^\d{5}$/;
 
 Deno.serve(async (req) => {
   const cors = corsFor(req);
@@ -74,9 +73,8 @@ Deno.serve(async (req) => {
   }
 
   const auftragsNr = String(body?.auftrags_nr ?? "").toUpperCase().trim();
-  const plz = String(body?.plz ?? "").trim();
 
-  if (!AUFTRAGS_NR_RE.test(auftragsNr) || !PLZ_RE.test(plz)) {
+  if (!AUFTRAGS_NR_RE.test(auftragsNr)) {
     return new Response(JSON.stringify({ error: "Sendung nicht gefunden" }), {
       status: 404,
       headers: { ...cors, "Content-Type": "application/json" },
@@ -90,7 +88,7 @@ Deno.serve(async (req) => {
 
   const { data, error } = await supabase
     .from("orders")
-    .select("tracking_token, empfaenger_plz")
+    .select("tracking_token")
     .eq("auftrags_nr", auftragsNr)
     .maybeSingle();
 
@@ -102,7 +100,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  if (!data || !data.tracking_token || (data.empfaenger_plz ?? "").trim() !== plz) {
+  if (!data || !data.tracking_token) {
     return new Response(JSON.stringify({ error: "Sendung nicht gefunden" }), {
       status: 404,
       headers: { ...cors, "Content-Type": "application/json" },
