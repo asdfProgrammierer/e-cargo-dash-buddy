@@ -76,6 +76,23 @@ Deno.serve(async (req) => {
     }
 
     const pin = generatePin(6);
+    // Verify auth user actually exists; if orphaned, clear driver row so admin
+    // can re-activate the login fresh.
+    const { data: existing, error: getErr } = await admin.auth.admin.getUserById(driver.auth_user_id);
+    if (getErr || !existing?.user) {
+      await admin
+        .from("drivers")
+        .update({ auth_user_id: null, username: null, last_login_at: null, updated_at: new Date().toISOString() })
+        .eq("id", driver.id);
+      return new Response(
+        JSON.stringify({
+          error:
+            "Login-Account fehlt oder wurde gelöscht. Bitte über 'Login aktivieren' neu anlegen.",
+        }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const { error: updErr } = await admin.auth.admin.updateUserById(driver.auth_user_id, {
       password: pin,
     });
