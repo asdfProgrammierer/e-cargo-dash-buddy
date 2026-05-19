@@ -465,24 +465,6 @@ export default function TrackingPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {(order.status === "unterwegs" || order.status === "in_bearbeitung") && (
-              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
-                <div className="flex items-start gap-2">
-                  <Truck className="h-4 w-4 mt-0.5 text-primary" />
-                  <div className="flex-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                      {order.status === "unterwegs" ? "Voraussichtliches Lieferzeitfenster" : "Voraussichtliche Zustellung"}
-                    </p>
-                    <p className="text-base font-medium text-foreground mt-1">
-                      {order.eta ? order.eta.window : "Wird Ihnen kurz vor der Zustellung mitgeteilt"}
-                    </p>
-                    {order.eta && (
-                      <p className="text-xs text-muted-foreground mt-0.5 capitalize">{order.eta.date}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
             <div className="space-y-2">
               {INSTRUCTION_OPTIONS.map((opt) => (
                 <div key={opt.value} className="flex items-center gap-2">
