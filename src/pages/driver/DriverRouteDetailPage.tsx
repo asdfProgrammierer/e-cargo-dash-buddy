@@ -179,7 +179,15 @@ const DriverRouteDetailPage = () => {
     });
     if (error || (data as any)?.error) {
       setSubmitting(false);
-      toast.error((data as any)?.error ?? "Fehler beim Speichern");
+      const msg = (data as any)?.error ?? error?.message ?? "Fehler beim Speichern";
+      // Stale session: auth user no longer exists → force re-login
+      if (msg === "Ungültige Sitzung" || msg === "Nicht authentifiziert" || /401|403/.test(String(msg))) {
+        toast.error("Sitzung abgelaufen, bitte erneut anmelden");
+        await supabase.auth.signOut();
+        window.location.href = "/fahrer/login";
+        return;
+      }
+      toast.error(msg);
       return;
     }
 
