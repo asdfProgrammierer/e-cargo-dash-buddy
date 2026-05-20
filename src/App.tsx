@@ -61,7 +61,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { session, loading, approved } = useAuth();
+  const isAdmin = useAdminCheck();
   if (loading) return null;
+  if (session && approved && isAdmin === null) return null;
+  if (session && approved && isAdmin) return <Navigate to="/admin" replace />;
   if (session && approved) return <Navigate to="/" replace />;
   if (session && approved === false) return <Navigate to="/pending" replace />;
   return <>{children}</>;
