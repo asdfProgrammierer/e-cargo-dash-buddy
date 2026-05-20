@@ -108,7 +108,10 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ url: `${APP_ORIGIN}/track/${data.tracking_token}` }),
+    JSON.stringify({
+      token: data.tracking_token,
+      url: `${APP_ORIGIN}/track/${data.tracking_token}`,
+    }),
     { status: 200, headers: { ...cors, "Content-Type": "application/json" } },
   );
 });
