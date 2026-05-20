@@ -106,7 +106,7 @@ const HaendlerDetailPage = () => {
         // Now fetch shop connections and orders using user_id
         const userId = profileRes.data.user_id;
         const [shopRes2, ordersRes2] = await Promise.all([
-          supabase.from("shop_connections").select("*").eq("user_id", userId).maybeSingle(),
+          (supabase as any).rpc("admin_get_shop_connection", { _user_id: userId }),
           supabase.from("orders").select("id", { count: "exact", head: true }).eq("user_id", userId),
         ]);
 
