@@ -90,7 +90,7 @@ const HaendlerDetailPage = () => {
     const load = async () => {
       const [profileRes, shopRes, ordersRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", id).single(),
-        supabase.from("shop_connections").select("*").eq("user_id", id),
+        supabase.from("shop_connections").select("id").eq("user_id", id),
         supabase.from("orders").select("id", { count: "exact", head: true }),
       ]);
 
