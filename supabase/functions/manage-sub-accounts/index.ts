@@ -45,6 +45,9 @@ Deno.serve(async (req) => {
   if (parentProfile.parent_user_id) {
     return json({ error: "Sub-Accounts können keine weiteren Sub-Accounts anlegen" }, 403);
   }
+  if (!parentProfile.approved) {
+    return json({ error: "Konto ist noch nicht freigeschaltet" }, 403);
+  }
 
   let body: any = {};
   try { body = await req.json(); } catch { /* allow empty for list */ }
