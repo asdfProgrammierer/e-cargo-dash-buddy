@@ -1,59 +1,52 @@
-## Ziel
-Sendungsverfolgung komplett im Modal auf `bochum-bringts.html` abwickeln – keine Weiterleitung zu `ecargo-connect.ecargo-logistik.de/track/<token>` mehr.
+# Capacitor: Dev- und Production-Build sauber trennen
 
-## Aktueller Flow
-1. Modal: Eingabe Auftragsnummer → `public-tracking-lookup` → liefert `{ url }` → `window.location.href` redirect.
-2. Auf `/track/<token>` PLZ eingeben → `verify-tracking-access` → Session-JWT → `tracking-data` lädt Status/History/ETA.
+Ziel: Eine APK, die wirklich offline/standalone läuft (Production), und parallel weiterhin die Möglichkeit, per Hot-Reload direkt aus der Lovable-Sandbox zu entwickeln (Dev).
 
-## Neuer Flow (Modal-only)
-Zwei Schritte **innerhalb desselben Modals**:
+## Problem heute
+`capacitor.config.ts` enthält fest einen `server.url` auf die Lovable-Preview. Dadurch lädt **jede** APK den Code live aus der Sandbox – nicht für Endnutzer geeignet und nicht offline-fähig.
 
-**Schritt 1 – Auftragsnummer**
-- Eingabe `EC-XXX-0000000` → POST `public-tracking-lookup`
-- Edge Function liefert künftig zusätzlich zum `url` auch den `tracking_token` (oder nur Token, URL kann entfallen).
+## Lösung: Zwei Konfigurationen über eine Umgebungsvariable
+Eine einzige `capacitor.config.ts`, die abhängig von `CAP_ENV` entweder den Dev-Server einbindet oder rein lokal aus `dist/` läuft.
 
-**Schritt 2 – PLZ-Verifizierung (im selben Modal eingeblendet)**
-- Eingabe 5-stellige PLZ → POST `verify-tracking-access` mit `{ token, plz }` → erhält `session` JWT.
+```text
+CAP_ENV=dev   -> server.url = Lovable Preview (Hot Reload)
+CAP_ENV=prod  -> kein server-Block, App nutzt gebündeltes dist/
+```
 
-**Schritt 3 – Tracking-Ansicht (im Modal gerendert)**
-- GET `tracking-data` mit `Authorization: Bearer <session>` → rendert kompakte Statusanzeige:
-  - Status-Badge + Label
-  - Auftragsnummer, Empfänger-Stadt
-  - ETA-Fenster (falls vorhanden)
-  - Timeline (History)
-  - Bei „zugestellt": Übergabe-Details
-- Optional: Link „Vollständige Ansicht öffnen" → `ecargo-connect.../track/<token>` (für Lieferanweisungen bearbeiten etc.)
+## Änderungen
 
-## Technische Änderungen
+1. `capacitor.config.ts` umbauen
+   - `server`-Block nur setzen, wenn `process.env.CAP_ENV === "dev"`.
+   - Sonst weglassen, Capacitor lädt `webDir: "dist"`.
 
-### Edge Function `public-tracking-lookup`
-- Response erweitern: `{ token: string, url: string }` (URL für Abwärtskompatibilität behalten).
-- CORS unverändert (nur `ecargo-logistik.de` Origins).
+2. `package.json` Scripts ergänzen
+   - `cap:dev`  -> `CAP_ENV=dev npx cap sync android`
+   - `cap:prod` -> `npm run build && CAP_ENV=prod npx cap sync android`
+   - `cap:open` -> `npx cap open android`
 
-### Edge Function `verify-tracking-access`
-- CORS-Allowlist um `https://ecargo-logistik.de` + `www.` erweitern (aktuell `*` – ok, aber besser einschränken).
-- Keine Logikänderung nötig.
+3. Kurzer Abschnitt "Mobile Build" in `README.md`
+   - Wann Dev vs. Prod
+   - Befehlsreihenfolge für die Release-APK
+   - Hinweis auf signierten Release-Build in Android Studio (Build -> Generate Signed Bundle / APK)
 
-### Edge Function `tracking-data`
-- CORS-Allowlist analog einschränken auf `ecargo-logistik.de` + App-Origin.
-- Keine Logikänderung.
+## Workflow danach
 
-### `bochum-bringts.html` + `js/tracking.js`
-- Modal-Markup erweitern: drei Sektionen (`#trackingStep1`, `#trackingStep2`, `#trackingResult`), je nach Zustand sichtbar.
-- `tracking.js` State-Machine:
-  - `step1 submit` → `lookup` → speichert `token` → zeigt step2
-  - `step2 submit` → `verify` → speichert `session` → ruft `data` → rendert Result
-  - „Neue Suche" Button → reset
-- Rendering der Timeline + Status rein clientseitig (HTML-String, mit den semantischen Klassen der Landing Page).
-- Fehlerbehandlung pro Schritt (404, 401 „invalid_credentials", 429, Netz).
+Dev (Hot Reload aus der Sandbox):
+```bash
+npm run cap:dev
+npm run cap:open
+```
 
-## Snippet-Lieferung
-Da `bochum-bringts.html` außerhalb des Lovable-Repos liegt, werden geliefert:
-1. Patch für `public-tracking-lookup/index.ts` (Token in Response).
-2. CORS-Patches für `verify-tracking-access` und `tracking-data`.
-3. Komplettes neues Modal-HTML.
-4. Komplette neue `js/tracking.js`.
-5. Zusätzliches CSS für die drei Modal-Steps + Timeline.
+Production-APK (offline, eigenständig):
+```bash
+npm run cap:prod
+npm run cap:open
+# Android Studio: Build -> Build APK(s)                       (Debug)
+# oder:           Build -> Generate Signed Bundle / APK       (Release, signiert)
+```
 
-## Offene Frage
-Soll im Modal-Result die **Option zur Bearbeitung der Lieferanweisungen** enthalten sein, oder reicht ein „Mehr Details / Lieferanweisungen ändern"-Link auf die App-Seite? (Lieferanweisungen brauchen mehr UI: Checkboxen, Freitext, PATCH-Call – das bläht das Modal auf.)
+## Technische Details
+- Keine Änderungen am React-Code nötig.
+- `.env` bleibt unberührt; `CAP_ENV` wird nur beim `cap sync` gelesen.
+- Bestehender `android/`-Ordner bleibt kompatibel; nur `capacitor.config.json` im Android-Projekt wird beim Sync neu geschrieben.
+- Für signierte Release-APKs: Keystore einmalig in Android Studio anlegen; Lovable speichert keinen Keystore.
