@@ -307,6 +307,7 @@ const DriverRouteDetailPage = () => {
     }
   };
 
+  const openDeliverSheet = (s: Stop) => {
     setDeliverStop(s);
     setDeliveryMode("persoenlich");
     setDeliveryNote("");
