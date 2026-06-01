@@ -28,6 +28,9 @@ interface ProofOfDelivery {
   signature_url: string | null;
   delivery_photo_url: string | null;
   delivered_at: string | null;
+  completed_lat: number | null;
+  completed_lng: number | null;
+  completed_accuracy_m: number | null;
 }
 
 async function loadStatusHistory(orderId: string): Promise<HistoryEntry[]> {
@@ -44,13 +47,13 @@ async function loadStatusHistory(orderId: string): Promise<HistoryEntry[]> {
 async function loadProofOfDelivery(orderId: string): Promise<ProofOfDelivery | null> {
   const { data } = await supabase
     .from("route_stops")
-    .select("delivery_mode, delivery_note, delivery_recipient, signature_url, delivery_photo_url, delivered_at")
+    .select("delivery_mode, delivery_note, delivery_recipient, signature_url, delivery_photo_url, delivered_at, completed_lat, completed_lng, completed_accuracy_m")
     .eq("order_id", orderId)
     .not("delivered_at", "is", null)
     .order("delivered_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  return (data as ProofOfDelivery) ?? null;
+  return (data as unknown as ProofOfDelivery) ?? null;
 }
 
 async function loadStorageDataUrl(bucket: string, path: string): Promise<string | null> {
