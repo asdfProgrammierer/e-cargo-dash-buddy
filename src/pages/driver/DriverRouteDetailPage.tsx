@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight, PenLine, Play, Home, MessageSquare } from "lucide-react";
+import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight, PenLine, Play, Home, MessageSquare, Camera } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { SignaturePad, type SignaturePadHandle } from "@/components/driver/SignaturePad";
 import { buildOrderPdfBlob } from "@/lib/orderPdf";
@@ -106,6 +106,8 @@ const DriverRouteDetailPage = () => {
   const sigPadRef = useRef<SignaturePadHandle>(null);
   const [signatureOpen, setSignatureOpen] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     if (!id) return;
@@ -171,6 +173,7 @@ const DriverRouteDetailPage = () => {
       delivery_note?: string;
       delivery_recipient?: string;
       signature_base64?: string | null;
+      photo_base64?: string | null;
     } = {},
   ) => {
     setSubmitting(true);
@@ -311,16 +314,22 @@ const DriverRouteDetailPage = () => {
     setDeliveryRecipient("");
     setHasSignature(false);
     setSignatureOpen(false);
+    setPhotoDataUrl(null);
   };
 
   const submitDelivery = () => {
     if (!deliverStop) return;
+    if ((deliveryMode === "briefkasten" || deliveryMode === "nachbar") && !photoDataUrl) {
+      toast.error("Bitte ein Foto der Zustellung aufnehmen");
+      return;
+    }
     const sig = sigPadRef.current?.toDataURL() ?? null;
     updateStatus(deliverStop.id, "erledigt", {
       delivery_mode: deliveryMode,
       delivery_note: deliveryNote.trim() || undefined,
       delivery_recipient: deliveryMode === "nachbar" ? deliveryRecipient.trim() || undefined : undefined,
       signature_base64: sig,
+      photo_base64: photoDataUrl ?? undefined,
     });
   };
 
