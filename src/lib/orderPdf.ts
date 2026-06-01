@@ -487,6 +487,22 @@ export async function buildOrderPdf(order: Order): Promise<jsPDF> {
   }
   y += 32;
 
+  // GPS-Stempel des Fahrers beim Abschluss
+  if (pod?.completed_lat != null && pod?.completed_lng != null) {
+    const lat = Number(pod.completed_lat);
+    const lng = Number(pod.completed_lng);
+    const acc = pod.completed_accuracy_m != null ? Number(pod.completed_accuracy_m) : null;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(110);
+    const gpsLine =
+      `GPS-Stempel: ${lat.toFixed(5)}, ${lng.toFixed(5)}` +
+      (acc != null ? `  (±${Math.round(acc)} m)` : "");
+    doc.text(gpsLine, marginX, y);
+    doc.setTextColor(0);
+    y += 5;
+  }
+
   // Delivery photo (briefkasten / nachbar)
   if (photoDataUrl) {
     if (y > pageH - 90) { doc.addPage(); y = 18; }
