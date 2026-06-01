@@ -28,6 +28,9 @@ interface ProofOfDelivery {
   signature_url: string | null;
   delivery_photo_url: string | null;
   delivered_at: string | null;
+  completed_lat: number | null;
+  completed_lng: number | null;
+  completed_accuracy_m: number | null;
 }
 
 async function loadStatusHistory(orderId: string): Promise<HistoryEntry[]> {
@@ -44,13 +47,13 @@ async function loadStatusHistory(orderId: string): Promise<HistoryEntry[]> {
 async function loadProofOfDelivery(orderId: string): Promise<ProofOfDelivery | null> {
   const { data } = await supabase
     .from("route_stops")
-    .select("delivery_mode, delivery_note, delivery_recipient, signature_url, delivery_photo_url, delivered_at")
+    .select("delivery_mode, delivery_note, delivery_recipient, signature_url, delivery_photo_url, delivered_at, completed_lat, completed_lng, completed_accuracy_m")
     .eq("order_id", orderId)
     .not("delivered_at", "is", null)
     .order("delivered_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  return (data as ProofOfDelivery) ?? null;
+  return (data as unknown as ProofOfDelivery) ?? null;
 }
 
 async function loadStorageDataUrl(bucket: string, path: string): Promise<string | null> {
@@ -483,6 +486,22 @@ export async function buildOrderPdf(order: Order): Promise<jsPDF> {
     }
   }
   y += 32;
+
+  // GPS-Stempel des Fahrers beim Abschluss
+  if (pod?.completed_lat != null && pod?.completed_lng != null) {
+    const lat = Number(pod.completed_lat);
+    const lng = Number(pod.completed_lng);
+    const acc = pod.completed_accuracy_m != null ? Number(pod.completed_accuracy_m) : null;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(110);
+    const gpsLine =
+      `GPS-Stempel: ${lat.toFixed(5)}, ${lng.toFixed(5)}` +
+      (acc != null ? `  (±${Math.round(acc)} m)` : "");
+    doc.text(gpsLine, marginX, y);
+    doc.setTextColor(0);
+    y += 5;
+  }
 
   // Delivery photo (briefkasten / nachbar)
   if (photoDataUrl) {

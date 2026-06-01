@@ -1,52 +1,102 @@
-# Capacitor: Dev- und Production-Build sauber trennen
+# Plan: 4 neue Funktionen
 
-Ziel: Eine APK, die wirklich offline/standalone läuft (Production), und parallel weiterhin die Möglichkeit, per Hot-Reload direkt aus der Lovable-Sandbox zu entwickeln (Dev).
+Reihenfolge nach Aufwand & Nutzen. Bei Bedarf können wir auch nur Teile umsetzen.
 
-## Problem heute
-`capacitor.config.ts` enthält fest einen `server.url` auf die Lovable-Preview. Dadurch lädt **jede** APK den Code live aus der Sandbox – nicht für Endnutzer geeignet und nicht offline-fähig.
+---
 
-## Lösung: Zwei Konfigurationen über eine Umgebungsvariable
-Eine einzige `capacitor.config.ts`, die abhängig von `CAP_ENV` entweder den Dev-Server einbindet oder rein lokal aus `dist/` läuft.
+## 1. GPS-Stempel beim Abschluss (klein, hoher Nutzen)
 
-```text
-CAP_ENV=dev   -> server.url = Lovable Preview (Hot Reload)
-CAP_ENV=prod  -> kein server-Block, App nutzt gebündeltes dist/
-```
+**Ziel:** Bei jedem Stop-Abschluss (zugestellt oder nicht_zugestellt) werden Koordinaten + Genauigkeit erfasst und gespeichert. Sichtbar im Admin-Stop-Detail und im PDF-Lieferschein.
 
-## Änderungen
+**Umsetzung:**
+- Migration: `route_stops` bekommt `completed_lat numeric`, `completed_lng numeric`, `completed_accuracy_m numeric`.
+- Fahrer-App (`DriverRouteDetailPage.tsx`): vor dem Submit `navigator.geolocation.getCurrentPosition()` mit `enableHighAccuracy`, 8s Timeout. Bei Ablehnung/Fehler: trotzdem speichern lassen, GPS-Felder bleiben leer (kein Blocker).
+- Edge Function `driver-update-stop-status`: nimmt `lat`, `lng`, `accuracy` entgegen und schreibt sie.
+- PDF (`orderPdf.ts`): kleine Zeile unter Zustellinfo: „GPS: 51.5123, 7.4720 (±12 m)" inkl. Link auf Google Maps.
+- Admin-Stop-Detail: gleiche Zeile + „Auf Karte zeigen".
 
-1. `capacitor.config.ts` umbauen
-   - `server`-Block nur setzen, wenn `process.env.CAP_ENV === "dev"`.
-   - Sonst weglassen, Capacitor lädt `webDir: "dist"`.
+---
 
-2. `package.json` Scripts ergänzen
-   - `cap:dev`  -> `CAP_ENV=dev npx cap sync android`
-   - `cap:prod` -> `npm run build && CAP_ENV=prod npx cap sync android`
-   - `cap:open` -> `npx cap open android`
+## 2. Händler-Dashboard Analytics (mittel)
 
-3. Kurzer Abschnitt "Mobile Build" in `README.md`
-   - Wann Dev vs. Prod
-   - Befehlsreihenfolge für die Release-APK
-   - Hinweis auf signierten Release-Build in Android Studio (Build -> Generate Signed Bundle / APK)
+**Ziel:** Vorhandenes `DashboardPage` um aussagekräftige KPIs erweitern.
 
-## Workflow danach
+**Neue Widgets:**
+- **Zustellquote** der letzten 30 Tage (zugestellt / abgeschlossen).
+- **Ø Zustellzeit** (created_at → delivered_at).
+- **Retouren-/Hindernisquote** mit Top-3-Gründe (aus `order_status_history.reason` für `nicht_zugestellt`).
+- **Top 10 Empfänger** (nach Sendungsmenge, letzte 90 Tage).
+- **Wochentag-Verteilung** (Bar-Chart: Mo–So Sendungsvolumen).
+- Datumsfilter (7d / 30d / 90d / benutzerdefiniert) gilt für alle Widgets.
 
-Dev (Hot Reload aus der Sandbox):
-```bash
-npm run cap:dev
-npm run cap:open
-```
+**Umsetzung:**
+- Reine Frontend-Aggregation aus `orders` + `order_status_history` via vorhandener RLS (`merchant_owner_id`).
+- Recharts (schon im Projekt) für Visualisierung.
+- Keine DB-Änderungen nötig.
 
-Production-APK (offline, eigenständig):
-```bash
-npm run cap:prod
-npm run cap:open
-# Android Studio: Build -> Build APK(s)                       (Debug)
-# oder:           Build -> Generate Signed Bundle / APK       (Release, signiert)
-```
+---
+
+## 3. Push-Benachrichtigungen (mittel-groß)
+
+**Ziel:** Echtzeit-Push an Fahrer (neue Route zugewiesen) und Admin (Stop als „Hindernis"/„nicht zugestellt" gemeldet). App ist Capacitor-fähig → Web Push + Capacitor Push parallel.
+
+**Empfohlener Stack:** Web Push (VAPID) für PWA/Browser + späterer FCM-Hop für native App.
+
+**Umsetzung – Phase A (Web Push, jetzt):**
+- Migration: `push_subscriptions` (user_id, endpoint, p256dh, auth, platform, created_at).
+- Service Worker registrieren, Subscribe-Flow bei Login bzw. „Benachrichtigungen aktivieren" Button im Header/Profil.
+- Secrets: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (lege ich an, frage Werte ab).
+- Edge Function `send-push`: nimmt user_ids + Payload, sendet via Web-Push-Protocol (npm:web-push).
+- Trigger-Punkte:
+  - Beim Zuweisen einer Route → Push an betroffenen Fahrer.
+  - Beim Stop-Status `hindernis`/`nicht_zugestellt` → Push an alle Admins.
+  - Neue Notification (`notifications` Tabelle) → Push an Zielgruppe.
+
+**Phase B (Capacitor/FCM, später):** Nur falls native Apps gebaut werden – separate Aufgabe.
+
+---
+
+## 4. Offline-Modus für Fahrer (groß, anspruchsvoll)
+
+**Ziel:** Fahrer kann ohne Netz Stops abschließen, Fotos/Signaturen erfassen; Sync sobald wieder online.
+
+**Architektur:**
+- **IndexedDB-Cache** (Dexie.js) für: aktuelle Route, Stops, Order-Daten, gepflegte Lieferanweisungen.
+- **Outbox-Queue** für Mutationen (Stop-Update, Foto, Signatur). Jeder Eintrag mit `id`, `payload`, `attempts`, `created_at`.
+- **Background-Sync:** beim `online`-Event und alle 30s, wenn online → Edge Function `driver-update-stop-status` mit gleichem Payload erneut aufrufen. Idempotenz über `client_op_id` (UUID pro Operation).
+- **UI:**
+  - Offline-Badge in `DriverLayout` (rot wenn offline, gelb wenn Outbox > 0).
+  - Stop-Liste zeigt „Wird synchronisiert…" bis Server bestätigt.
+  - Fotos werden lokal als Blob in IndexedDB gehalten (max. 1280px JPEG, ~150 KB pro Foto).
+- **Edge Function Anpassung:** `client_op_id` akzeptieren, doppelte Uploads abfangen (Unique-Index auf neuer Spalte `route_stops.client_op_id`).
+
+**Aufwand:** ca. 1,5–2× so groß wie die anderen drei zusammen. Empfehlung: zuletzt umsetzen, ggf. nach kurzer Pilotphase mit den ersten 3 Features.
+
+---
 
 ## Technische Details
-- Keine Änderungen am React-Code nötig.
-- `.env` bleibt unberührt; `CAP_ENV` wird nur beim `cap sync` gelesen.
-- Bestehender `android/`-Ordner bleibt kompatibel; nur `capacitor.config.json` im Android-Projekt wird beim Sync neu geschrieben.
-- Für signierte Release-APKs: Keystore einmalig in Android Studio anlegen; Lovable speichert keinen Keystore.
+
+**Migrations:**
+- `route_stops`: `+ completed_lat`, `+ completed_lng`, `+ completed_accuracy_m`, `+ client_op_id uuid unique nullable`.
+- Neue Tabelle `push_subscriptions` mit RLS (user sieht/insertet nur eigene, service_role alles).
+
+**Edge Functions:**
+- `driver-update-stop-status` (vorhandene) — neue Felder.
+- `send-push` (neu).
+
+**Secrets neu:** `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (generiere ich automatisch beim Setup).
+
+**Frontend-Pakete:** `dexie` (für Offline), `web-push` (im Edge Function).
+
+---
+
+## Reihenfolge / Vorschlag
+
+```text
+1. GPS-Stempel           (~30 Min)
+2. Händler-Analytics     (~60 Min)
+3. Push (Web Push)       (~90 Min)
+4. Offline-Modus         (~3-4 h)
+```
+
+**Frage vor Start:** Sollen wir alle 4 nacheinander in einem Rutsch umsetzen, oder möchtest du nach jedem Schritt testen, bevor wir weitermachen? Empfehlung: nach Schritt 1 und 3 jeweils kurz testen.

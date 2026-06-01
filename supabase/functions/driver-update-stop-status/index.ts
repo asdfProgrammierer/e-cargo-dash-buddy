@@ -47,6 +47,12 @@ Deno.serve(async (req) => {
     const deliveryRecipient: string | undefined = body.delivery_recipient?.trim() || undefined;
     const signatureBase64: string | undefined = body.signature_base64;
     const photoBase64: string | undefined = body.photo_base64;
+    const completedLat: number | undefined =
+      typeof body.completed_lat === "number" ? body.completed_lat : undefined;
+    const completedLng: number | undefined =
+      typeof body.completed_lng === "number" ? body.completed_lng : undefined;
+    const completedAccuracy: number | undefined =
+      typeof body.completed_accuracy_m === "number" ? body.completed_accuracy_m : undefined;
 
     const ALLOWED_MODES = new Set([
       "persoenlich",
@@ -104,6 +110,15 @@ Deno.serve(async (req) => {
       stopUpdate.delivery_note = deliveryNote ?? null;
       stopUpdate.delivery_recipient = deliveryRecipient ?? null;
       stopUpdate.delivered_at = new Date().toISOString();
+    }
+    if (status === "erledigt" || status === "uebersprungen") {
+      if (completedLat !== undefined && completedLng !== undefined) {
+        stopUpdate.completed_lat = completedLat;
+        stopUpdate.completed_lng = completedLng;
+        if (completedAccuracy !== undefined) {
+          stopUpdate.completed_accuracy_m = completedAccuracy;
+        }
+      }
     }
 
     // Upload signature if provided (only meaningful for erledigt)
