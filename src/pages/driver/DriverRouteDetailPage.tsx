@@ -729,6 +729,62 @@ const DriverRouteDetailPage = () => {
               {hasSignature && <CheckCircle2 className="h-4 w-4 ml-2 text-primary" />}
             </Button>
 
+            {(deliveryMode === "briefkasten" || deliveryMode === "nachbar") && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground block">
+                  Zustellfoto {photoDataUrl ? "" : <span className="text-destructive">*</span>}
+                </Label>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => {
+                    handlePhotoSelected(e.target.files?.[0] ?? null);
+                    e.target.value = "";
+                  }}
+                />
+                {photoDataUrl ? (
+                  <div className="space-y-2">
+                    <img
+                      src={photoDataUrl}
+                      alt="Zustellfoto"
+                      className="w-full max-h-56 object-contain rounded-md border bg-muted"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => photoInputRef.current?.click()}
+                      >
+                        <Camera className="h-4 w-4 mr-2" />
+                        Neu aufnehmen
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setPhotoDataUrl(null)}
+                      >
+                        Entfernen
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => photoInputRef.current?.click()}
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    Foto aufnehmen
+                  </Button>
+                )}
+              </div>
+            )}
+
             <Button className="w-full" disabled={submitting} onClick={submitDelivery}>
               {submitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
