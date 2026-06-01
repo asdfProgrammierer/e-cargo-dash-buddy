@@ -484,6 +484,30 @@ export async function buildOrderPdf(order: Order): Promise<jsPDF> {
   }
   y += 32;
 
+  // Delivery photo (briefkasten / nachbar)
+  if (photoDataUrl) {
+    if (y > pageH - 90) { doc.addPage(); y = 18; }
+    doc.setFillColor(245, 245, 245);
+    doc.roundedRect(marginX, y, contentW, 6, 1, 1, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(60);
+    doc.text("ZUSTELLFOTO", marginX + 3, y + 4.2);
+    doc.setTextColor(0);
+    y += 9;
+    const photoH = 70;
+    doc.setDrawColor(200);
+    doc.roundedRect(marginX, y, contentW, photoH, 1.5, 1.5, "S");
+    try {
+      const fmt = photoDataUrl.startsWith("data:image/png") ? "PNG" : "JPEG";
+      // Fit centered inside the box
+      doc.addImage(photoDataUrl, fmt, marginX + 2, y + 2, contentW - 4, photoH - 4, undefined, "FAST");
+    } catch (e) {
+      console.warn("Konnte Zustellfoto nicht ins PDF einbetten", e);
+    }
+    y += photoH + 6;
+  }
+
   // Bemerkungen Fahrer
   doc.setFillColor(245, 245, 245);
   doc.roundedRect(marginX, y, contentW, 6, 1, 1, "F");
