@@ -110,7 +110,12 @@ export async function buildOrderPdf(order: Order): Promise<jsPDF> {
     generateQrDataUrl(order),
     loadProofOfDelivery(order.id),
   ]);
-  const sigDataUrl = pod?.signature_url ? await loadSignatureDataUrl(pod.signature_url) : null;
+  const sigDataUrl = pod?.signature_url
+    ? await loadStorageDataUrl("delivery-signatures", pod.signature_url)
+    : null;
+  const photoDataUrl = pod?.delivery_photo_url
+    ? await loadStorageDataUrl("delivery-photos", pod.delivery_photo_url)
+    : null;
 
   // ============ PAGE 1: Auftragsübersicht ============
   let y = 18;
