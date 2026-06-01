@@ -317,6 +317,7 @@ const DriverRouteDetailPage = () => {
   };
 
   const submitDelivery = () => {
+    // (handlePhotoSelected lives below)
     if (!deliverStop) return;
     if ((deliveryMode === "briefkasten" || deliveryMode === "nachbar") && !photoDataUrl) {
       toast.error("Bitte ein Foto der Zustellung aufnehmen");
@@ -330,6 +331,42 @@ const DriverRouteDetailPage = () => {
       signature_base64: sig,
       photo_base64: photoDataUrl ?? undefined,
     });
+  };
+
+  const handlePhotoSelected = async (file: File | null) => {
+    if (!file) return;
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as string);
+        r.onerror = () => reject(new Error("read failed"));
+        r.readAsDataURL(file);
+      });
+      // Compress: max 1280px, JPEG q=0.7
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = () => reject(new Error("img failed"));
+        i.src = dataUrl;
+      });
+      const maxSide = 1280;
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        setPhotoDataUrl(dataUrl);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, w, h);
+      setPhotoDataUrl(canvas.toDataURL("image/jpeg", 0.7));
+    } catch (e) {
+      console.error(e);
+      toast.error("Foto konnte nicht verarbeitet werden");
+    }
   };
 
   const navigate = (s: Stop) => {
