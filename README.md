@@ -71,3 +71,46 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Mobile Build (Android APK)
+
+Diese App kann als Capacitor-Android-App gebaut werden. Es gibt zwei Varianten:
+
+- **Dev:** Hot Reload – die App im Emulator/Handy lädt den Code live aus der Lovable-Sandbox.
+- **Prod:** Standalone-APK – der Code wird aus `dist/` gebündelt und läuft offline.
+
+Gesteuert wird das über die Umgebungsvariable `CAP_ENV` in `capacitor.config.ts`.
+
+### Voraussetzungen (einmalig)
+
+```sh
+npm install
+npx cap add android   # nur falls der android/-Ordner noch fehlt
+```
+
+### Dev-Build (Hot Reload)
+
+```sh
+npm run cap:dev
+npm run cap:open
+```
+
+In Android Studio dann auf Run drücken. Änderungen in Lovable erscheinen live.
+
+### Production-Build (offline-fähige APK)
+
+```sh
+npm run cap:prod
+npm run cap:open
+```
+
+In Android Studio:
+
+- **Debug-APK:** Build → Build Bundle(s) / APK(s) → Build APK(s)
+  Pfad: `android/app/build/outputs/apk/debug/app-debug.apk`
+- **Signierte Release-APK:** Build → Generate Signed Bundle / APK
+  Dafür einmalig einen Keystore in Android Studio anlegen.
+
+> Hinweis für Windows-Nutzer: `npm run cap:dev` setzt `CAP_ENV` per Inline-Syntax,
+> die auf macOS/Linux funktioniert. Unter Windows stattdessen:
+> `set CAP_ENV=dev && npx cap sync android`.
