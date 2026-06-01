@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
     const deliveryNote: string | undefined = body.delivery_note?.trim() || undefined;
     const deliveryRecipient: string | undefined = body.delivery_recipient?.trim() || undefined;
     const signatureBase64: string | undefined = body.signature_base64;
+    const photoBase64: string | undefined = body.photo_base64;
 
     const ALLOWED_MODES = new Set([
       "persoenlich",
@@ -123,6 +124,28 @@ Deno.serve(async (req) => {
         }
       } catch (e) {
         console.error("signature decode failed", e);
+      }
+    }
+
+    // Upload delivery photo (required for briefkasten/nachbar handovers)
+    if (status === "erledigt" && photoBase64 && stop?.order_id) {
+      try {
+        const match = photoBase64.match(/^data:image\/(\w+);base64,(.+)$/);
+        const ext = match ? match[1].toLowerCase() : "jpg";
+        const raw = match ? match[2] : photoBase64;
+        const bytes = Uint8Array.from(atob(raw), (c) => c.charCodeAt(0));
+        const path = `stops/${stopId}/orders/${stop.order_id}/${Date.now()}.${ext === "jpeg" ? "jpg" : ext}`;
+        const contentType = ext === "png" ? "image/png" : "image/jpeg";
+        const { error: upErr } = await admin.storage
+          .from("delivery-photos")
+          .upload(path, bytes, { contentType, upsert: true });
+        if (!upErr) {
+          stopUpdate.delivery_photo_url = path;
+        } else {
+          console.error("photo upload failed", upErr);
+        }
+      } catch (e) {
+        console.error("photo decode failed", e);
       }
     }
 

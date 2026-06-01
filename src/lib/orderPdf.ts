@@ -26,6 +26,7 @@ interface ProofOfDelivery {
   delivery_note: string | null;
   delivery_recipient: string | null;
   signature_url: string | null;
+  delivery_photo_url: string | null;
   delivered_at: string | null;
 }
 
@@ -43,7 +44,7 @@ async function loadStatusHistory(orderId: string): Promise<HistoryEntry[]> {
 async function loadProofOfDelivery(orderId: string): Promise<ProofOfDelivery | null> {
   const { data } = await supabase
     .from("route_stops")
-    .select("delivery_mode, delivery_note, delivery_recipient, signature_url, delivered_at")
+    .select("delivery_mode, delivery_note, delivery_recipient, signature_url, delivery_photo_url, delivered_at")
     .eq("order_id", orderId)
     .not("delivered_at", "is", null)
     .order("delivered_at", { ascending: false })
@@ -52,10 +53,10 @@ async function loadProofOfDelivery(orderId: string): Promise<ProofOfDelivery | n
   return (data as ProofOfDelivery) ?? null;
 }
 
-async function loadSignatureDataUrl(path: string): Promise<string | null> {
+async function loadStorageDataUrl(bucket: string, path: string): Promise<string | null> {
   try {
     const { data, error } = await supabase.storage
-      .from("delivery-signatures")
+      .from(bucket)
       .download(path);
     if (error || !data) return null;
     return await new Promise((resolve) => {
@@ -109,7 +110,12 @@ export async function buildOrderPdf(order: Order): Promise<jsPDF> {
     generateQrDataUrl(order),
     loadProofOfDelivery(order.id),
   ]);
-  const sigDataUrl = pod?.signature_url ? await loadSignatureDataUrl(pod.signature_url) : null;
+  const sigDataUrl = pod?.signature_url
+    ? await loadStorageDataUrl("delivery-signatures", pod.signature_url)
+    : null;
+  const photoDataUrl = pod?.delivery_photo_url
+    ? await loadStorageDataUrl("delivery-photos", pod.delivery_photo_url)
+    : null;
 
   // ============ PAGE 1: Auftragsübersicht ============
   let y = 18;
@@ -477,6 +483,30 @@ export async function buildOrderPdf(order: Order): Promise<jsPDF> {
     }
   }
   y += 32;
+
+  // Delivery photo (briefkasten / nachbar)
+  if (photoDataUrl) {
+    if (y > pageH - 90) { doc.addPage(); y = 18; }
+    doc.setFillColor(245, 245, 245);
+    doc.roundedRect(marginX, y, contentW, 6, 1, 1, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(60);
+    doc.text("ZUSTELLFOTO", marginX + 3, y + 4.2);
+    doc.setTextColor(0);
+    y += 9;
+    const photoH = 70;
+    doc.setDrawColor(200);
+    doc.roundedRect(marginX, y, contentW, photoH, 1.5, 1.5, "S");
+    try {
+      const fmt = photoDataUrl.startsWith("data:image/png") ? "PNG" : "JPEG";
+      // Fit centered inside the box
+      doc.addImage(photoDataUrl, fmt, marginX + 2, y + 2, contentW - 4, photoH - 4, undefined, "FAST");
+    } catch (e) {
+      console.warn("Konnte Zustellfoto nicht ins PDF einbetten", e);
+    }
+    y += photoH + 6;
+  }
 
   // Bemerkungen Fahrer
   doc.setFillColor(245, 245, 245);

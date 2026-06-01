@@ -852,6 +852,7 @@ export type Database = {
           delivery_mode: string | null
           delivery_note: string | null
           delivery_note_pdf_url: string | null
+          delivery_photo_url: string | null
           delivery_recipient: string | null
           eta: string | null
           id: string
@@ -872,6 +873,7 @@ export type Database = {
           delivery_mode?: string | null
           delivery_note?: string | null
           delivery_note_pdf_url?: string | null
+          delivery_photo_url?: string | null
           delivery_recipient?: string | null
           eta?: string | null
           id?: string
@@ -892,6 +894,7 @@ export type Database = {
           delivery_mode?: string | null
           delivery_note?: string | null
           delivery_note_pdf_url?: string | null
+          delivery_photo_url?: string | null
           delivery_recipient?: string | null
           eta?: string | null
           id?: string

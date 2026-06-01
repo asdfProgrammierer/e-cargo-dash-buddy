@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight, PenLine, Play, Home, MessageSquare } from "lucide-react";
+import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight, PenLine, Play, Home, MessageSquare, Camera } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { SignaturePad, type SignaturePadHandle } from "@/components/driver/SignaturePad";
 import { buildOrderPdfBlob } from "@/lib/orderPdf";
@@ -106,6 +106,8 @@ const DriverRouteDetailPage = () => {
   const sigPadRef = useRef<SignaturePadHandle>(null);
   const [signatureOpen, setSignatureOpen] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     if (!id) return;
@@ -171,6 +173,7 @@ const DriverRouteDetailPage = () => {
       delivery_note?: string;
       delivery_recipient?: string;
       signature_base64?: string | null;
+      photo_base64?: string | null;
     } = {},
   ) => {
     setSubmitting(true);
@@ -311,17 +314,60 @@ const DriverRouteDetailPage = () => {
     setDeliveryRecipient("");
     setHasSignature(false);
     setSignatureOpen(false);
+    setPhotoDataUrl(null);
   };
 
   const submitDelivery = () => {
+    // (handlePhotoSelected lives below)
     if (!deliverStop) return;
+    if ((deliveryMode === "briefkasten" || deliveryMode === "nachbar") && !photoDataUrl) {
+      toast.error("Bitte ein Foto der Zustellung aufnehmen");
+      return;
+    }
     const sig = sigPadRef.current?.toDataURL() ?? null;
     updateStatus(deliverStop.id, "erledigt", {
       delivery_mode: deliveryMode,
       delivery_note: deliveryNote.trim() || undefined,
       delivery_recipient: deliveryMode === "nachbar" ? deliveryRecipient.trim() || undefined : undefined,
       signature_base64: sig,
+      photo_base64: photoDataUrl ?? undefined,
     });
+  };
+
+  const handlePhotoSelected = async (file: File | null) => {
+    if (!file) return;
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as string);
+        r.onerror = () => reject(new Error("read failed"));
+        r.readAsDataURL(file);
+      });
+      // Compress: max 1280px, JPEG q=0.7
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = () => reject(new Error("img failed"));
+        i.src = dataUrl;
+      });
+      const maxSide = 1280;
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        setPhotoDataUrl(dataUrl);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, w, h);
+      setPhotoDataUrl(canvas.toDataURL("image/jpeg", 0.7));
+    } catch (e) {
+      console.error(e);
+      toast.error("Foto konnte nicht verarbeitet werden");
+    }
   };
 
   const navigate = (s: Stop) => {
@@ -683,6 +729,62 @@ const DriverRouteDetailPage = () => {
               {hasSignature ? "Unterschrift bearbeiten" : "Unterschrift hinzufügen"}
               {hasSignature && <CheckCircle2 className="h-4 w-4 ml-2 text-primary" />}
             </Button>
+
+            {(deliveryMode === "briefkasten" || deliveryMode === "nachbar") && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground block">
+                  Zustellfoto {photoDataUrl ? "" : <span className="text-destructive">*</span>}
+                </Label>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => {
+                    handlePhotoSelected(e.target.files?.[0] ?? null);
+                    e.target.value = "";
+                  }}
+                />
+                {photoDataUrl ? (
+                  <div className="space-y-2">
+                    <img
+                      src={photoDataUrl}
+                      alt="Zustellfoto"
+                      className="w-full max-h-56 object-contain rounded-md border bg-muted"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => photoInputRef.current?.click()}
+                      >
+                        <Camera className="h-4 w-4 mr-2" />
+                        Neu aufnehmen
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setPhotoDataUrl(null)}
+                      >
+                        Entfernen
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => photoInputRef.current?.click()}
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    Foto aufnehmen
+                  </Button>
+                )}
+              </div>
+            )}
 
             <Button className="w-full" disabled={submitting} onClick={submitDelivery}>
               {submitting ? (
