@@ -847,6 +847,9 @@ export type Database = {
       }
       route_stops: {
         Row: {
+          completed_accuracy_m: number | null
+          completed_lat: number | null
+          completed_lng: number | null
           created_at: string
           delivered_at: string | null
           delivery_mode: string | null
@@ -868,6 +871,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          completed_accuracy_m?: number | null
+          completed_lat?: number | null
+          completed_lng?: number | null
           created_at?: string
           delivered_at?: string | null
           delivery_mode?: string | null
@@ -889,6 +895,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          completed_accuracy_m?: number | null
+          completed_lat?: number | null
+          completed_lng?: number | null
           created_at?: string
           delivered_at?: string | null
           delivery_mode?: string | null
