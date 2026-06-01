@@ -6,6 +6,7 @@ import { useDriverCheck } from "@/hooks/useDriverCheck";
 import { Calendar, Package, ChevronRight, Loader2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { PushToggle } from "@/components/PushToggle";
 
 interface RouteRow {
   id: string;
@@ -61,6 +62,9 @@ const DriverHomePage = () => {
   return (
     <DriverLayout title="Meine Routen">
       <div className="p-4 space-y-3">
+        <div className="flex justify-end">
+          <PushToggle compact />
+        </div>
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
         ) : routes.length === 0 ? (

@@ -78,6 +78,37 @@ export default function NotificationsPage() {
       return;
     }
     toast.success("Benachrichtigung gesendet");
+
+    // Push parallel zur In-App-Benachrichtigung
+    try {
+      const pushBody = {
+        payload: {
+          title: title.trim(),
+          body: body.trim().slice(0, 240),
+          url: "/dashboard",
+          tag: `notif-${Date.now()}`,
+        },
+        ...(audience === "merchant" && targetId
+          ? { user_ids: [targetId] }
+          : { audience: "all" as const }),
+      };
+      if (audience === "all") {
+        // Für "alle" lassen wir send-push selbst die User über die merchant-Subscriptions hinweg ermitteln.
+        // Da audience:"all" in der Edge Function noch nicht unterstützt ist, listen wir hier alle profiles auf.
+        const { data: profileRows } = await supabase.from("profiles").select("user_id");
+        const ids = (profileRows ?? []).map((p) => p.user_id).filter(Boolean);
+        if (ids.length > 0) {
+          await supabase.functions.invoke("send-push", {
+            body: { user_ids: ids, payload: pushBody.payload },
+          });
+        }
+      } else {
+        await supabase.functions.invoke("send-push", { body: pushBody });
+      }
+    } catch (pe) {
+      console.error("push send failed", pe);
+    }
+
     setTitle("");
     setBody("");
     setTargetId("");

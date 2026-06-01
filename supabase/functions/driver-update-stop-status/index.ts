@@ -227,6 +227,29 @@ Deno.serve(async (req) => {
           });
         }
 
+        // Push an Admins, sobald ein Stop fehlschlägt (Retry oder finaler Fehler)
+        if (statusChanged && status === "uebersprungen") {
+          try {
+            const pushTitle = isFinalFailure
+              ? `Auftrag ${order.auftrags_nr} endgültig nicht zugestellt`
+              : `Auftrag ${order.auftrags_nr}: Zustellversuch ${attemptNumber}/${MAX_DELIVERY_ATTEMPTS} fehlgeschlagen`;
+            const pushBody = [order.empfaenger_name, reason].filter(Boolean).join(" · ");
+            await admin.functions.invoke("send-push", {
+              body: {
+                audience: "admins",
+                payload: {
+                  title: pushTitle,
+                  body: pushBody || "Hindernis bei Zustellung",
+                  url: "/admin/auftraege",
+                  tag: `order-${stop.order_id}`,
+                },
+              },
+            });
+          } catch (pe) {
+            console.error("admin push failed", pe);
+          }
+        }
+
         // Send status email to recipient
         try {
           if (!statusChanged) {

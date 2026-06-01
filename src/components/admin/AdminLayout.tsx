@@ -3,6 +3,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { BerlinClock } from "@/components/dashboard/BerlinClock";
 import { NotificationBell } from "@/components/NotificationBell";
+import { PushToggle } from "@/components/PushToggle";
 
 interface AdminLayoutProps {
   title: string;
@@ -21,6 +22,7 @@ export function AdminLayout({ title, children }: AdminLayoutProps) {
               <h1 className="text-lg font-semibold text-foreground">{title}</h1>
             </div>
             <div className="flex items-center gap-3">
+              <PushToggle compact />
               <NotificationBell />
               <BerlinClock />
             </div>
