@@ -79,7 +79,12 @@ export function OrderDetailSheet({
   const [zoneMeta, setZoneMeta] = useState<{ label: string; color?: string | null } | null>(null);
   const [dhlLoading, setDhlLoading] = useState(false);
   const currentStep = order ? STATUS_ORDER[order.status] : 0;
-  const canEdit = order ? isEditable(order.status) : false;
+  const isAdminView = canUpdateStatus;
+  const canEdit = order
+    ? isAdminView
+      ? order.status !== "zugestellt"
+      : isEditable(order.status)
+    : false;
   const isCancelled = order?.status === "storniert";
   const isUndelivered = order?.status === "nicht_zugestellt";
   const isMerchantView = !canUpdateStatus;
