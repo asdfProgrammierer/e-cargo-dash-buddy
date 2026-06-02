@@ -454,6 +454,7 @@ const AdminDashboardPage = () => {
                   <TableHead className="text-center">Pakete</TableHead>
                   <TableHead>Erstellt</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-16 text-right">PDF</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -477,6 +478,22 @@ const AdminDashboardPage = () => {
                           {STATUS_LABELS[order.status]}
                         </Badge>
                       )}
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title="Auftrags-PDF herunterladen"
+                        onClick={(e) => handleDownloadPdf(e, order)}
+                        disabled={pdfLoadingId === order.id}
+                      >
+                        {pdfLoadingId === order.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <FileDown className="h-4 w-4" />
+                        )}
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
