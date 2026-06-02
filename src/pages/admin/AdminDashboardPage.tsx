@@ -12,6 +12,9 @@ import { STATUS_COLORS, STATUS_LABELS, type OrderStatus } from "@/types/order";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 import { sendOrderStatusEmail } from "@/lib/orderEmail";
 import { AdminCreateOrderDialog } from "@/components/admin/AdminCreateOrderDialog";
+import { ObstacleOrdersCard } from "@/components/admin/dashboard/ObstacleOrdersCard";
+import { VehicleAlertsCard } from "@/components/admin/dashboard/VehicleAlertsCard";
+import { OrderFiltersBar, loadStoredFilters, type OrderFilterState } from "@/components/admin/dashboard/OrderFiltersBar";
 
 type DashboardStats = {
   total: number;
@@ -72,6 +75,7 @@ const AdminDashboardPage = () => {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [statusHistory, setStatusHistory] = useState<OrderHistoryEntry[]>([]);
+  const [extraFilters, setExtraFilters] = useState<OrderFilterState>(() => loadStoredFilters());
 
   useEffect(() => {
     const load = async () => {
@@ -130,8 +134,30 @@ const AdminDashboardPage = () => {
   );
 
   const filteredOrders = useMemo(
-    () => (filter === "alle" ? orders : orders.filter((order) => order.status === filter)),
-    [filter, orders],
+    () => {
+      const now = Date.now();
+      const rangeMs: Record<OrderFilterState["range"], number | null> = {
+        today: 86400000,
+        "7": 7 * 86400000,
+        "30": 30 * 86400000,
+        all: null,
+      };
+      const sinceMs = rangeMs[extraFilters.range];
+      const cityLc = extraFilters.city.trim().toLowerCase();
+      const searchLc = extraFilters.search.trim().toLowerCase();
+      return orders.filter((o) => {
+        if (filter !== "alle" && o.status !== filter) return false;
+        if (sinceMs != null && now - new Date(o.created_at).getTime() > sinceMs) return false;
+        if (extraFilters.merchant !== "all" && o.user_id !== extraFilters.merchant) return false;
+        if (cityLc && !o.empfaenger_stadt.toLowerCase().includes(cityLc)) return false;
+        if (searchLc) {
+          const hay = `${o.auftrags_nr} ${o.empfaenger_name} ${o.dhl_tracking_number ?? ""}`.toLowerCase();
+          if (!hay.includes(searchLc)) return false;
+        }
+        return true;
+      });
+    },
+    [filter, orders, extraFilters],
   );
 
   const selectedOrder = useMemo(() => {
@@ -308,6 +334,14 @@ const AdminDashboardPage = () => {
     { label: "Aufträge gesamt", value: stats.orders, icon: Package, color: "text-blue-500" },
   ];
 
+  const merchantOptions = useMemo(
+    () =>
+      Array.from(merchantNameMap.entries())
+        .map(([id, label]) => ({ id, label }))
+        .sort((a, b) => a.label.localeCompare(b.label, "de")),
+    [merchantNameMap],
+  );
+
   return (
     <AdminLayout title="Admin Dashboard">
       <div className="mb-4 flex justify-end">
@@ -339,6 +373,11 @@ const AdminDashboardPage = () => {
         ))}
       </div>
 
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        <ObstacleOrdersCard merchantNameMap={merchantNameMap} onSelect={handleSelectOrder} />
+        <VehicleAlertsCard />
+      </div>
+
       <Card className="mt-6">
         <CardHeader className="gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
@@ -352,6 +391,9 @@ const AdminDashboardPage = () => {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="mb-4">
+            <OrderFiltersBar filters={extraFilters} onChange={setExtraFilters} merchants={merchantOptions} />
+          </div>
           {loading ? (
             <div className="space-y-3">
               <Skeleton className="h-10 w-full" />
