@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -53,7 +54,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (!session) return <Navigate to="/login" replace />;
+  if (!session) return <Navigate to={Capacitor.isNativePlatform() ? "/fahrer/login" : "/login"} replace />;
   if (isDriver) return <Navigate to="/fahrer" replace />;
   if (approved === false) return <Navigate to="/pending" replace />;
   return <>{children}</>;
@@ -63,6 +64,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   const { session, loading, approved } = useAuth();
   const isAdmin = useAdminCheck();
   if (loading) return null;
+  if (!session && Capacitor.isNativePlatform()) return <Navigate to="/fahrer/login" replace />;
   if (session && approved && isAdmin === null) return null;
   if (session && approved && isAdmin) return <Navigate to="/admin" replace />;
   if (session && approved) return <Navigate to="/" replace />;
