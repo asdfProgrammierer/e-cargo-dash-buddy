@@ -1,45 +1,63 @@
-# Native Fahrer-App mit Capacitor
 
-Ziel: Die bestehende Web-App als echte native Android/iOS-App auf dein Handy bringen — mit Hot-Reload aus dem Lovable-Sandbox während der Entwicklung.
+# Admin-Übersicht erweitern
 
-## Was ich im Projekt mache
+Die Seite `Admin → Übersicht` wird um drei neue Bereiche ergänzt, ohne die bestehende Bestellliste zu verändern.
 
-1. **Capacitor installieren**
-   - `@capacitor/core`, `@capacitor/cli`, `@capacitor/ios`, `@capacitor/android`
+## 1. Bestellungen mit Hindernissen
+Neue Karte oberhalb der bestehenden Bestelltabelle:
+- Listet alle aktuell offenen Aufträge mit Status `nicht_zugestellt`.
+- Pro Eintrag: Auftragsnr., Händler, Empfänger/Stadt, Anzahl Zustellversuche, letzter Grund (aus `order_status_history`), Datum.
+- Klick öffnet das vorhandene `OrderDetailSheet` (gleicher Flow wie Bestelltabelle).
+- Badge mit Gesamtzahl + "Alle anzeigen"-Button, der zur Auftragsseite mit Filter `nicht_zugestellt` springt.
 
-2. **`capacitor.config.ts` im Projekt-Root anlegen**
-   - `appId`: `app.lovable.eb7a8883e02647dc82bb300906e3fa89`
-   - `appName`: `e-cargo-dash-buddy`
-   - `server.url`: Lovable-Sandbox-URL (Hot-Reload aufs Handy)
-   - `server.cleartext`: true
+## 2. Erweiterte Filter über der Bestelltabelle
+Aktuell nur Status-Filter. Ergänzung:
+- **Zeitraum**: Heute / 7 Tage / 30 Tage / Alle (Dropdown).
+- **Händler**: Suchfeld/Combobox über alle Händler (Filterung clientseitig).
+- **Stadt**: Freitext-Filter auf `empfaenger_stadt`.
+- **Suche**: Volltext (Auftragsnr., Empfänger, Tracking).
+- Filterleiste ersetzt die bisherige Header-Ecke der Bestellungen-Card und bleibt sticky beim Scrollen innerhalb der Card.
+- "Filter zurücksetzen"-Link wenn aktiv.
 
-Das war's auf der Lovable-Seite — Capacitor braucht keine weiteren Code-Änderungen, weil die App schon eine ganz normale Vite/React-App ist.
+## 3. Fahrzeug- & Wartungsmeldungen
+Neue Karte ("Fahrzeugmeldungen") unterhalb der KPI-Kacheln, zweispaltig:
 
-## Was du danach auf deinem eigenen Rechner machst
+**Spalte A – Anstehende Wartungen** (aus `maintenance_schedule`)
+- Einträge mit `status != 'erledigt'` und `faellig_am <= today + 14 Tage`.
+- Ampel: rot (überfällig), gelb (≤ 7 Tage), grün (8–14 Tage).
+- Zeile: Fahrzeug-Kennzeichen, Typ, Bezeichnung, fällig am, Kosten (optional).
+- Klick → `/admin/fahrzeuge/:id`.
 
-Capacitor kann **nicht** in der Lovable-Sandbox laufen — die nativen Projekte (Android Studio / Xcode) müssen lokal gebaut werden.
+**Spalte B – Sicherheitscheck-Status** (aus `vehicle_inspections`)
+- Pro Fahrzeug letzten Check ermitteln. Ampel:
+  - rot: kein Check ODER letzter Check älter als 14 Tage ODER eines der `*_ok` Felder false
+  - gelb: Check 11–14 Tage alt
+  - grün: Check ≤ 10 Tage und alles ok
+- Zeile: Kennzeichen, Datum letzter Check, kurze Liste der Mängel.
 
-```text
-1. Projekt nach GitHub exportieren (Button oben rechts)
-2. git clone <dein-repo>
-3. npm install
-4. npx cap add android      (und/oder: npx cap add ios)
-5. npx cap update android
-6. npm run build
-7. npx cap sync
-8. npx cap run android      (Handy per USB + USB-Debugging an)
-```
+Beide Spalten zeigen Top 5 + "Alle anzeigen"-Link zu `/admin/fahrzeuge`.
 
-Für **iOS** brauchst du einen Mac mit Xcode. Für **Android** reicht Android Studio (Windows/Mac/Linux).
+## 4. Mini-KPIs aktualisieren
+Bestehende vier Kacheln bleiben. Zwei zusätzliche kleine Indikatoren in der neuen Fahrzeugmeldungen-Karte:
+- "Wartungen offen": Anzahl.
+- "Fahrzeuge mit Warnung": Anzahl rot+gelb aus Sicherheitscheck.
 
-Bei jedem späteren `git pull` einfach erneut `npm install && npm run build && npx cap sync` ausführen.
+## Technische Details
 
-## Hinweise zu Push-Notifications
+- Eine `AdminDashboardPage.tsx` bleibt bestehen; neue Sub-Komponenten:
+  - `src/components/admin/dashboard/ObstacleOrdersCard.tsx`
+  - `src/components/admin/dashboard/OrderFiltersBar.tsx`
+  - `src/components/admin/dashboard/VehicleAlertsCard.tsx`
+- Daten:
+  - Hindernisse: `orders` + neuester Eintrag aus `order_status_history` pro Order (kann clientseitig gejoint werden, da bereits beides geladen wird; alternativ ein zusätzlicher `select` auf `order_status_history` mit `status=nicht_zugestellt` der letzten 30 Tage).
+  - Wartungen: `maintenance_schedule` join `vehicles` (Kennzeichen).
+  - Inspektionen: `vehicle_inspections` mit `vehicle_id` group by latest.
+- Alle neuen Queries respektieren die existierenden Admin-RLS-Policies (Admin sieht alles).
+- Realtime nicht zwingend nötig; die Seite lädt beim Mount + nach Order-Erstellung neu.
+- Keine Schema-Änderungen erforderlich.
+- Filterzustand wird im Component-State gehalten (kein URL-Param), aber `localStorage` merkt sich die letzten Filter.
 
-Der bereits gebaute Web-Push-Code (Service Worker + VAPID) funktioniert in der nativen App **nicht** direkt — Android/iOS nutzen FCM/APNs. Wenn du native Push willst, müssten wir später `@capacitor/push-notifications` ergänzen. Für den ersten Wurf reichen die In-App-Toasts via Supabase Realtime.
-
-## Referenz
-
-Lovable hat dazu einen ausführlichen Blogpost: https://lovable.dev/blog/2025-04-22-using-lovable-with-capacitor-build-mobile-apps
-
-Soll ich loslegen?
+## Out of scope
+- Neue Tabellen oder Migrationen.
+- Änderungen an Bestelldetail-Sheet oder Email-Flows.
+- Push-/Toast-Benachrichtigungen über neue Hindernisse (kann später ergänzt werden).
