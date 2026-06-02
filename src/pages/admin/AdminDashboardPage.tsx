@@ -346,6 +346,41 @@ const AdminDashboardPage = () => {
     [merchantNameMap],
   );
 
+  const handleDownloadPdf = async (e: React.MouseEvent, order: RecentOrder) => {
+    e.stopPropagation();
+    if (pdfLoadingId) return;
+    setPdfLoadingId(order.id);
+    try {
+      await downloadOrderPdf({
+        id: order.id,
+        auftragsNr: order.auftrags_nr,
+        absenderName: order.absender_name,
+        absenderAdresse: order.absender_adresse ?? "",
+        empfaengerName: order.empfaenger_name,
+        empfaengerAdresse: order.empfaenger_adresse ?? "",
+        empfaengerPlz: order.empfaenger_plz ?? "",
+        empfaengerStadt: order.empfaenger_stadt,
+        empfaengerEmail: order.empfaenger_email ?? undefined,
+        empfaengerTelefon: order.empfaenger_telefon ?? undefined,
+        pakete: order.pakete,
+        gewicht: Number(order.gewicht),
+        packageLengthCm: order.package_length_cm === null ? undefined : Number(order.package_length_cm),
+        packageWidthCm: order.package_width_cm === null ? undefined : Number(order.package_width_cm),
+        packageHeightCm: order.package_height_cm === null ? undefined : Number(order.package_height_cm),
+        status: order.status,
+        erstelltAm: new Date(order.created_at).toLocaleDateString("de-DE"),
+        notizen: order.notizen ?? undefined,
+        dhlTrackingNumber: order.dhl_tracking_number ?? undefined,
+        dhlLabelUrl: order.dhl_label_url ?? undefined,
+      });
+    } catch (err) {
+      console.error("PDF-Erstellung fehlgeschlagen", err);
+      toast.error("PDF konnte nicht erstellt werden. Bitte erneut versuchen.");
+    } finally {
+      setPdfLoadingId(null);
+    }
+  };
+
   return (
     <AdminLayout title="Admin Dashboard">
       <div className="mb-4 flex justify-end">
