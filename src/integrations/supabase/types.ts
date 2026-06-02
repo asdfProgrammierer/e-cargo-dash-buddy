@@ -1265,57 +1265,7 @@ export type Database = {
       }
     }
     Views: {
-      shop_connections_safe: {
-        Row: {
-          active: boolean | null
-          api_url: string | null
-          auto_fulfill: boolean | null
-          created_at: string | null
-          id: string | null
-          last_external_order_id: string | null
-          last_sync_at: string | null
-          last_sync_error: string | null
-          last_sync_status: string | null
-          notizen: string | null
-          platform: string | null
-          shop_domain: string | null
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          active?: boolean | null
-          api_url?: string | null
-          auto_fulfill?: boolean | null
-          created_at?: string | null
-          id?: string | null
-          last_external_order_id?: string | null
-          last_sync_at?: string | null
-          last_sync_error?: string | null
-          last_sync_status?: string | null
-          notizen?: string | null
-          platform?: string | null
-          shop_domain?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          active?: boolean | null
-          api_url?: string | null
-          auto_fulfill?: boolean | null
-          created_at?: string | null
-          id?: string | null
-          last_external_order_id?: string | null
-          last_sync_at?: string | null
-          last_sync_error?: string | null
-          last_sync_status?: string | null
-          notizen?: string | null
-          platform?: string | null
-          shop_domain?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       admin_get_pickup_cron_runs: {
