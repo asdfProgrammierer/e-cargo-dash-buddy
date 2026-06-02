@@ -37,7 +37,7 @@ const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, trackingUr
         ) : null}
         {trackingUrl ? (
           <div style={ctaWrap}>
-            <Button href={trackingUrl} style={ctaButton}>{pick(o?.ctaLabel, 'Sendung verfolgen & Anweisungen hinterlassen', 'ctaLabel')}</Button>
+            <Button href={trackingUrl} style={ctaButton}>{pick(o?.ctaLabel, 'Sendung verfolgen & Zustelloption wählen', 'ctaLabel')}</Button>
             <Text style={ctaHint}>Zur Verifizierung wird Ihre Postleitzahl abgefragt.</Text>
           </div>
         ) : null}
