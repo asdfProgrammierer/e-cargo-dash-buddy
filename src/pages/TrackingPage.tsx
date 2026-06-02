@@ -21,7 +21,6 @@ const INSTRUCTION_OPTIONS: { value: string; label: string }[] = [
   { value: "hausflur", label: "Im Hausflur ablegen" },
   { value: "sicherer_ort", label: "An einem sicheren Ort ablegen" },
   { value: "garage", label: "In Garage / Briefkasten" },
-  { value: "keine", label: "Keine Sonderwünsche" },
 ];
 
 const plzSchema = z.string().trim().regex(/^\d{4,5}$/u, "Bitte eine gültige Postleitzahl eingeben");
@@ -264,7 +263,7 @@ export default function TrackingPage() {
     });
     setSaving(false);
     if (res.ok) {
-      toast({ title: "Lieferanweisungen gespeichert", description: "Vielen Dank!" });
+      toast({ title: "Zustelloptionen gespeichert", description: "Vielen Dank!" });
       setData((prev) =>
         prev
           ? { ...prev, instructions: { options: selectedOptions, freetext, updatedAt: new Date().toISOString() } }
@@ -455,7 +454,7 @@ export default function TrackingPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Lieferanweisungen</CardTitle>
+            <CardTitle className="text-base">Zustelloptionen</CardTitle>
             <CardDescription>
               {editable
                 ? order.status === "unterwegs"
@@ -499,7 +498,7 @@ export default function TrackingPage() {
             {editable && (
               <Button onClick={handleSaveInstructions} disabled={saving} className="w-full">
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Anweisungen speichern
+                Optionen speichern
               </Button>
             )}
             {data.instructions.updatedAt && (
