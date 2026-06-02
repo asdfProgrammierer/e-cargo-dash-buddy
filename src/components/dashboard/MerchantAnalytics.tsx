@@ -52,16 +52,35 @@ export function MerchantAnalytics() {
       since.setDate(since.getDate() - days);
       const sinceIso = since.toISOString();
 
+      const { data: sessionData } = await supabase.auth.getSession();
+      const uid = sessionData.session?.user.id;
+      if (!uid) {
+        if (!cancelled) {
+          setOrders([]);
+          setHistory([]);
+          setLoading(false);
+        }
+        return;
+      }
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("parent_user_id")
+        .eq("user_id", uid)
+        .maybeSingle();
+      const ownerId = (prof?.parent_user_id as string | null) ?? uid;
+
       const [ordersRes, histRes] = await Promise.all([
         supabase
           .from("orders")
           .select("id, status, empfaenger_name, created_at, delivered_at")
+          .eq("user_id", ownerId)
           .gte("created_at", sinceIso)
           .order("created_at", { ascending: false })
           .limit(1000),
         supabase
           .from("order_status_history")
           .select("reason, created_at")
+          .eq("user_id", ownerId)
           .eq("status", "nicht_zugestellt")
           .gte("created_at", sinceIso)
           .limit(1000),
