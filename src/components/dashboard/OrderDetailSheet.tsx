@@ -526,6 +526,11 @@ export function OrderDetailSheet({
             Versandetikett drucken
           </Button>
 
+          <Button variant="outline" className="w-full" onClick={downloadPdf} disabled={pdfLoading}>
+            <Printer className="mr-2 h-4 w-4" />
+            {pdfLoading ? "Auftrags-PDF wird erstellt…" : "Auftrags-PDF herunterladen"}
+          </Button>
+
           {order.dhlLabelUrl ? (
             <a href={order.dhlLabelUrl} target="_blank" rel="noopener noreferrer" className="block">
               <Button variant="outline" className="w-full">
