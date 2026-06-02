@@ -7,8 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, UserCheck, UserX, Package } from "lucide-react";
+import { Users, UserCheck, UserX, Package, FileDown, Loader2 } from "lucide-react";
 import { STATUS_COLORS, STATUS_LABELS, type OrderStatus } from "@/types/order";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { downloadOrderPdf } from "@/lib/orderPdf";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 import { sendOrderStatusEmail } from "@/lib/orderEmail";
 import { AdminCreateOrderDialog } from "@/components/admin/AdminCreateOrderDialog";
@@ -76,6 +79,7 @@ const AdminDashboardPage = () => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [statusHistory, setStatusHistory] = useState<OrderHistoryEntry[]>([]);
   const [extraFilters, setExtraFilters] = useState<OrderFilterState>(() => loadStoredFilters());
+  const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -342,6 +346,41 @@ const AdminDashboardPage = () => {
     [merchantNameMap],
   );
 
+  const handleDownloadPdf = async (e: React.MouseEvent, order: RecentOrder) => {
+    e.stopPropagation();
+    if (pdfLoadingId) return;
+    setPdfLoadingId(order.id);
+    try {
+      await downloadOrderPdf({
+        id: order.id,
+        auftragsNr: order.auftrags_nr,
+        absenderName: order.absender_name,
+        absenderAdresse: order.absender_adresse ?? "",
+        empfaengerName: order.empfaenger_name,
+        empfaengerAdresse: order.empfaenger_adresse ?? "",
+        empfaengerPlz: order.empfaenger_plz ?? "",
+        empfaengerStadt: order.empfaenger_stadt,
+        empfaengerEmail: order.empfaenger_email ?? undefined,
+        empfaengerTelefon: order.empfaenger_telefon ?? undefined,
+        pakete: order.pakete,
+        gewicht: Number(order.gewicht),
+        packageLengthCm: order.package_length_cm === null ? undefined : Number(order.package_length_cm),
+        packageWidthCm: order.package_width_cm === null ? undefined : Number(order.package_width_cm),
+        packageHeightCm: order.package_height_cm === null ? undefined : Number(order.package_height_cm),
+        status: order.status,
+        erstelltAm: new Date(order.created_at).toLocaleDateString("de-DE"),
+        notizen: order.notizen ?? undefined,
+        dhlTrackingNumber: order.dhl_tracking_number ?? undefined,
+        dhlLabelUrl: order.dhl_label_url ?? undefined,
+      });
+    } catch (err) {
+      console.error("PDF-Erstellung fehlgeschlagen", err);
+      toast.error("PDF konnte nicht erstellt werden. Bitte erneut versuchen.");
+    } finally {
+      setPdfLoadingId(null);
+    }
+  };
+
   return (
     <AdminLayout title="Admin Dashboard">
       <div className="mb-4 flex justify-end">
@@ -415,6 +454,7 @@ const AdminDashboardPage = () => {
                   <TableHead className="text-center">Pakete</TableHead>
                   <TableHead>Erstellt</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-16 text-right">PDF</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -438,6 +478,22 @@ const AdminDashboardPage = () => {
                           {STATUS_LABELS[order.status]}
                         </Badge>
                       )}
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title="Auftrags-PDF herunterladen"
+                        onClick={(e) => handleDownloadPdf(e, order)}
+                        disabled={pdfLoadingId === order.id}
+                      >
+                        {pdfLoadingId === order.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <FileDown className="h-4 w-4" />
+                        )}
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

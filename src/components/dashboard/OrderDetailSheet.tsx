@@ -26,6 +26,7 @@ import {
 import { Order, OrderStatus, STATUS_LABELS, STATUS_COLORS, MAX_DELIVERY_ATTEMPTS } from "@/types/order";
 import { getZoneBadgeStyle } from "@/lib/deliveryZones";
 import { getOrderZoneMeta, printShippingLabels } from "@/lib/shippingLabels";
+import { downloadOrderPdf } from "@/lib/orderPdf";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -158,6 +159,20 @@ export function OrderDetailSheet({
 
   const printLabel = async () => {
     await printShippingLabels([order]);
+  };
+
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const downloadPdf = async () => {
+    if (!order || pdfLoading) return;
+    setPdfLoading(true);
+    try {
+      await downloadOrderPdf(order);
+    } catch (err) {
+      console.error("PDF-Erstellung fehlgeschlagen", err);
+      toast.error("PDF konnte nicht erstellt werden. Bitte erneut versuchen.");
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   const createDhlLabel = async () => {
@@ -509,6 +524,11 @@ export function OrderDetailSheet({
           <Button variant="outline" className="w-full" onClick={printLabel}>
             <Printer className="mr-2 h-4 w-4" />
             Versandetikett drucken
+          </Button>
+
+          <Button variant="outline" className="w-full" onClick={downloadPdf} disabled={pdfLoading}>
+            <Printer className="mr-2 h-4 w-4" />
+            {pdfLoading ? "Auftrags-PDF wird erstellt…" : "Auftrags-PDF herunterladen"}
           </Button>
 
           {order.dhlLabelUrl ? (
