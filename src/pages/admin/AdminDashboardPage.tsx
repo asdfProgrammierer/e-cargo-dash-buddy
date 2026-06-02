@@ -7,8 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, UserCheck, UserX, Package } from "lucide-react";
+import { Users, UserCheck, UserX, Package, FileDown, Loader2 } from "lucide-react";
 import { STATUS_COLORS, STATUS_LABELS, type OrderStatus } from "@/types/order";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { downloadOrderPdf } from "@/lib/orderPdf";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 import { sendOrderStatusEmail } from "@/lib/orderEmail";
 import { AdminCreateOrderDialog } from "@/components/admin/AdminCreateOrderDialog";
@@ -76,6 +79,7 @@ const AdminDashboardPage = () => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [statusHistory, setStatusHistory] = useState<OrderHistoryEntry[]>([]);
   const [extraFilters, setExtraFilters] = useState<OrderFilterState>(() => loadStoredFilters());
+  const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
