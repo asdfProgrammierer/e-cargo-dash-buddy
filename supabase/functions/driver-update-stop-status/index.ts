@@ -172,8 +172,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Map stop status -> order status (with retry / multi-attempt logic for failed deliveries)
-    const MAX_DELIVERY_ATTEMPTS = 3;
     if (stop.order_id) {
       const { data: order } = await admin
         .from("orders")
@@ -183,33 +181,30 @@ Deno.serve(async (req) => {
 
       let newOrderStatus: string | null = null;
       let attemptNumber = order?.delivery_attempts ?? 0;
-      let isFinalFailure = false;
-      let isRetryable = false;
+      let isUnconfirmed = false;
 
       if (status === "erledigt") {
         newOrderStatus = "zugestellt";
       } else if (status === "uebersprungen" && order) {
         attemptNumber = (order.delivery_attempts ?? 0) + 1;
-        if (attemptNumber >= MAX_DELIVERY_ATTEMPTS) {
-          newOrderStatus = "nicht_zugestellt";
-          isFinalFailure = true;
-        } else {
-          // Retry: order goes back to "neu" so it shows up again in route planning.
-          newOrderStatus = "neu";
-          isRetryable = true;
-        }
+        // Always mark as nicht_zugestellt + unconfirmed; admin must decide retry/final.
+        newOrderStatus = "nicht_zugestellt";
+        isUnconfirmed = true;
       }
 
       if (newOrderStatus && order) {
-        const statusChanged = order.status !== newOrderStatus || isRetryable;
+        const statusChanged =
+          order.status !== newOrderStatus || isUnconfirmed;
 
         const orderUpdate: Record<string, unknown> = {
           status: newOrderStatus,
           updated_at: new Date().toISOString(),
         };
         if (newOrderStatus === "zugestellt") orderUpdate.delivered_at = new Date().toISOString();
-        if (newOrderStatus === "neu") orderUpdate.delivered_at = null;
-        if (status === "uebersprungen") orderUpdate.delivery_attempts = attemptNumber;
+        if (status === "uebersprungen") {
+          orderUpdate.delivery_attempts = attemptNumber;
+          orderUpdate.delivery_unconfirmed = true;
+        }
 
         if (statusChanged) {
           await admin.from("orders").update(orderUpdate).eq("id", stop.order_id);
@@ -219,27 +214,25 @@ Deno.serve(async (req) => {
           await admin.from("order_status_history").insert({
             order_id: stop.order_id,
             user_id: order.user_id,
-            status: isFinalFailure ? "nicht_zugestellt" : "neu",
+            status: "nicht_zugestellt",
             reason: reason
-              ? `Versuch ${attemptNumber}/${MAX_DELIVERY_ATTEMPTS}: ${reason}`
-              : `Versuch ${attemptNumber}/${MAX_DELIVERY_ATTEMPTS} fehlgeschlagen`,
+              ? `Versuch ${attemptNumber} fehlgeschlagen – wartet auf Admin-Freigabe: ${reason}`
+              : `Versuch ${attemptNumber} fehlgeschlagen – wartet auf Admin-Freigabe`,
             changed_by: userData.user.id,
           });
         }
 
-        // Push an Admins, sobald ein Stop fehlschlägt (Retry oder finaler Fehler)
+        // Push an Admins: Freigabe erforderlich
         if (statusChanged && status === "uebersprungen") {
           try {
-            const pushTitle = isFinalFailure
-              ? `Auftrag ${order.auftrags_nr} endgültig nicht zugestellt`
-              : `Auftrag ${order.auftrags_nr}: Zustellversuch ${attemptNumber}/${MAX_DELIVERY_ATTEMPTS} fehlgeschlagen`;
+            const pushTitle = `Auftrag ${order.auftrags_nr}: Zustellversuch ${attemptNumber} fehlgeschlagen – Freigabe erforderlich`;
             const pushBody = [order.empfaenger_name, reason].filter(Boolean).join(" · ");
             await admin.functions.invoke("send-push", {
               body: {
                 audience: "admins",
                 payload: {
                   title: pushTitle,
-                  body: pushBody || "Hindernis bei Zustellung",
+                  body: pushBody || "Bestätigung erforderlich",
                   url: "/admin/auftraege",
                   tag: `order-${stop.order_id}`,
                 },
@@ -294,12 +287,8 @@ Deno.serve(async (req) => {
                 templateData.nachbarName = deliveryRecipient;
               }
               if (deliveryNote) templateData.uebergabeBemerkung = deliveryNote;
-            } else if (isFinalFailure) {
-              templateName = "order-nicht-zugestellt";
-              idempotencyKey = `order-status-${stop.order_id}-nicht_zugestellt-final`;
-              if (reason) templateData.reason = reason;
             } else {
-              // Retry — Versuch 1 oder 2 fehlgeschlagen
+              // Zustellversuch fehlgeschlagen — Admin entscheidet über weitere Schritte
               templateName = "order-zustellversuch-fehlgeschlagen";
               idempotencyKey = `order-status-${stop.order_id}-attempt-${attemptNumber}`;
               templateData.attemptNumber = String(attemptNumber);
