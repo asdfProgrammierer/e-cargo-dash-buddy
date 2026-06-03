@@ -49,8 +49,8 @@ async function loadProofOfDelivery(orderId: string): Promise<ProofOfDelivery | n
     .from("route_stops")
     .select("delivery_mode, delivery_note, delivery_recipient, signature_url, delivery_photo_url, delivered_at, completed_lat, completed_lng, completed_accuracy_m")
     .eq("order_id", orderId)
-    .not("delivered_at", "is", null)
-    .order("delivered_at", { ascending: false })
+    .in("status", ["erledigt", "uebersprungen"])
+    .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   return (data as unknown as ProofOfDelivery) ?? null;
