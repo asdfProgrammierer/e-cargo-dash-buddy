@@ -72,6 +72,7 @@ interface DbOrder {
   is_pickup?: boolean | null;
   dhl_label_url?: string | null;
   dhl_tracking_number?: string | null;
+  delivery_unconfirmed?: boolean | null;
 }
 
 function dbToOrder(row: DbOrder): Order {
@@ -98,6 +99,7 @@ function dbToOrder(row: DbOrder): Order {
     isPickup: row.is_pickup === true,
     dhlLabelUrl: row.dhl_label_url ?? undefined,
     dhlTrackingNumber: row.dhl_tracking_number ?? undefined,
+    deliveryUnconfirmed: row.delivery_unconfirmed === true,
   };
 }
 
