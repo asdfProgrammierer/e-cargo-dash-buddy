@@ -539,10 +539,12 @@ export function OrderDetailSheet({
               </Button>
             </a>
           ) : (
-            <Button variant="outline" className="w-full" onClick={createDhlLabel} disabled={dhlLoading}>
-              <Package className="mr-2 h-4 w-4" />
-              {dhlLoading ? "DHL-Label wird erstellt..." : "DHL-Label erzeugen"}
-            </Button>
+            /^\d{5}$/.test(order.empfaengerPlz?.trim() ?? "") && !zoneMeta && (
+              <Button variant="outline" className="w-full" onClick={createDhlLabel} disabled={dhlLoading}>
+                <Package className="mr-2 h-4 w-4" />
+                {dhlLoading ? "DHL-Label wird erstellt..." : "DHL-Label erzeugen"}
+              </Button>
+            )
           )}
 
           {canUpdateStatus && (
