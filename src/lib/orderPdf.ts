@@ -49,8 +49,8 @@ async function loadProofOfDelivery(orderId: string): Promise<ProofOfDelivery | n
     .from("route_stops")
     .select("delivery_mode, delivery_note, delivery_recipient, signature_url, delivery_photo_url, delivered_at, completed_lat, completed_lng, completed_accuracy_m")
     .eq("order_id", orderId)
-    .not("delivered_at", "is", null)
-    .order("delivered_at", { ascending: false })
+    .in("status", ["erledigt", "uebersprungen"])
+    .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   return (data as unknown as ProofOfDelivery) ?? null;
@@ -505,7 +505,7 @@ export async function buildOrderPdf(order: Order): Promise<jsPDF> {
 
   // Delivery photo (briefkasten / nachbar)
   if (photoDataUrl) {
-    if (y > pageH - 90) { doc.addPage(); y = 18; }
+    if (y > pageH - 100) { doc.addPage(); y = 18; }
     doc.setFillColor(245, 245, 245);
     doc.roundedRect(marginX, y, contentW, 6, 1, 1, "F");
     doc.setFont("helvetica", "bold");
@@ -514,13 +514,15 @@ export async function buildOrderPdf(order: Order): Promise<jsPDF> {
     doc.text("ZUSTELLFOTO", marginX + 3, y + 4.2);
     doc.setTextColor(0);
     y += 9;
+    // Portrait, kleiner: 50mm breit × 70mm hoch, zentriert
+    const photoW = 50;
     const photoH = 70;
+    const photoX = marginX + (contentW - photoW) / 2;
     doc.setDrawColor(200);
-    doc.roundedRect(marginX, y, contentW, photoH, 1.5, 1.5, "S");
+    doc.roundedRect(photoX, y, photoW, photoH, 1.5, 1.5, "S");
     try {
       const fmt = photoDataUrl.startsWith("data:image/png") ? "PNG" : "JPEG";
-      // Fit centered inside the box
-      doc.addImage(photoDataUrl, fmt, marginX + 2, y + 2, contentW - 4, photoH - 4, undefined, "FAST");
+      doc.addImage(photoDataUrl, fmt, photoX + 2, y + 2, photoW - 4, photoH - 4, undefined, "FAST");
     } catch (e) {
       console.warn("Konnte Zustellfoto nicht ins PDF einbetten", e);
     }
