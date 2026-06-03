@@ -79,6 +79,7 @@ export function OrderDetailSheet({
   const [confirmReactivate, setConfirmReactivate] = useState(false);
   const [zoneMeta, setZoneMeta] = useState<{ label: string; color?: string | null } | null>(null);
   const [dhlLoading, setDhlLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const currentStep = order ? STATUS_ORDER[order.status] : 0;
   const isAdminView = canUpdateStatus;
   const canEdit = order
@@ -161,7 +162,6 @@ export function OrderDetailSheet({
     await printShippingLabels([order]);
   };
 
-  const [pdfLoading, setPdfLoading] = useState(false);
   const downloadPdf = async () => {
     if (!order || pdfLoading) return;
     setPdfLoading(true);
