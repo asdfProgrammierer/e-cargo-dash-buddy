@@ -22,6 +22,9 @@ import {
   Save,
   X,
   ExternalLink,
+  RotateCcw,
+  AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { Order, OrderStatus, STATUS_LABELS, STATUS_COLORS, MAX_DELIVERY_ATTEMPTS } from "@/types/order";
 import { getZoneBadgeStyle } from "@/lib/deliveryZones";
@@ -80,6 +83,7 @@ export function OrderDetailSheet({
   const [zoneMeta, setZoneMeta] = useState<{ label: string; color?: string | null } | null>(null);
   const [dhlLoading, setDhlLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [resolvingAction, setResolvingAction] = useState<"retry" | "final" | null>(null);
   const currentStep = order ? STATUS_ORDER[order.status] : 0;
   const isAdminView = canUpdateStatus;
   const canEdit = order
@@ -237,6 +241,76 @@ export function OrderDetailSheet({
           </div>
           <p className="text-sm text-muted-foreground">Erstellt am {order.erstelltAm}</p>
         </SheetHeader>
+
+        {canUpdateStatus && order.deliveryUnconfirmed && (
+          <div className="mt-2 rounded-lg border border-warning/40 bg-warning/10 p-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 text-warning" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-warning">Bestätigung ausstehend</p>
+                <p className="text-xs text-muted-foreground">
+                  Der Fahrer hat diesen Auftrag als „Nicht zugestellt" markiert. Bitte
+                  entscheiden:
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={resolvingAction !== null}
+                onClick={async () => {
+                  setResolvingAction("retry");
+                  const { error } = await supabase.rpc("admin_resolve_undelivered_order", {
+                    _order_id: order.id,
+                    _action: "retry",
+                  });
+                  setResolvingAction(null);
+                  if (error) {
+                    toast.error(error.message || "Aktion fehlgeschlagen");
+                    return;
+                  }
+                  toast.success("Auftrag wieder zur Zustellung freigegeben");
+                  onOpenChange(false);
+                }}
+              >
+                {resolvingAction === "retry" ? (
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                ) : (
+                  <RotateCcw className="mr-1 h-3 w-3" />
+                )}
+                Erneut zustellen
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                disabled={resolvingAction !== null}
+                onClick={async () => {
+                  setResolvingAction("final");
+                  const { error } = await supabase.rpc("admin_resolve_undelivered_order", {
+                    _order_id: order.id,
+                    _action: "final",
+                  });
+                  setResolvingAction(null);
+                  if (error) {
+                    toast.error(error.message || "Aktion fehlgeschlagen");
+                    return;
+                  }
+                  toast.success("Auftrag als endgültig nicht zugestellt bestätigt");
+                  onOpenChange(false);
+                }}
+              >
+                {resolvingAction === "final" ? (
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                ) : (
+                  <XCircle className="mr-1 h-3 w-3" />
+                )}
+                Endgültig nicht zugestellt
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Status Timeline */}
         <div className="py-4">

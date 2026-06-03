@@ -25,6 +25,7 @@ export interface Order {
   isPickup?: boolean;
   dhlLabelUrl?: string;
   dhlTrackingNumber?: string;
+  deliveryUnconfirmed?: boolean;
 }
 
 export const STATUS_LABELS: Record<OrderStatus, string> = {

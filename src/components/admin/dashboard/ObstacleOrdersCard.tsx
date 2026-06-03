@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ChevronRight } from "lucide-react";
+import { AlertTriangle, ChevronRight, RotateCcw, XCircle, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface ObstacleOrder {
   id: string;
@@ -15,6 +16,7 @@ interface ObstacleOrder {
   delivery_attempts: number;
   updated_at: string;
   last_reason: string | null;
+  delivery_unconfirmed: boolean;
 }
 
 interface Props {
@@ -27,14 +29,15 @@ const dateFmt = new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle
 export function ObstacleOrdersCard({ merchantNameMap, onSelect }: Props) {
   const [orders, setOrders] = useState<ObstacleOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionId, setActionId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const load = async () => {
+  const load = async () => {
       setLoading(true);
       const { data: ordersData } = await supabase
         .from("orders")
-        .select("id, auftrags_nr, user_id, empfaenger_name, empfaenger_stadt, delivery_attempts, updated_at")
+        .select("id, auftrags_nr, user_id, empfaenger_name, empfaenger_stadt, delivery_attempts, updated_at, delivery_unconfirmed")
         .eq("status", "nicht_zugestellt")
+        .eq("delivery_unconfirmed", true)
         .order("updated_at", { ascending: false })
         .limit(50);
 
@@ -54,9 +57,30 @@ export function ObstacleOrdersCard({ merchantNameMap, onSelect }: Props) {
       }
       setOrders(list.map((o) => ({ ...o, last_reason: reasonMap.get(o.id) ?? null })));
       setLoading(false);
-    };
+  };
+
+  useEffect(() => {
     load();
   }, []);
+
+  const resolve = async (orderId: string, action: "retry" | "final") => {
+    setActionId(orderId);
+    const { error } = await supabase.rpc("admin_resolve_undelivered_order", {
+      _order_id: orderId,
+      _action: action,
+    });
+    setActionId(null);
+    if (error) {
+      toast.error(error.message || "Aktion fehlgeschlagen");
+      return;
+    }
+    toast.success(
+      action === "retry"
+        ? "Auftrag wieder zur Zustellung freigegeben"
+        : "Auftrag als endgültig nicht zugestellt bestätigt",
+    );
+    setOrders((prev) => prev.filter((o) => o.id !== orderId));
+  };
 
   const visible = orders.slice(0, 5);
 
@@ -86,10 +110,12 @@ export function ObstacleOrdersCard({ merchantNameMap, onSelect }: Props) {
             {visible.map((o) => (
               <li
                 key={o.id}
-                className="flex cursor-pointer items-start justify-between gap-3 py-2.5 hover:bg-muted/30"
-                onClick={() => onSelect(o.id)}
+                className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-start sm:justify-between"
               >
-                <div className="min-w-0 flex-1">
+                <div
+                  className="min-w-0 flex-1 cursor-pointer rounded hover:bg-muted/30"
+                  onClick={() => onSelect(o.id)}
+                >
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <span>{o.auftrags_nr}</span>
                     <span className="text-muted-foreground">·</span>
@@ -104,11 +130,44 @@ export function ObstacleOrdersCard({ merchantNameMap, onSelect }: Props) {
                     <p className="mt-0.5 truncate text-xs italic text-warning">„{o.last_reason}"</p>
                   )}
                 </div>
-                <div className="text-right text-xs text-muted-foreground whitespace-nowrap">
-                  <Badge variant="outline" className="text-[10px]">
-                    Versuch {o.delivery_attempts}
-                  </Badge>
-                  <div className="mt-1">{dateFmt.format(new Date(o.updated_at))}</div>
+                <div className="flex flex-col items-end gap-2 whitespace-nowrap">
+                  <div className="flex items-center gap-1 text-right text-xs text-muted-foreground">
+                    <Badge variant="outline" className="text-[10px]">
+                      Versuch {o.delivery_attempts}
+                    </Badge>
+                    <Badge variant="secondary" className="text-[10px]">
+                      Bestätigung ausstehend
+                    </Badge>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      disabled={actionId === o.id}
+                      onClick={() => resolve(o.id, "retry")}
+                    >
+                      {actionId === o.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <RotateCcw className="mr-1 h-3 w-3" />
+                      )}
+                      Erneut zustellen
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs text-destructive hover:text-destructive"
+                      disabled={actionId === o.id}
+                      onClick={() => resolve(o.id, "final")}
+                    >
+                      <XCircle className="mr-1 h-3 w-3" />
+                      Endgültig
+                    </Button>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {dateFmt.format(new Date(o.updated_at))}
+                  </div>
                 </div>
               </li>
             ))}

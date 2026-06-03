@@ -607,6 +607,7 @@ export type Database = {
           created_at: string
           delivered_at: string | null
           delivery_attempts: number
+          delivery_unconfirmed: boolean
           dhl_label_created_at: string | null
           dhl_label_url: string | null
           dhl_price_netto: number | null
@@ -647,6 +648,7 @@ export type Database = {
           created_at?: string
           delivered_at?: string | null
           delivery_attempts?: number
+          delivery_unconfirmed?: boolean
           dhl_label_created_at?: string | null
           dhl_label_url?: string | null
           dhl_price_netto?: number | null
@@ -687,6 +689,7 @@ export type Database = {
           created_at?: string
           delivered_at?: string | null
           delivery_attempts?: number
+          delivery_unconfirmed?: boolean
           dhl_label_created_at?: string | null
           dhl_label_url?: string | null
           dhl_price_netto?: number | null
@@ -1366,6 +1369,56 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      admin_resolve_undelivered_order: {
+        Args: { _action: string; _order_id: string }
+        Returns: {
+          absender_adresse: string | null
+          absender_name: string
+          auftrags_nr: string
+          created_at: string
+          delivered_at: string | null
+          delivery_attempts: number
+          delivery_unconfirmed: boolean
+          dhl_label_created_at: string | null
+          dhl_label_url: string | null
+          dhl_price_netto: number | null
+          dhl_product_code: string | null
+          dhl_shipment_no: string | null
+          dhl_tracking_number: string | null
+          empfaenger_adresse: string | null
+          empfaenger_email: string | null
+          empfaenger_name: string
+          empfaenger_plz: string | null
+          empfaenger_stadt: string
+          empfaenger_telefon: string | null
+          external_order_name: string | null
+          external_order_ref: string | null
+          geocoded_at: string | null
+          gewicht: number
+          id: string
+          is_pickup: boolean
+          lat: number | null
+          lng: number | null
+          notizen: string | null
+          package_height_cm: number | null
+          package_length_cm: number | null
+          package_width_cm: number | null
+          pakete: number
+          shop_connection_id: string | null
+          shopify_fulfilled_at: string | null
+          shopify_fulfillment_id: string | null
+          status: string
+          tracking_token: string | null
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       admin_set_merchant_code: {
         Args: { _merchant_code: string; _profile_id: string }
         Returns: string
@@ -1395,6 +1448,7 @@ export type Database = {
           created_at: string
           delivered_at: string | null
           delivery_attempts: number
+          delivery_unconfirmed: boolean
           dhl_label_created_at: string | null
           dhl_label_url: string | null
           dhl_price_netto: number | null
