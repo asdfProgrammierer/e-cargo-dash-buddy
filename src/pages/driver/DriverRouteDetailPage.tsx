@@ -917,25 +917,26 @@ const DriverRouteDetailPage = () => {
 
       {signatureOpen && (
         <div className="fixed inset-0 z-[100] bg-background flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 border-b">
+          <div className="flex items-center justify-between px-4 py-3 border-b pt-[max(env(safe-area-inset-top),0.75rem)]">
             <div>
-              <div className="font-semibold">Unterschrift</div>
-              <div className="text-xs text-muted-foreground">Gerät bitte quer halten</div>
+              <div className="font-semibold text-base">Unterschrift</div>
+              <div className="text-xs text-muted-foreground">Mit dem Finger zeichnen</div>
             </div>
             <Button
-              variant="ghost"
-              size="sm"
+              variant="outline"
+              className="h-11 px-4"
               onClick={() => sigPadRef.current?.clear()}
             >
               Löschen
             </Button>
           </div>
-          <div className="flex-1 p-4 landscape-rotate">
-            <SignaturePad ref={sigPadRef} className="w-full h-full bg-white border rounded-md touch-none" />
+          <div className="flex-1 p-4 min-h-0">
+            <SignaturePad ref={sigPadRef} className="w-full h-full bg-white border-2 border-dashed rounded-md touch-none select-none" />
           </div>
-          <div className="grid grid-cols-2 gap-2 p-4 border-t">
+          <div className="grid grid-cols-2 gap-2.5 p-4 border-t pb-[max(env(safe-area-inset-bottom),1rem)]">
             <Button
               variant="outline"
+              className="h-14 text-base"
               onClick={() => {
                 sigPadRef.current?.clear();
                 setHasSignature(false);
@@ -945,13 +946,14 @@ const DriverRouteDetailPage = () => {
               Abbrechen
             </Button>
             <Button
+              className="h-14 text-base font-semibold"
               onClick={() => {
                 const empty = sigPadRef.current?.isEmpty() ?? true;
                 setHasSignature(!empty);
                 setSignatureOpen(false);
               }}
             >
-              <CheckCircle2 className="h-4 w-4 mr-1" />
+              <CheckCircle2 className="h-5 w-5 mr-2" />
               Übernehmen
             </Button>
           </div>
