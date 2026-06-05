@@ -12,6 +12,7 @@ import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, Arr
 import { Progress } from "@/components/ui/progress";
 import { SignaturePad, type SignaturePadHandle } from "@/components/driver/SignaturePad";
 import { buildOrderPdfBlob } from "@/lib/orderPdf";
+import { useDeliveryModes } from "@/hooks/useDeliveryModes";
 import type { Order } from "@/types/order";
 
 interface Stop {
@@ -53,13 +54,7 @@ const REASONS = [
   "Sonstiges",
 ];
 
-type DeliveryMode = "persoenlich" | "briefkasten" | "nachbar";
-
-const DELIVERY_MODES: { value: DeliveryMode; label: string }[] = [
-  { value: "persoenlich", label: "Persönlich übergeben" },
-  { value: "briefkasten", label: "Briefkasten" },
-  { value: "nachbar", label: "An Nachbar" },
-];
+type DeliveryModeKey = string;
 
 // Trennt den vom Kunden gepflegten Lieferanweisungs-Block von sonstigen Notizen.
 const INSTRUCTION_START = "--- Lieferanweisung des Kunden ---";
@@ -87,6 +82,7 @@ function splitNotes(raw: string | null | undefined): {
 
 const DriverRouteDetailPage = () => {
   const { id } = useParams<{ id: string }>();
+  const { modes: deliveryModes } = useDeliveryModes({ onlyActive: true });
   const [routeName, setRouteName] = useState("Route");
   const [routeStatus, setRouteStatus] = useState<string>("geplant");
   const [endDepot, setEndDepot] = useState<Depot | null>(null);
@@ -100,7 +96,7 @@ const DriverRouteDetailPage = () => {
 
   // Delivery confirmation sheet state
   const [deliverStop, setDeliverStop] = useState<Stop | null>(null);
-  const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>("persoenlich");
+  const [deliveryMode, setDeliveryMode] = useState<DeliveryModeKey>("persoenlich");
   const [deliveryNote, setDeliveryNote] = useState("");
   const [deliveryRecipient, setDeliveryRecipient] = useState("");
   const sigPadRef = useRef<SignaturePadHandle>(null);
@@ -108,6 +104,8 @@ const DriverRouteDetailPage = () => {
   const [hasSignature, setHasSignature] = useState(false);
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const activeMode = deliveryModes.find((m) => m.key === deliveryMode) ?? null;
 
   const load = async () => {
     if (!id) return;
@@ -169,7 +167,7 @@ const DriverRouteDetailPage = () => {
     status: "erledigt" | "uebersprungen",
     payload: {
       reason?: string;
-      delivery_mode?: DeliveryMode;
+      delivery_mode?: DeliveryModeKey;
       delivery_note?: string;
       delivery_recipient?: string;
       signature_base64?: string | null;
@@ -342,7 +340,8 @@ const DriverRouteDetailPage = () => {
 
   const openDeliverSheet = (s: Stop) => {
     setDeliverStop(s);
-    setDeliveryMode("persoenlich");
+    const firstMode = deliveryModes[0]?.key ?? "persoenlich";
+    setDeliveryMode(firstMode);
     setDeliveryNote("");
     setDeliveryRecipient("");
     setHasSignature(false);
@@ -351,17 +350,28 @@ const DriverRouteDetailPage = () => {
   };
 
   const submitDelivery = () => {
-    // (handlePhotoSelected lives below)
     if (!deliverStop) return;
-    if ((deliveryMode === "briefkasten" || deliveryMode === "nachbar") && !photoDataUrl) {
-      toast.error("Bitte ein Foto der Zustellung aufnehmen");
+    if (!activeMode) {
+      toast.error("Übergabe-Art wählen");
+      return;
+    }
+    if (activeMode.photo_required && !photoDataUrl) {
+      toast.error("Foto ist für diese Übergabe-Art Pflicht");
+      return;
+    }
+    if (activeMode.recipient_name_required && !deliveryRecipient.trim()) {
+      toast.error("Empfängername ist Pflicht");
       return;
     }
     const sig = sigPadRef.current?.toDataURL() ?? null;
+    if (activeMode.signature_required && !sig) {
+      toast.error("Unterschrift ist Pflicht");
+      return;
+    }
     updateStatus(deliverStop.id, "erledigt", {
       delivery_mode: deliveryMode,
       delivery_note: deliveryNote.trim() || undefined,
-      delivery_recipient: deliveryMode === "nachbar" ? deliveryRecipient.trim() || undefined : undefined,
+      delivery_recipient: deliveryRecipient.trim() || undefined,
       signature_base64: sig,
       photo_base64: photoDataUrl ?? undefined,
     });
