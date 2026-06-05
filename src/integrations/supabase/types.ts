@@ -97,6 +97,45 @@ export type Database = {
           },
         ]
       }
+      delivery_modes: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          key: string
+          label: string
+          photo_required: boolean
+          recipient_name_required: boolean
+          signature_required: boolean
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          key: string
+          label: string
+          photo_required?: boolean
+          recipient_name_required?: boolean
+          signature_required?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          key?: string
+          label?: string
+          photo_required?: boolean
+          recipient_name_required?: boolean
+          signature_required?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       delivery_zone_postcodes: {
         Row: {
           created_at: string
