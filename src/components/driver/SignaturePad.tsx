@@ -12,29 +12,68 @@ export const SignaturePad = forwardRef<SignaturePadHandle, { className?: string 
     const drawingRef = useRef(false);
     const emptyRef = useRef(true);
     const lastRef = useRef<{ x: number; y: number } | null>(null);
+    const snapshotRef = useRef<ImageData | null>(null);
 
     const resize = () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
+      const targetW = Math.round(rect.width * dpr);
+      const targetH = Math.round(rect.height * dpr);
+      if (canvas.width === targetW && canvas.height === targetH) return;
+      // preserve previous drawing
+      const prevCtx = canvas.getContext("2d");
+      let prev: ImageData | null = null;
+      try {
+        if (prevCtx && canvas.width > 0 && canvas.height > 0 && !emptyRef.current) {
+          prev = prevCtx.getImageData(0, 0, canvas.width, canvas.height);
+        }
+      } catch {
+        /* ignore */
+      }
+      canvas.width = targetW;
+      canvas.height = targetH;
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.scale(dpr, dpr);
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.4;
         ctx.strokeStyle = "#000";
+        if (prev) {
+          // Replay snapshot at native pixels
+          ctx.save();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          try {
+            const tmp = document.createElement("canvas");
+            tmp.width = prev.width;
+            tmp.height = prev.height;
+            tmp.getContext("2d")?.putImageData(prev, 0, 0);
+            ctx.drawImage(tmp, 0, 0, targetW, targetH);
+          } catch {
+            /* ignore */
+          }
+          ctx.restore();
+        }
       }
     };
 
     useEffect(() => {
       resize();
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ro = new ResizeObserver(() => resize());
+      ro.observe(canvas);
       const onResize = () => resize();
       window.addEventListener("resize", onResize);
-      return () => window.removeEventListener("resize", onResize);
+      window.addEventListener("orientationchange", onResize);
+      return () => {
+        ro.disconnect();
+        window.removeEventListener("resize", onResize);
+        window.removeEventListener("orientationchange", onResize);
+      };
     }, []);
 
     const getPos = (e: PointerEvent | React.PointerEvent) => {
@@ -45,12 +84,25 @@ export const SignaturePad = forwardRef<SignaturePadHandle, { className?: string 
 
     const start = (e: React.PointerEvent) => {
       e.preventDefault();
+      const canvas = canvasRef.current;
+      if (canvas && (canvas.width === 0 || canvas.height === 0)) resize();
       drawingRef.current = true;
-      lastRef.current = getPos(e);
+      const p = getPos(e);
+      lastRef.current = p;
+      // Draw a starting dot so taps register
+      const ctx = canvasRef.current?.getContext("2d");
+      if (ctx) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 1.2, 0, Math.PI * 2);
+        ctx.fillStyle = "#000";
+        ctx.fill();
+        emptyRef.current = false;
+      }
       (e.target as Element).setPointerCapture?.(e.pointerId);
     };
     const move = (e: React.PointerEvent) => {
       if (!drawingRef.current) return;
+      e.preventDefault();
       const ctx = canvasRef.current?.getContext("2d");
       if (!ctx || !lastRef.current) return;
       const p = getPos(e);
@@ -94,7 +146,8 @@ export const SignaturePad = forwardRef<SignaturePadHandle, { className?: string 
     return (
       <canvas
         ref={canvasRef}
-        className={className ?? "w-full h-40 bg-white border rounded-md touch-none"}
+        className={className ?? "w-full h-40 bg-white border rounded-md touch-none select-none"}
+        style={{ touchAction: "none", userSelect: "none" }}
         onPointerDown={start}
         onPointerMove={move}
         onPointerUp={end}

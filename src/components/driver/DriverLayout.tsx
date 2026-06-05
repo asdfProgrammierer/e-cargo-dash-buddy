@@ -16,34 +16,34 @@ export const DriverLayout = ({ children, title, showBack }: DriverLayoutProps) =
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-10 bg-card border-b px-4 h-14 flex items-center gap-2 shadow-sm">
+      <header className="sticky top-0 z-10 bg-card border-b px-4 h-14 flex items-center gap-2 shadow-sm pt-[env(safe-area-inset-top)]">
         {showBack && (
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="-ml-2">
-            <ArrowLeft className="h-5 w-5" />
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="-ml-2 h-11 w-11">
+            <ArrowLeft className="h-6 w-6" />
           </Button>
         )}
         <h1 className="font-semibold text-lg flex-1 truncate">{title ?? "e-cargo"}</h1>
       </header>
-      <main className="flex-1 pb-20">{children}</main>
-      <nav className="fixed bottom-0 inset-x-0 bg-card border-t flex h-16 z-10">
+      <main className="flex-1 pb-[calc(env(safe-area-inset-bottom)+5rem)]">{children}</main>
+      <nav className="fixed bottom-0 inset-x-0 bg-card border-t flex h-16 z-10 pb-[env(safe-area-inset-bottom)]">
         <button
           onClick={() => navigate("/fahrer")}
           className={cn(
-            "flex-1 flex flex-col items-center justify-center gap-1 text-xs",
+            "flex-1 flex flex-col items-center justify-center gap-1 text-xs active:bg-muted/50 transition-colors",
             location.pathname === "/fahrer" ? "text-primary" : "text-muted-foreground",
           )}
         >
-          <Home className="h-5 w-5" />
+          <Home className="h-6 w-6" />
           Routen
         </button>
         <button
           onClick={() => navigate("/fahrer/profil")}
           className={cn(
-            "flex-1 flex flex-col items-center justify-center gap-1 text-xs",
+            "flex-1 flex flex-col items-center justify-center gap-1 text-xs active:bg-muted/50 transition-colors",
             location.pathname === "/fahrer/profil" ? "text-primary" : "text-muted-foreground",
           )}
         >
-          <User className="h-5 w-5" />
+          <User className="h-6 w-6" />
           Profil
         </button>
       </nav>

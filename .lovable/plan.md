@@ -1,64 +1,68 @@
 ## Ziel
 
-Jeder vom Fahrer als "Nicht zugestellt" markierte Auftrag muss durch einen Admin manuell bestätigt werden — egal ob 1., 2. oder 3. Versuch. Die Bestellung erscheint mit Hinweis "Bestätigung ausstehend" in der Karte **Bestellungen mit Hindernissen** im Admin-Dashboard. Per Button entscheidet der Admin:
+Die Fahrer-App wird touchfreundlicher, das Unterschriftfeld funktioniert wieder, und Admins können die Übergabe-Modi (Persönlich, Briefkasten, Nachbar, …) inkl. Pflichtfelder zentral konfigurieren.
 
-- **Erneut zustellen** → Status zurück auf `neu`, Zustellzähler bleibt hochgezählt, Bestellung kommt wieder in die Routenplanung.
-- **Endgültig nicht zugestellt** → Status bleibt `nicht_zugestellt`, Bestätigung gesetzt.
+## 1. Admin-Konfiguration (neu)
 
-## Aktuelles Verhalten (zum Vergleich)
+**Neue Tabelle `delivery_modes`** mit Spalten:
+- `key` (z.B. `persoenlich`, `briefkasten`, `nachbar`, `bemerkung`)
+- `label` (Anzeigename für Fahrer)
+- `active` (an/aus)
+- `photo_required` (bool)
+- `signature_required` (bool)
+- `recipient_name_required` (bool)
+- `sort_order`
+- Standard-Modi werden beim Setup eingespielt.
 
-- Versuch 1–2: Edge Function setzt automatisch zurück auf `neu`.
-- Versuch 3: automatisch endgültig `nicht_zugestellt`.
-- Keine Admin-Interaktion notwendig.
+**Neue Admin-Seite** „Einstellungen → Übergabe-Modi" mit Tabelle/Karten zum:
+- Aktivieren/Deaktivieren
+- Pflichtfeld-Toggles (Foto, Unterschrift, Empfängername)
+- Label umbenennen, Reihenfolge ändern
 
-## Neues Verhalten
+RLS: Lesen für alle authenticated, Schreiben nur Admins.
 
-- Jeder Fahrer-Skip setzt Auftrag sofort auf `nicht_zugestellt` mit Flag `delivery_unconfirmed = true`. `delivery_attempts` wird inkrementiert.
-- `MAX_DELIVERY_ATTEMPTS`-Auto-Final entfällt — Admin entscheidet jedes Mal.
-- Solange `delivery_unconfirmed = true`:
-  - Auftrag erscheint in **Bestellungen mit Hindernissen** mit Badge „Bestätigung ausstehend".
-  - Action-Buttons direkt in der Card und im Admin-OrderDetailSheet.
-- Nach Admin-Entscheidung wird `delivery_unconfirmed = false`.
+## 2. Fahrer-App: Übergabe-Sheet überarbeiten
 
-## Änderungen
+- Modi werden aus `delivery_modes` geladen (statt hardgecoded).
+- Pflichtfeld-Validierung kommt aus der Konfiguration (Foto/Unterschrift/Name).
+- **Tastatur-Fix:** Kein `autoFocus` auf Textareas/Inputs; Felder öffnen Tastatur erst bei Tap. Notiz- und Empfänger-Felder sind initial nicht fokussiert; Empfänger-Input nur eingeblendet wenn Modus es verlangt.
+- Foto-/Unterschrift-Bereiche werden nur angezeigt wenn der gewählte Modus sie braucht.
 
-### Datenbank (Migration)
+## 3. Unterschriftfeld reparieren
 
-- `orders`: neue Spalte `delivery_unconfirmed boolean not null default false`.
-- Index `orders_unconfirmed_idx` auf `(delivery_unconfirmed)` where true.
-- Neue SECURITY-DEFINER-RPC `admin_resolve_undelivered_order(_order_id uuid, _action text)`:
-  - `_action = 'retry'`: setzt `status = 'neu'`, `delivery_unconfirmed = false`, `delivered_at = null`, schreibt History-Eintrag „Erneut zur Zustellung freigegeben".
-  - `_action = 'final'`: setzt `delivery_unconfirmed = false`, History-Eintrag „Endgültig nicht zugestellt bestätigt".
-  - Nur Admin (über `has_role`).
+Aktuell zeichnet die Linie nicht. Ursache: `SignaturePad` ruft `resize()` initial bevor das Sheet sichtbar ist → Canvas hat 0×0, Zeichnen schlägt fehl. Plus `touch-action` greift teils nicht.
 
-### Edge Function `driver-update-stop-status`
+Fix:
+- Resize per `ResizeObserver` auf das Canvas-Element → reagiert sobald Sheet geöffnet wird.
+- Pointer-Events robust (`touch-none`, `user-select-none`, explizit `touchAction: 'none'` als Style).
+- Sicherstellen dass `pointercancel`/`pointerleave` Zeichnen sauber beenden ohne neuen Punkt zu schlucken.
+- `isEmpty` über tatsächliche Pixelprüfung statt nur Flag, damit „Pflicht: Unterschrift" verlässlich greift.
 
-- Block ab Zeile ~189: Bei `status = 'uebersprungen'` immer:
-  - `newOrderStatus = 'nicht_zugestellt'`
-  - `delivery_attempts = (alt) + 1`
-  - `delivery_unconfirmed = true`
-  - History-Eintrag „Versuch X fehlgeschlagen – wartet auf Admin-Freigabe"
-- Push an Admins: Titel „Auftrag X: Zustellversuch X fehlgeschlagen, Freigabe erforderlich".
-- `MAX_DELIVERY_ATTEMPTS`-Verzweigung (retry vs. final) entfernt.
+## 4. Mobile-Buttons & Tap-Targets
 
-### Frontend
+Im gesamten Fahrer-Bereich (`DriverHomePage`, `DriverRouteDetailPage`, Sheets):
+- Primäre Action-Buttons mind. **56 px** hoch (`h-14`), volle Breite, größere Schrift (`text-base font-semibold`).
+- Stop-Karten: größere Touch-Bereiche, mehr vertikales Padding, „Navigieren / Zugestellt / Nicht zugestellt" als gut trennbare 3er-Buttonreihe statt enge Icons.
+- Mehr Abstand zwischen Buttons (`gap-3`), `active:scale-[0.98]` für haptisches Feedback.
+- Radio-Buttons für Modi werden zu großen Tap-Karten (ganze Zeile klickbar, min. 56 px Höhe).
+- Bottom-Safe-Area Padding damit nichts hinter iOS-Home-Indikator verschwindet.
 
-- `src/types/order.ts`: Feld `deliveryUnconfirmed: boolean`; `MAX_DELIVERY_ATTEMPTS`-Konstante darf bleiben (rein informativ in der UI).
-- `src/stores/orderStore.ts`: Spalte mappen.
-- `src/components/admin/dashboard/ObstacleOrdersCard.tsx`:
-  - Query erweitern: `status = 'nicht_zugestellt' AND delivery_unconfirmed = true`.
-  - Zwei kleine Buttons pro Zeile: „Erneut zustellen" / „Endgültig". Aufruf der RPC, danach Reload + Toast.
-  - Badge „Bestätigung ausstehend".
-- `src/components/dashboard/OrderDetailSheet.tsx` (Admin-View):
-  - Bei `order.deliveryUnconfirmed` Hinweisbox mit denselben zwei Aktionsbuttons.
-- `src/pages/admin/AdminDashboardPage.tsx`: kein größerer Umbau, nur Realtime-Refresh nach Aktion (vorhanden).
+## 5. Technische Details
 
-### Migration für Bestand
+- Neue Migration: `delivery_modes` Tabelle + Seed der 4 bestehenden Modi + RLS + Grants.
+- `driver-update-stop-status` Edge-Function: validiert Pflichtfelder serverseitig anhand der Tabelle.
+- Frontend Hook `useDeliveryModes()` lädt + cached Modi.
+- Admin-Route: `/admin/einstellungen/uebergabe-modi` (in Sidebar verlinken).
 
-Vorhandene Aufträge mit `status = 'nicht_zugestellt'` werden im Rahmen der Migration als bereits bestätigt behandelt (`delivery_unconfirmed = false`) — sonst tauchen alte Fälle plötzlich wieder auf.
+## Geänderte/neue Dateien
 
-## Offen für Implementierung (Standardannahmen)
-
-- Kein neuer Status, weiterhin `nicht_zugestellt` + Flag (so vom Nutzer gewählt).
-- Keine Händler-Mitsprache in dieser Iteration; nur Admin entscheidet.
-- Push-Benachrichtigung an Admins bleibt bestehen, Text wird angepasst.
+- `supabase/migrations/…_delivery_modes.sql` (neu)
+- `src/pages/admin/DeliveryModesPage.tsx` (neu)
+- `src/components/admin/AdminSidebar.tsx` (Link)
+- `src/App.tsx` (Route)
+- `src/hooks/useDeliveryModes.ts` (neu)
+- `src/components/driver/SignaturePad.tsx` (Fix)
+- `src/pages/driver/DriverRouteDetailPage.tsx` (Sheet + Buttons)
+- `src/pages/driver/DriverHomePage.tsx` (Buttons)
+- `src/components/driver/DriverLayout.tsx` (Safe-Area Padding)
+- `supabase/functions/driver-update-stop-status/index.ts` (Server-Validierung)

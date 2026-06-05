@@ -12,6 +12,7 @@ import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, Arr
 import { Progress } from "@/components/ui/progress";
 import { SignaturePad, type SignaturePadHandle } from "@/components/driver/SignaturePad";
 import { buildOrderPdfBlob } from "@/lib/orderPdf";
+import { useDeliveryModes } from "@/hooks/useDeliveryModes";
 import type { Order } from "@/types/order";
 
 interface Stop {
@@ -53,13 +54,7 @@ const REASONS = [
   "Sonstiges",
 ];
 
-type DeliveryMode = "persoenlich" | "briefkasten" | "nachbar";
-
-const DELIVERY_MODES: { value: DeliveryMode; label: string }[] = [
-  { value: "persoenlich", label: "Persönlich übergeben" },
-  { value: "briefkasten", label: "Briefkasten" },
-  { value: "nachbar", label: "An Nachbar" },
-];
+type DeliveryModeKey = string;
 
 // Trennt den vom Kunden gepflegten Lieferanweisungs-Block von sonstigen Notizen.
 const INSTRUCTION_START = "--- Lieferanweisung des Kunden ---";
@@ -87,6 +82,7 @@ function splitNotes(raw: string | null | undefined): {
 
 const DriverRouteDetailPage = () => {
   const { id } = useParams<{ id: string }>();
+  const { modes: deliveryModes } = useDeliveryModes({ onlyActive: true });
   const [routeName, setRouteName] = useState("Route");
   const [routeStatus, setRouteStatus] = useState<string>("geplant");
   const [endDepot, setEndDepot] = useState<Depot | null>(null);
@@ -100,7 +96,7 @@ const DriverRouteDetailPage = () => {
 
   // Delivery confirmation sheet state
   const [deliverStop, setDeliverStop] = useState<Stop | null>(null);
-  const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>("persoenlich");
+  const [deliveryMode, setDeliveryMode] = useState<DeliveryModeKey>("persoenlich");
   const [deliveryNote, setDeliveryNote] = useState("");
   const [deliveryRecipient, setDeliveryRecipient] = useState("");
   const sigPadRef = useRef<SignaturePadHandle>(null);
@@ -108,6 +104,8 @@ const DriverRouteDetailPage = () => {
   const [hasSignature, setHasSignature] = useState(false);
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const activeMode = deliveryModes.find((m) => m.key === deliveryMode) ?? null;
 
   const load = async () => {
     if (!id) return;
@@ -169,7 +167,7 @@ const DriverRouteDetailPage = () => {
     status: "erledigt" | "uebersprungen",
     payload: {
       reason?: string;
-      delivery_mode?: DeliveryMode;
+      delivery_mode?: DeliveryModeKey;
       delivery_note?: string;
       delivery_recipient?: string;
       signature_base64?: string | null;
@@ -342,7 +340,8 @@ const DriverRouteDetailPage = () => {
 
   const openDeliverSheet = (s: Stop) => {
     setDeliverStop(s);
-    setDeliveryMode("persoenlich");
+    const firstMode = deliveryModes[0]?.key ?? "persoenlich";
+    setDeliveryMode(firstMode);
     setDeliveryNote("");
     setDeliveryRecipient("");
     setHasSignature(false);
@@ -351,17 +350,28 @@ const DriverRouteDetailPage = () => {
   };
 
   const submitDelivery = () => {
-    // (handlePhotoSelected lives below)
     if (!deliverStop) return;
-    if ((deliveryMode === "briefkasten" || deliveryMode === "nachbar") && !photoDataUrl) {
-      toast.error("Bitte ein Foto der Zustellung aufnehmen");
+    if (!activeMode) {
+      toast.error("Übergabe-Art wählen");
+      return;
+    }
+    if (activeMode.photo_required && !photoDataUrl) {
+      toast.error("Foto ist für diese Übergabe-Art Pflicht");
+      return;
+    }
+    if (activeMode.recipient_name_required && !deliveryRecipient.trim()) {
+      toast.error("Empfängername ist Pflicht");
       return;
     }
     const sig = sigPadRef.current?.toDataURL() ?? null;
+    if (activeMode.signature_required && !sig) {
+      toast.error("Unterschrift ist Pflicht");
+      return;
+    }
     updateStatus(deliverStop.id, "erledigt", {
       delivery_mode: deliveryMode,
       delivery_note: deliveryNote.trim() || undefined,
-      delivery_recipient: deliveryMode === "nachbar" ? deliveryRecipient.trim() || undefined : undefined,
+      delivery_recipient: deliveryRecipient.trim() || undefined,
       signature_base64: sig,
       photo_base64: photoDataUrl ?? undefined,
     });
@@ -623,23 +633,9 @@ const DriverRouteDetailPage = () => {
                 </div>
 
                 {!isDone && !isSkipped && (
-                  <div className="grid grid-cols-3 gap-2 mt-3">
-                    <Button variant="outline" size="sm" onClick={() => navigate(s)}>
-                      <Navigation className="h-4 w-4" />
-                    </Button>
-                    {o.empfaenger_telefon ? (
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={`tel:${o.empfaenger_telefon}`}>
-                          <Phone className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    ) : (
-                      <Button variant="outline" size="sm" disabled>
-                        <Phone className="h-4 w-4 opacity-30" />
-                      </Button>
-                    )}
+                  <div className="mt-4 space-y-2.5">
                     <Button
-                      size="sm"
+                      className="w-full h-14 text-base font-semibold active:scale-[0.98] transition-transform"
                       onClick={() => {
                         if (isPlanned) {
                           toast.info("Bitte zuerst Route starten");
@@ -649,13 +645,39 @@ const DriverRouteDetailPage = () => {
                       }}
                       disabled={submitting || isPlanned}
                     >
-                      <CheckCircle2 className="h-4 w-4 mr-1" />
-                      OK
+                      <CheckCircle2 className="h-5 w-5 mr-2" />
+                      Zugestellt
                     </Button>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <Button
+                        variant="outline"
+                        className="h-12 text-sm active:scale-[0.98] transition-transform"
+                        onClick={() => navigate(s)}
+                      >
+                        <Navigation className="h-4 w-4 mr-2" />
+                        Navi
+                      </Button>
+                      {o.empfaenger_telefon ? (
+                        <Button
+                          variant="outline"
+                          className="h-12 text-sm active:scale-[0.98] transition-transform"
+                          asChild
+                        >
+                          <a href={`tel:${o.empfaenger_telefon}`}>
+                            <Phone className="h-4 w-4 mr-2" />
+                            Anrufen
+                          </a>
+                        </Button>
+                      ) : (
+                        <Button variant="outline" className="h-12 text-sm" disabled>
+                          <Phone className="h-4 w-4 mr-2 opacity-30" />
+                          Anrufen
+                        </Button>
+                      )}
+                    </div>
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      className="col-span-3 text-destructive hover:text-destructive"
+                      variant="outline"
+                      className="w-full h-12 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive active:scale-[0.98] transition-transform"
                       disabled={isPlanned}
                       onClick={() => {
                         if (isPlanned) {
@@ -665,7 +687,7 @@ const DriverRouteDetailPage = () => {
                         setActiveStop(s); setReason(REASONS[0]); setExtraNote("");
                       }}
                     >
-                      <XCircle className="h-4 w-4 mr-1" />
+                      <XCircle className="h-4 w-4 mr-2" />
                       Nicht zugestellt
                     </Button>
                   </div>
@@ -677,27 +699,40 @@ const DriverRouteDetailPage = () => {
       </div>
 
       <Sheet open={!!activeStop} onOpenChange={(o) => !o && setActiveStop(null)}>
-        <SheetContent side="bottom" className="rounded-t-2xl">
+        <SheetContent
+          side="bottom"
+          className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)]"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <SheetHeader>
             <SheetTitle>Grund auswählen</SheetTitle>
           </SheetHeader>
           <div className="py-4 space-y-4">
-            <RadioGroup value={reason} onValueChange={setReason}>
+            <RadioGroup value={reason} onValueChange={setReason} className="space-y-2">
               {REASONS.map((r) => (
-                <div key={r} className="flex items-center space-x-2">
-                  <RadioGroupItem value={r} id={r} />
-                  <Label htmlFor={r} className="font-normal">{r}</Label>
-                </div>
+                <label
+                  key={r}
+                  htmlFor={`reason-${r}`}
+                  className={`flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors min-h-[56px] ${
+                    reason === r
+                      ? "border-primary bg-primary/5"
+                      : "border-border bg-card hover:border-primary/40"
+                  }`}
+                >
+                  <RadioGroupItem value={r} id={`reason-${r}`} />
+                  <span className="font-medium text-sm flex-1">{r}</span>
+                </label>
               ))}
             </RadioGroup>
             <Textarea
-              placeholder="Notiz (optional)"
+              placeholder="Notiz (optional, tippen zum Schreiben)"
               value={extraNote}
               onChange={(e) => setExtraNote(e.target.value)}
               rows={2}
+              className="text-base"
             />
             <Button
-              className="w-full"
+              className="w-full h-14 text-base font-semibold"
               variant="destructive"
               disabled={submitting}
               onClick={() => {
@@ -706,125 +741,172 @@ const DriverRouteDetailPage = () => {
                 updateStatus(activeStop.id, "uebersprungen", { reason: fullReason });
               }}
             >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Bestätigen"}
+              {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Bestätigen"}
             </Button>
           </div>
         </SheetContent>
       </Sheet>
 
       <Sheet open={!!deliverStop} onOpenChange={(o) => !o && setDeliverStop(null)}>
-        <SheetContent side="bottom" className="rounded-t-2xl max-h-[90vh] overflow-y-auto">
+        <SheetContent
+          side="bottom"
+          className="rounded-t-2xl max-h-[92vh] overflow-y-auto pb-[max(env(safe-area-inset-bottom),1rem)]"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <SheetHeader>
             <SheetTitle>Zustellung bestätigen</SheetTitle>
           </SheetHeader>
-          <div className="py-4 space-y-4">
+          <div className="py-4 space-y-5">
             <div>
-              <Label className="text-xs text-muted-foreground mb-2 block">Übergabe</Label>
-              <RadioGroup value={deliveryMode} onValueChange={(v) => setDeliveryMode(v as DeliveryMode)}>
-                {DELIVERY_MODES.map((m) => (
-                  <div key={m.value} className="flex items-center space-x-2">
-                    <RadioGroupItem value={m.value} id={`mode-${m.value}`} />
-                    <Label htmlFor={`mode-${m.value}`} className="font-normal">{m.label}</Label>
-                  </div>
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground mb-2 block">
+                Übergabe-Art
+              </Label>
+              <RadioGroup
+                value={deliveryMode}
+                onValueChange={(v) => setDeliveryMode(v)}
+                className="space-y-2"
+              >
+                {deliveryModes.map((m) => (
+                  <label
+                    key={m.key}
+                    htmlFor={`mode-${m.key}`}
+                    className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors min-h-[56px] ${
+                      deliveryMode === m.key
+                        ? "border-primary bg-primary/5"
+                        : "border-border bg-card hover:border-primary/40"
+                    }`}
+                  >
+                    <RadioGroupItem value={m.key} id={`mode-${m.key}`} className="mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm">{m.label}</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5 flex flex-wrap gap-x-2">
+                        {m.photo_required && <span>📷 Foto</span>}
+                        {m.signature_required && <span>✍️ Unterschrift</span>}
+                        {m.recipient_name_required && <span>👤 Name</span>}
+                        {!m.photo_required && !m.signature_required && !m.recipient_name_required && (
+                          <span>Keine Pflichtfelder</span>
+                        )}
+                      </div>
+                    </div>
+                  </label>
                 ))}
               </RadioGroup>
             </div>
 
-            {deliveryMode === "nachbar" && (
+            {activeMode?.recipient_name_required && (
               <div>
-                <Label htmlFor="recipient" className="text-xs text-muted-foreground mb-1 block">
-                  Name des Nachbarn (optional)
+                <Label htmlFor="recipient" className="text-sm font-medium mb-1.5 block">
+                  Empfängername <span className="text-destructive">*</span>
                 </Label>
                 <input
                   id="recipient"
-                  className="w-full h-10 px-3 rounded-md border bg-background text-sm"
+                  className="w-full h-12 px-3 rounded-md border bg-background text-base"
                   value={deliveryRecipient}
                   onChange={(e) => setDeliveryRecipient(e.target.value)}
                   placeholder="z. B. Familie Müller"
+                  autoComplete="off"
                 />
               </div>
             )}
 
-            <Textarea
-              placeholder="Bemerkung (optional)"
-              value={deliveryNote}
-              onChange={(e) => setDeliveryNote(e.target.value)}
-              rows={2}
-            />
+            <div>
+              <Label htmlFor="delivery-note" className="text-sm font-medium mb-1.5 block">
+                Bemerkung (optional)
+              </Label>
+              <Textarea
+                id="delivery-note"
+                placeholder="Tippen um zu schreiben…"
+                value={deliveryNote}
+                onChange={(e) => setDeliveryNote(e.target.value)}
+                rows={2}
+                className="text-base"
+              />
+            </div>
+
+            {(activeMode?.signature_required || activeMode?.key === "persoenlich") && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-14 text-base"
+                onClick={() => setSignatureOpen(true)}
+              >
+                <PenLine className="h-5 w-5 mr-2" />
+                {hasSignature ? "Unterschrift bearbeiten" : "Unterschrift hinzufügen"}
+                {activeMode?.signature_required && !hasSignature && (
+                  <span className="text-destructive ml-1">*</span>
+                )}
+                {hasSignature && <CheckCircle2 className="h-5 w-5 ml-2 text-primary" />}
+              </Button>
+            )}
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium block">
+                Zustellfoto
+                {activeMode?.photo_required && !photoDataUrl && (
+                  <span className="text-destructive ml-1">*</span>
+                )}
+              </Label>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  handlePhotoSelected(e.target.files?.[0] ?? null);
+                  e.target.value = "";
+                }}
+              />
+              {photoDataUrl ? (
+                <div className="space-y-2">
+                  <img
+                    src={photoDataUrl}
+                    alt="Zustellfoto"
+                    className="w-full max-h-56 object-contain rounded-md border bg-muted"
+                  />
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-12"
+                      onClick={() => photoInputRef.current?.click()}
+                    >
+                      <Camera className="h-4 w-4 mr-2" />
+                      Neu aufnehmen
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-12 text-destructive hover:text-destructive"
+                      onClick={() => setPhotoDataUrl(null)}
+                    >
+                      Entfernen
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-14 text-base"
+                  onClick={() => photoInputRef.current?.click()}
+                >
+                  <Camera className="h-5 w-5 mr-2" />
+                  Foto aufnehmen
+                </Button>
+              )}
+            </div>
 
             <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => setSignatureOpen(true)}
+              className="w-full h-14 text-base font-semibold"
+              disabled={submitting}
+              onClick={submitDelivery}
             >
-              <PenLine className="h-4 w-4 mr-2" />
-              {hasSignature ? "Unterschrift bearbeiten" : "Unterschrift hinzufügen"}
-              {hasSignature && <CheckCircle2 className="h-4 w-4 ml-2 text-primary" />}
-            </Button>
-
-            {(deliveryMode === "briefkasten" || deliveryMode === "nachbar") && (
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground block">
-                  Zustellfoto {photoDataUrl ? "" : <span className="text-destructive">*</span>}
-                </Label>
-                <input
-                  ref={photoInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={(e) => {
-                    handlePhotoSelected(e.target.files?.[0] ?? null);
-                    e.target.value = "";
-                  }}
-                />
-                {photoDataUrl ? (
-                  <div className="space-y-2">
-                    <img
-                      src={photoDataUrl}
-                      alt="Zustellfoto"
-                      className="w-full max-h-56 object-contain rounded-md border bg-muted"
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => photoInputRef.current?.click()}
-                      >
-                        <Camera className="h-4 w-4 mr-2" />
-                        Neu aufnehmen
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => setPhotoDataUrl(null)}
-                      >
-                        Entfernen
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => photoInputRef.current?.click()}
-                  >
-                    <Camera className="h-4 w-4 mr-2" />
-                    Foto aufnehmen
-                  </Button>
-                )}
-              </div>
-            )}
-
-            <Button className="w-full" disabled={submitting} onClick={submitDelivery}>
               {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
                 <>
-                  <CheckCircle2 className="h-4 w-4 mr-1" />
+                  <CheckCircle2 className="h-5 w-5 mr-2" />
                   Zustellung bestätigen
                 </>
               )}
@@ -835,25 +917,26 @@ const DriverRouteDetailPage = () => {
 
       {signatureOpen && (
         <div className="fixed inset-0 z-[100] bg-background flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 border-b">
+          <div className="flex items-center justify-between px-4 py-3 border-b pt-[max(env(safe-area-inset-top),0.75rem)]">
             <div>
-              <div className="font-semibold">Unterschrift</div>
-              <div className="text-xs text-muted-foreground">Gerät bitte quer halten</div>
+              <div className="font-semibold text-base">Unterschrift</div>
+              <div className="text-xs text-muted-foreground">Mit dem Finger zeichnen</div>
             </div>
             <Button
-              variant="ghost"
-              size="sm"
+              variant="outline"
+              className="h-11 px-4"
               onClick={() => sigPadRef.current?.clear()}
             >
               Löschen
             </Button>
           </div>
-          <div className="flex-1 p-4 landscape-rotate">
-            <SignaturePad ref={sigPadRef} className="w-full h-full bg-white border rounded-md touch-none" />
+          <div className="flex-1 p-4 min-h-0">
+            <SignaturePad ref={sigPadRef} className="w-full h-full bg-white border-2 border-dashed rounded-md touch-none select-none" />
           </div>
-          <div className="grid grid-cols-2 gap-2 p-4 border-t">
+          <div className="grid grid-cols-2 gap-2.5 p-4 border-t pb-[max(env(safe-area-inset-bottom),1rem)]">
             <Button
               variant="outline"
+              className="h-14 text-base"
               onClick={() => {
                 sigPadRef.current?.clear();
                 setHasSignature(false);
@@ -863,13 +946,14 @@ const DriverRouteDetailPage = () => {
               Abbrechen
             </Button>
             <Button
+              className="h-14 text-base font-semibold"
               onClick={() => {
                 const empty = sigPadRef.current?.isEmpty() ?? true;
                 setHasSignature(!empty);
                 setSignatureOpen(false);
               }}
             >
-              <CheckCircle2 className="h-4 w-4 mr-1" />
+              <CheckCircle2 className="h-5 w-5 mr-2" />
               Übernehmen
             </Button>
           </div>
