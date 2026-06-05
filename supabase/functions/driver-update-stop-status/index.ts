@@ -54,13 +54,6 @@ Deno.serve(async (req) => {
     const completedAccuracy: number | undefined =
       typeof body.completed_accuracy_m === "number" ? body.completed_accuracy_m : undefined;
 
-    const ALLOWED_MODES = new Set([
-      "persoenlich",
-      "briefkasten",
-      "nachbar",
-      "bemerkung",
-    ]);
-
     if (!stopId || !ALLOWED.has(status)) {
       return new Response(JSON.stringify({ error: "Ungültige Eingabe" }), {
         status: 400,
@@ -73,11 +66,38 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (status === "erledigt" && deliveryMode && !ALLOWED_MODES.has(deliveryMode)) {
-      return new Response(JSON.stringify({ error: "Ungültiger Übergabe-Modus" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Validate delivery mode against admin-configured table
+    if (status === "erledigt") {
+      const modeKey = deliveryMode ?? "persoenlich";
+      const { data: modeRow } = await admin
+        .from("delivery_modes")
+        .select("key, active, photo_required, signature_required, recipient_name_required")
+        .eq("key", modeKey)
+        .maybeSingle();
+      if (!modeRow || !modeRow.active) {
+        return new Response(JSON.stringify({ error: "Übergabe-Art nicht verfügbar" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (modeRow.photo_required && !photoBase64) {
+        return new Response(JSON.stringify({ error: "Foto ist Pflicht für diese Übergabe-Art" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (modeRow.signature_required && !signatureBase64) {
+        return new Response(JSON.stringify({ error: "Unterschrift ist Pflicht für diese Übergabe-Art" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (modeRow.recipient_name_required && !deliveryRecipient) {
+        return new Response(JSON.stringify({ error: "Empfängername ist Pflicht für diese Übergabe-Art" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Verify driver owns this stop's route
