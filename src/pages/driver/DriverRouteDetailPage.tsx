@@ -633,23 +633,9 @@ const DriverRouteDetailPage = () => {
                 </div>
 
                 {!isDone && !isSkipped && (
-                  <div className="grid grid-cols-3 gap-2 mt-3">
-                    <Button variant="outline" size="sm" onClick={() => navigate(s)}>
-                      <Navigation className="h-4 w-4" />
-                    </Button>
-                    {o.empfaenger_telefon ? (
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={`tel:${o.empfaenger_telefon}`}>
-                          <Phone className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    ) : (
-                      <Button variant="outline" size="sm" disabled>
-                        <Phone className="h-4 w-4 opacity-30" />
-                      </Button>
-                    )}
+                  <div className="mt-4 space-y-2.5">
                     <Button
-                      size="sm"
+                      className="w-full h-14 text-base font-semibold active:scale-[0.98] transition-transform"
                       onClick={() => {
                         if (isPlanned) {
                           toast.info("Bitte zuerst Route starten");
@@ -659,13 +645,39 @@ const DriverRouteDetailPage = () => {
                       }}
                       disabled={submitting || isPlanned}
                     >
-                      <CheckCircle2 className="h-4 w-4 mr-1" />
-                      OK
+                      <CheckCircle2 className="h-5 w-5 mr-2" />
+                      Zugestellt
                     </Button>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <Button
+                        variant="outline"
+                        className="h-12 text-sm active:scale-[0.98] transition-transform"
+                        onClick={() => navigate(s)}
+                      >
+                        <Navigation className="h-4 w-4 mr-2" />
+                        Navi
+                      </Button>
+                      {o.empfaenger_telefon ? (
+                        <Button
+                          variant="outline"
+                          className="h-12 text-sm active:scale-[0.98] transition-transform"
+                          asChild
+                        >
+                          <a href={`tel:${o.empfaenger_telefon}`}>
+                            <Phone className="h-4 w-4 mr-2" />
+                            Anrufen
+                          </a>
+                        </Button>
+                      ) : (
+                        <Button variant="outline" className="h-12 text-sm" disabled>
+                          <Phone className="h-4 w-4 mr-2 opacity-30" />
+                          Anrufen
+                        </Button>
+                      )}
+                    </div>
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      className="col-span-3 text-destructive hover:text-destructive"
+                      variant="outline"
+                      className="w-full h-12 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive active:scale-[0.98] transition-transform"
                       disabled={isPlanned}
                       onClick={() => {
                         if (isPlanned) {
@@ -675,7 +687,7 @@ const DriverRouteDetailPage = () => {
                         setActiveStop(s); setReason(REASONS[0]); setExtraNote("");
                       }}
                     >
-                      <XCircle className="h-4 w-4 mr-1" />
+                      <XCircle className="h-4 w-4 mr-2" />
                       Nicht zugestellt
                     </Button>
                   </div>
