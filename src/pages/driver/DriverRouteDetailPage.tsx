@@ -760,14 +760,6 @@ const DriverRouteDetailPage = () => {
                     <RadioGroupItem value={m.key} id={`mode-${m.key}`} className="mt-0.5" />
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-sm">{m.label}</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 flex flex-wrap gap-x-2">
-                        {m.photo_required && <span>📷 Foto</span>}
-                        {m.signature_required && <span>✍️ Unterschrift</span>}
-                        {m.recipient_name_required && <span>👤 Name</span>}
-                        {!m.photo_required && !m.signature_required && !m.recipient_name_required && (
-                          <span>Keine Pflichtfelder</span>
-                        )}
-                      </div>
                     </div>
                   </label>
                 ))}
