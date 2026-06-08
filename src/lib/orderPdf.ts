@@ -86,6 +86,118 @@ async function generateQrDataUrl(order: Order) {
   );
 }
 
+async function loadImageElement(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+/**
+ * Renders a small map centered on (lat,lng) using OpenStreetMap tiles
+ * with a red pin in the middle. Returns a PNG data URL or null on failure.
+ */
+async function generateMapDataUrl(lat: number, lng: number): Promise<string | null> {
+  const zoom = 16;
+  const tileSize = 256;
+  // Web Mercator projection -> global pixel
+  const sinLat = Math.sin((lat * Math.PI) / 180);
+  const worldSize = tileSize * Math.pow(2, zoom);
+  const px = ((lng + 180) / 360) * worldSize;
+  const py = (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * worldSize;
+
+  // 3x2 grid of tiles, centered on (px,py)
+  const cols = 3;
+  const rows = 2;
+  const canvasW = cols * tileSize;
+  const canvasH = rows * tileSize;
+
+  const centerTileX = Math.floor(px / tileSize);
+  const centerTileY = Math.floor(py / tileSize);
+  const startTileX = centerTileX - 1;
+  const startTileY = centerTileY - 1;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = canvasW;
+  canvas.height = canvasH;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+
+  const tiles: Promise<{ x: number; y: number; img: HTMLImageElement | null }>[] = [];
+  for (let dy = 0; dy < rows; dy++) {
+    for (let dx = 0; dx < cols; dx++) {
+      const tx = startTileX + dx;
+      const ty = startTileY + dy;
+      const url = `https://tile.openstreetmap.org/${zoom}/${tx}/${ty}.png`;
+      tiles.push(loadImageElement(url).then((img) => ({ x: dx, y: dy, img })));
+    }
+  }
+
+  const loaded = await Promise.all(tiles);
+  let anyLoaded = false;
+  for (const t of loaded) {
+    if (t.img) {
+      ctx.drawImage(t.img, t.x * tileSize, t.y * tileSize, tileSize, tileSize);
+      anyLoaded = true;
+    }
+  }
+  if (!anyLoaded) return null;
+
+  // Crop to a centered area so the pin really sits in the middle
+  const cropW = 480;
+  const cropH = 320;
+  const offsetX = px - startTileX * tileSize - cropW / 2;
+  const offsetY = py - startTileY * tileSize - cropH / 2;
+
+  const out = document.createElement("canvas");
+  out.width = cropW;
+  out.height = cropH;
+  const octx = out.getContext("2d");
+  if (!octx) return null;
+  octx.drawImage(canvas, -offsetX, -offsetY);
+
+  // Draw red pin at center
+  const cx = cropW / 2;
+  const cy = cropH / 2;
+  // Pin shadow
+  octx.fillStyle = "rgba(0,0,0,0.35)";
+  octx.beginPath();
+  octx.ellipse(cx, cy + 2, 9, 3, 0, 0, Math.PI * 2);
+  octx.fill();
+  // Pin body (teardrop): circle + triangle
+  octx.fillStyle = "#dc2626";
+  octx.strokeStyle = "#7f1d1d";
+  octx.lineWidth = 1.5;
+  octx.beginPath();
+  octx.arc(cx, cy - 14, 9, 0, Math.PI * 2);
+  octx.fill();
+  octx.stroke();
+  octx.beginPath();
+  octx.moveTo(cx - 6, cy - 9);
+  octx.lineTo(cx + 6, cy - 9);
+  octx.lineTo(cx, cy + 1);
+  octx.closePath();
+  octx.fill();
+  octx.stroke();
+  // White center dot
+  octx.fillStyle = "#ffffff";
+  octx.beginPath();
+  octx.arc(cx, cy - 14, 3, 0, Math.PI * 2);
+  octx.fill();
+
+  // © OpenStreetMap attribution
+  octx.font = "10px sans-serif";
+  octx.fillStyle = "rgba(255,255,255,0.85)";
+  octx.fillRect(cropW - 132, cropH - 14, 130, 13);
+  octx.fillStyle = "#333";
+  octx.fillText("© OpenStreetMap contributors", cropW - 130, cropH - 4);
+
+  return out.toDataURL("image/png");
+}
+
 function formatDateTime(iso: string) {
   try {
     return new Date(iso).toLocaleString("de-DE", {
