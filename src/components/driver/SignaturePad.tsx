@@ -69,10 +69,15 @@ export const SignaturePad = forwardRef<SignaturePadHandle, { className?: string 
       const onResize = () => resize();
       window.addEventListener("resize", onResize);
       window.addEventListener("orientationchange", onResize);
+      // Some containers (Sheets/Dialogs) animate in — re-measure shortly after mount.
+      const t1 = window.setTimeout(resize, 100);
+      const t2 = window.setTimeout(resize, 400);
       return () => {
         ro.disconnect();
         window.removeEventListener("resize", onResize);
         window.removeEventListener("orientationchange", onResize);
+        window.clearTimeout(t1);
+        window.clearTimeout(t2);
       };
     }, []);
 
