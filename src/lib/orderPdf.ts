@@ -613,6 +613,27 @@ export async function buildOrderPdf(order: Order): Promise<jsPDF> {
     doc.text(gpsLine, marginX, y);
     doc.setTextColor(0);
     y += 5;
+
+    // Karte mit Pin
+    const mapDataUrl = await generateMapDataUrl(lat, lng);
+    if (mapDataUrl) {
+      if (y > pageH - 80) { doc.addPage(); y = 18; }
+      const mapW = 90;
+      const mapH = 60;
+      doc.setDrawColor(200);
+      doc.roundedRect(marginX, y, mapW, mapH, 1.5, 1.5, "S");
+      try {
+        doc.addImage(mapDataUrl, "PNG", marginX + 1, y + 1, mapW - 2, mapH - 2, undefined, "FAST");
+      } catch (e) {
+        console.warn("Konnte Karte nicht ins PDF einbetten", e);
+      }
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(110);
+      doc.text("Standort des Fahrers bei Abschluss", marginX, y + mapH + 4);
+      doc.setTextColor(0);
+      y += mapH + 8;
+    }
   }
 
   // Delivery photo (briefkasten / nachbar)
