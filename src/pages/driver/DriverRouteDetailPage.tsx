@@ -176,31 +176,11 @@ const DriverRouteDetailPage = () => {
   ) => {
     setSubmitting(true);
     // Best-effort GPS-Stempel (kein Blocker bei Fehler/Ablehnung)
-    const gps = await new Promise<{ lat: number; lng: number; acc: number } | null>((resolve) => {
-      if (!("geolocation" in navigator)) return resolve(null);
-      let done = false;
-      const finish = (v: { lat: number; lng: number; acc: number } | null) => {
-        if (done) return;
-        done = true;
-        resolve(v);
-      };
-      const t = setTimeout(() => finish(null), 8000);
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          clearTimeout(t);
-          finish({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            acc: pos.coords.accuracy,
-          });
-        },
-        () => {
-          clearTimeout(t);
-          finish(null);
-        },
-        { enableHighAccuracy: true, timeout: 7000, maximumAge: 30000 },
-      );
-    });
+    const gps = await getCurrentGps();
+    if (!gps) {
+      console.warn("[driver] Kein GPS-Stempel verfügbar (Berechtigung verweigert oder Timeout)");
+      toast.warning("Kein GPS-Standort erfasst – Lieferschein ohne Karte");
+    }
     const { data, error } = await supabase.functions.invoke("driver-update-stop-status", {
       body: {
         stop_id: stopId,
