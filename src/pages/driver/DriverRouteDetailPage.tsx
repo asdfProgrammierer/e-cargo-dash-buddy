@@ -163,7 +163,7 @@ const DriverRouteDetailPage = () => {
     load();
   }, [id]);
 
-  const updateStatus = async (
+  const updateStatus = (
     stopId: string,
     status: "erledigt" | "uebersprungen",
     payload: {
@@ -175,75 +175,71 @@ const DriverRouteDetailPage = () => {
       photo_base64?: string | null;
     } = {},
   ) => {
-    setSubmitting(true);
-    // Best-effort GPS-Stempel (kein Blocker bei Fehler/Ablehnung)
-    const gps = await getCurrentGps();
-    if (!gps) {
-      console.warn("[driver] Kein GPS-Stempel verfügbar (Berechtigung verweigert oder Timeout)");
-      toast.warning("Kein GPS-Standort erfasst – Lieferschein ohne Karte");
-    }
-    const { data, error } = await supabase.functions.invoke("driver-update-stop-status", {
-      body: {
-        stop_id: stopId,
-        status,
-        ...payload,
-        ...(gps
-          ? { completed_lat: gps.lat, completed_lng: gps.lng, completed_accuracy_m: gps.acc }
-          : {}),
-      },
-    });
-    if (error || (data as any)?.error) {
-      setSubmitting(false);
-      const msg = (data as any)?.error ?? error?.message ?? "Fehler beim Speichern";
-      // Stale session: auth user no longer exists → force re-login
-      if (msg === "Ungültige Sitzung" || msg === "Nicht authentifiziert" || /401|403/.test(String(msg))) {
-        toast.error("Sitzung abgelaufen, bitte erneut anmelden");
-        await supabase.auth.signOut();
-        window.location.href = "/fahrer/login";
-        return;
-      }
-      toast.error(msg);
-      return;
-    }
-
-    // After a successful delivery, generate & archive the signed delivery-note PDF
-    let archived = false;
-    if (status === "erledigt") {
-      const orderId = stops.find((s) => s.id === stopId)?.order?.id;
-      if (orderId) {
-        archived = await archiveDeliveryNote(stopId, orderId);
-      }
-    }
-    setSubmitting(false);
-    if (status === "erledigt") {
-      toast.success(
-        archived ? "Zugestellt · Lieferschein archiviert" : "Als zugestellt markiert",
-      );
-    } else {
-      toast.success("Als nicht zugestellt markiert");
-    }
+    // Sofort optimistisch aktualisieren und Sheet schließen → Fahrer kann weiterarbeiten.
+    setStops((prev) => prev.map((s) => (s.id === stopId ? { ...s, status } : s)));
     setActiveStop(null);
     setDeliverStop(null);
     setExtraNote("");
     setDeliveryNote("");
     setDeliveryRecipient("");
     setDeliveryMode("persoenlich");
-    await load();
+    toast.success(
+      status === "erledigt"
+        ? "Zugestellt · wird im Hintergrund übermittelt"
+        : "Nicht zugestellt · wird im Hintergrund übermittelt",
+    );
 
-    // Auto-close route + start navigation back to depot
-    const result = data as { route_completed?: boolean; end_depot?: Depot | null };
-    if (result?.route_completed) {
-      const depot = result.end_depot ?? endDepot;
-      setRouteStatus("abgeschlossen");
-      if (depot) {
-        setEndDepot(depot);
-        toast.success("Route abgeschlossen · Navigation zum Depot startet");
-        setTimeout(() => navigateToDepot(depot), 800);
-      } else {
-        toast.success("Route abgeschlossen");
-        toast.warning("Kein Depot hinterlegt – keine Heimfahrt-Navigation");
+    const orderId = stops.find((s) => s.id === stopId)?.order?.id;
+
+    // Hintergrund-Upload: GPS, Status, PDF-Archiv – Fahrer wartet nicht darauf.
+    void (async () => {
+      const gps = await getCurrentGps();
+      const { data, error } = await supabase.functions.invoke("driver-update-stop-status", {
+        body: {
+          stop_id: stopId,
+          status,
+          ...payload,
+          ...(gps
+            ? { completed_lat: gps.lat, completed_lng: gps.lng, completed_accuracy_m: gps.acc }
+            : {}),
+        },
+      });
+      if (error || (data as any)?.error) {
+        const msg = (data as any)?.error ?? error?.message ?? "Fehler beim Speichern";
+        if (msg === "Ungültige Sitzung" || msg === "Nicht authentifiziert" || /401|403/.test(String(msg))) {
+          toast.error("Sitzung abgelaufen, bitte erneut anmelden");
+          await supabase.auth.signOut();
+          window.location.href = "/fahrer/login";
+          return;
+        }
+        toast.error(`Übermittlung fehlgeschlagen: ${msg}`);
+        // Optimistisches Update zurückrollen
+        await load();
+        return;
       }
-    }
+
+      if (status === "erledigt" && orderId) {
+        const archived = await archiveDeliveryNote(stopId, orderId);
+        if (archived) toast.success("Lieferschein archiviert");
+      }
+
+      // Auto-close route + start navigation back to depot
+      const result = data as { route_completed?: boolean; end_depot?: Depot | null };
+      if (result?.route_completed) {
+        const depot = result.end_depot ?? endDepot;
+        setRouteStatus("abgeschlossen");
+        if (depot) {
+          setEndDepot(depot);
+          toast.success("Route abgeschlossen · Navigation zum Depot startet");
+          setTimeout(() => navigateToDepot(depot), 800);
+        } else {
+          toast.success("Route abgeschlossen");
+        }
+      }
+
+      // Hintergrund-Sync mit echten Daten
+      void load();
+    })();
   };
 
   const startRoute = async () => {
