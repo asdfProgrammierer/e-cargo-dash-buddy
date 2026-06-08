@@ -885,7 +885,12 @@ const DriverRouteDetailPage = () => {
       </Sheet>
 
       {signatureOpen && (
-        <div className="fixed inset-0 z-[100] bg-background flex flex-col">
+      <Sheet open={signatureOpen} onOpenChange={(o) => !o && setSignatureOpen(false)}>
+        <SheetContent
+          side="bottom"
+          className="h-[100dvh] max-h-[100dvh] p-0 rounded-none flex flex-col"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <div className="flex items-center justify-between px-4 py-3 border-b pt-[max(env(safe-area-inset-top),0.75rem)]">
             <div>
               <div className="font-semibold text-base">Unterschrift</div>
@@ -900,7 +905,10 @@ const DriverRouteDetailPage = () => {
             </Button>
           </div>
           <div className="flex-1 p-4 min-h-0">
-            <SignaturePad ref={sigPadRef} className="w-full h-full bg-white border-2 border-dashed rounded-md touch-none select-none" />
+            <SignaturePad
+              ref={sigPadRef}
+              className="w-full h-full bg-white border-2 border-dashed rounded-md touch-none select-none"
+            />
           </div>
           <div className="grid grid-cols-2 gap-2.5 p-4 border-t pb-[max(env(safe-area-inset-bottom),1rem)]">
             <Button
@@ -926,8 +934,8 @@ const DriverRouteDetailPage = () => {
               Übernehmen
             </Button>
           </div>
-        </div>
-      )}
+        </SheetContent>
+      </Sheet>
     </DriverLayout>
   );
 };
