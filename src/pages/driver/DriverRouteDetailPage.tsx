@@ -884,7 +884,6 @@ const DriverRouteDetailPage = () => {
         </SheetContent>
       </Sheet>
 
-      {signatureOpen && (
       <Sheet open={signatureOpen} onOpenChange={(o) => !o && setSignatureOpen(false)}>
         <SheetContent
           side="bottom"
