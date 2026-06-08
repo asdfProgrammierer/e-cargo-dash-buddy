@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, Search, RefreshCw, AlertCircle } from "lucide-react";
+import { Plus, Search, RefreshCw, AlertCircle, MapPin, Loader2 } from "lucide-react";
 import { sendOrderStatusEmailsForIds } from "@/lib/orderEmail";
 import {
   DropdownMenu,
@@ -78,6 +78,38 @@ export function NewOrdersTable({
 }: Props) {
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
+  const [geocodingId, setGeocodingId] = useState<string | null>(null);
+
+  const geocodeOne = async (o: NewOrderRow) => {
+    setGeocodingId(o.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("geocode-address", {
+        body: {
+          strasse: o.empfaenger_adresse ?? "",
+          plz: o.empfaenger_plz ?? "",
+          stadt: o.empfaenger_stadt ?? "",
+        },
+      });
+      if (error || !data?.lat || !data?.lng) {
+        toast.error(
+          "Adresse konnte nicht gefunden werden – bitte Straße/PLZ/Stadt im Auftrag prüfen.",
+        );
+        return;
+      }
+      const { error: upErr } = await supabase
+        .from("orders")
+        .update({ lat: data.lat, lng: data.lng })
+        .eq("id", o.id);
+      if (upErr) {
+        toast.error("Koordinaten konnten nicht gespeichert werden");
+        return;
+      }
+      toast.success(`Adresse von ${o.empfaenger_name} erfolgreich geocodiert`);
+      onReload();
+    } finally {
+      setGeocodingId(null);
+    }
+  };
 
   useEffect(() => {
     if (!focusedOrderId) return;
@@ -292,7 +324,7 @@ export function NewOrdersTable({
                 <th className="px-2 py-2 text-left font-medium">PLZ / Stadt</th>
                 <th className="px-2 py-2 text-right font-medium">Pakete</th>
                 <th className="px-2 py-2 text-right font-medium">Gewicht</th>
-                <th className="px-2 py-2 text-left font-medium w-8"></th>
+                <th className="px-2 py-2 text-left font-medium">Adresse</th>
               </tr>
             </thead>
             <tbody>
@@ -352,9 +384,31 @@ export function NewOrdersTable({
                       <td className="px-2 py-2 text-right tabular-nums">{o.pakete}</td>
                       <td className="px-2 py-2 text-right tabular-nums">{Number(o.gewicht).toFixed(1)} kg</td>
                       <td className="px-2 py-2">
-                        {noGeo && (
-                          <span title="Keine Koordinaten — bitte erst geocodieren">
-                            <AlertCircle className="h-3.5 w-3.5 text-warning" />
+                        {noGeo ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 gap-1 border-warning/60 text-warning hover:bg-warning/10 hover:text-warning"
+                            disabled={geocodingId === o.id}
+                            onClick={() => geocodeOne(o)}
+                            title="Diese Adresse hat noch keine Koordinaten und kann ohne Geocodierung keiner Route hinzugefügt werden."
+                          >
+                            {geocodingId === o.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <AlertCircle className="h-3.5 w-3.5" />
+                            )}
+                            <span className="text-[11px] font-medium">
+                              {geocodingId === o.id ? "Suche…" : "Adresse prüfen"}
+                            </span>
+                          </Button>
+                        ) : (
+                          <span
+                            className="inline-flex items-center gap-1 text-[11px] text-success"
+                            title="Adresse ist geocodiert und kann einer Route hinzugefügt werden"
+                          >
+                            <MapPin className="h-3.5 w-3.5" />
+                            OK
                           </span>
                         )}
                       </td>
