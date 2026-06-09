@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight, PenLine, Play, Home, MessageSquare, Camera } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { SignaturePad, type SignaturePadHandle } from "@/components/driver/SignaturePad";
-import { buildOrderPdfBlob } from "@/lib/orderPdf";
+import { buildOrderPdfBlob, type BuildOrderPdfOverrides } from "@/lib/orderPdf";
 import { useDeliveryModes } from "@/hooks/useDeliveryModes";
 import type { Order } from "@/types/order";
 import { getCurrentGps } from "@/lib/gps";
@@ -291,7 +291,11 @@ const DriverRouteDetailPage = () => {
     load();
   };
 
-  const archiveDeliveryNote = async (stopId: string, orderId: string): Promise<boolean> => {
+  const archiveDeliveryNote = async (
+    stopId: string,
+    orderId: string,
+    overrides: BuildOrderPdfOverrides = {},
+  ): Promise<boolean> => {
     try {
       // Load full order data needed for the PDF
       const { data: o, error: oErr } = await supabase
@@ -324,7 +328,7 @@ const DriverRouteDetailPage = () => {
         notizen: o.notizen ?? undefined,
       };
 
-      const blob = await buildOrderPdfBlob(order);
+      const blob = await buildOrderPdfBlob(order, overrides);
       const path = `orders/${orderId}/${stopId}-${Date.now()}.pdf`;
       const { error: upErr } = await supabase.storage
         .from("delivery-notes")
