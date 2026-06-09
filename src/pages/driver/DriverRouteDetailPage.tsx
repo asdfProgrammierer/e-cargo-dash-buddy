@@ -385,12 +385,16 @@ const DriverRouteDetailPage = () => {
       toast.error("Unterschrift ist Pflicht");
       return;
     }
+    // GPS schon jetzt anfordern – läuft parallel im Hintergrund, blockt den
+    // Fahrer nicht. Wird im Edge-Call und im archivierten PDF verwendet.
+    const gpsPromise = getCurrentGps();
     updateStatus(deliverStop.id, "erledigt", {
       delivery_mode: deliveryMode,
       delivery_note: deliveryNote.trim() || undefined,
       delivery_recipient: deliveryRecipient.trim() || undefined,
       signature_base64: sig,
       photo_base64: photoDataUrl ?? undefined,
+      gpsPromise,
     });
   };
 
