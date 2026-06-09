@@ -236,36 +236,34 @@ export async function buildOrderPdf(
   const marginX = 15;
   const contentW = pageW - marginX * 2;
 
-  const [history, qrDataUrl, pod] = await Promise.all([
+  const [history, qrDataUrl, podRaw] = await Promise.all([
     loadStatusHistory(order.id),
     generateQrDataUrl(order),
     loadProofOfDelivery(order.id),
   ]);
   // Merge in overrides so a freshly-completed stop renders correctly even
   // before storage objects are reachable or the DB row has been re-read.
-  const effectivePod: ProofOfDelivery = {
-    delivery_mode: overrides.deliveryMode ?? pod?.delivery_mode ?? null,
-    delivery_note: overrides.deliveryNote ?? pod?.delivery_note ?? null,
-    delivery_recipient: overrides.deliveryRecipient ?? pod?.delivery_recipient ?? null,
-    signature_url: pod?.signature_url ?? null,
-    delivery_photo_url: pod?.delivery_photo_url ?? null,
-    delivered_at: pod?.delivered_at ?? null,
-    completed_lat: overrides.gps?.lat ?? pod?.completed_lat ?? null,
-    completed_lng: overrides.gps?.lng ?? pod?.completed_lng ?? null,
-    completed_accuracy_m: overrides.gps?.acc ?? pod?.completed_accuracy_m ?? null,
+  const pod: ProofOfDelivery = {
+    delivery_mode: overrides.deliveryMode ?? podRaw?.delivery_mode ?? null,
+    delivery_note: overrides.deliveryNote ?? podRaw?.delivery_note ?? null,
+    delivery_recipient: overrides.deliveryRecipient ?? podRaw?.delivery_recipient ?? null,
+    signature_url: podRaw?.signature_url ?? null,
+    delivery_photo_url: podRaw?.delivery_photo_url ?? null,
+    delivered_at: podRaw?.delivered_at ?? null,
+    completed_lat: overrides.gps?.lat ?? podRaw?.completed_lat ?? null,
+    completed_lng: overrides.gps?.lng ?? podRaw?.completed_lng ?? null,
+    completed_accuracy_m: overrides.gps?.acc ?? podRaw?.completed_accuracy_m ?? null,
   };
   const sigDataUrl =
     overrides.signatureDataUrl ??
-    (effectivePod.signature_url
-      ? await loadStorageDataUrl("delivery-signatures", effectivePod.signature_url)
+    (pod.signature_url
+      ? await loadStorageDataUrl("delivery-signatures", pod.signature_url)
       : null);
   const photoDataUrl =
     overrides.photoDataUrl ??
-    (effectivePod.delivery_photo_url
-      ? await loadStorageDataUrl("delivery-photos", effectivePod.delivery_photo_url)
+    (pod.delivery_photo_url
+      ? await loadStorageDataUrl("delivery-photos", pod.delivery_photo_url)
       : null);
-  // From here on, the rest of the renderer reads `pod`.
-  const podForRender = effectivePod;
 
   // ============ PAGE 1: Auftragsübersicht ============
   let y = 18;
