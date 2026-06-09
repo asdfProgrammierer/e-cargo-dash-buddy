@@ -193,6 +193,7 @@ const DriverRouteDetailPage = () => {
       signature_base64?: string | null;
       photo_base64?: string | null;
       gps?: { lat: number; lng: number; acc?: number | null } | null;
+      gpsPromise?: Promise<{ lat: number; lng: number; acc: number } | null>;
     } = {},
   ) => {
     // Sofort optimistisch aktualisieren und Sheet schließen → Fahrer kann weiterarbeiten.
@@ -214,7 +215,9 @@ const DriverRouteDetailPage = () => {
     // Hintergrund-Upload: GPS, Status, PDF-Archiv – Fahrer wartet nicht darauf.
     void (async () => {
       // Prefer the GPS fix captured at submit time. Fall back to a fresh fix.
-      const gps = payload.gps ?? (await getCurrentGps());
+      const gps =
+        payload.gps ??
+        (payload.gpsPromise ? await payload.gpsPromise : await getCurrentGps());
       const { data, error } = await supabase.functions.invoke("driver-update-stop-status", {
         body: {
           stop_id: stopId,
