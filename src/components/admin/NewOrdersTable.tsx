@@ -403,13 +403,23 @@ export function NewOrdersTable({
                             </span>
                           </Button>
                         ) : (
-                          <span
-                            className="inline-flex items-center gap-1 text-[11px] text-success"
-                            title="Adresse ist geocodiert und kann einer Route hinzugefügt werden"
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 gap-1 px-2 text-success hover:bg-success/10 hover:text-success"
+                            disabled={geocodingId === o.id}
+                            onClick={() => geocodeOne(o)}
+                            title="Adresse ist geocodiert. Klick zum Neu-Berechnen, falls der Pin auf der Karte falsch ist."
                           >
-                            <MapPin className="h-3.5 w-3.5" />
-                            OK
-                          </span>
+                            {geocodingId === o.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <MapPin className="h-3.5 w-3.5" />
+                            )}
+                            <span className="text-[11px] font-medium">
+                              {geocodingId === o.id ? "Suche…" : "OK"}
+                            </span>
+                          </Button>
                         )}
                       </td>
                     </tr>
