@@ -726,8 +726,11 @@ export async function buildOrderPdf(
   return doc;
 }
 
-export async function buildOrderPdfBlob(order: Order): Promise<Blob> {
-  const doc = await buildOrderPdf(order);
+export async function buildOrderPdfBlob(
+  order: Order,
+  overrides: BuildOrderPdfOverrides = {},
+): Promise<Blob> {
+  const doc = await buildOrderPdf(order, overrides);
   return doc.output("blob");
 }
 
