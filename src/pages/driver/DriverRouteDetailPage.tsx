@@ -15,6 +15,7 @@ import { buildOrderPdfBlob } from "@/lib/orderPdf";
 import { useDeliveryModes } from "@/hooks/useDeliveryModes";
 import type { Order } from "@/types/order";
 import { getCurrentGps } from "@/lib/gps";
+import { Capacitor } from "@capacitor/core";
 
 interface Stop {
   id: string;
