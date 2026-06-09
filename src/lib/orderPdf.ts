@@ -213,24 +213,57 @@ function statusLabel(status: string) {
   return STATUS_LABELS[status as OrderStatus] ?? status;
 }
 
-export async function buildOrderPdf(order: Order): Promise<jsPDF> {
+export interface BuildOrderPdfOverrides {
+  /** Raw signature data URL (PNG). When provided, no storage fetch is performed. */
+  signatureDataUrl?: string | null;
+  /** Raw delivery photo data URL (JPEG/PNG). When provided, no storage fetch is performed. */
+  photoDataUrl?: string | null;
+  /** Driver GPS fix at time of completion. Used when DB row hasn't been refreshed yet. */
+  gps?: { lat: number; lng: number; acc?: number | null } | null;
+  /** Override the delivery mode/note/recipient when DB hasn't propagated yet. */
+  deliveryMode?: string | null;
+  deliveryNote?: string | null;
+  deliveryRecipient?: string | null;
+}
+
+export async function buildOrderPdf(
+  order: Order,
+  overrides: BuildOrderPdfOverrides = {},
+): Promise<jsPDF> {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const marginX = 15;
   const contentW = pageW - marginX * 2;
 
-  const [history, qrDataUrl, pod] = await Promise.all([
+  const [history, qrDataUrl, podRaw] = await Promise.all([
     loadStatusHistory(order.id),
     generateQrDataUrl(order),
     loadProofOfDelivery(order.id),
   ]);
-  const sigDataUrl = pod?.signature_url
-    ? await loadStorageDataUrl("delivery-signatures", pod.signature_url)
-    : null;
-  const photoDataUrl = pod?.delivery_photo_url
-    ? await loadStorageDataUrl("delivery-photos", pod.delivery_photo_url)
-    : null;
+  // Merge in overrides so a freshly-completed stop renders correctly even
+  // before storage objects are reachable or the DB row has been re-read.
+  const pod: ProofOfDelivery = {
+    delivery_mode: overrides.deliveryMode ?? podRaw?.delivery_mode ?? null,
+    delivery_note: overrides.deliveryNote ?? podRaw?.delivery_note ?? null,
+    delivery_recipient: overrides.deliveryRecipient ?? podRaw?.delivery_recipient ?? null,
+    signature_url: podRaw?.signature_url ?? null,
+    delivery_photo_url: podRaw?.delivery_photo_url ?? null,
+    delivered_at: podRaw?.delivered_at ?? null,
+    completed_lat: overrides.gps?.lat ?? podRaw?.completed_lat ?? null,
+    completed_lng: overrides.gps?.lng ?? podRaw?.completed_lng ?? null,
+    completed_accuracy_m: overrides.gps?.acc ?? podRaw?.completed_accuracy_m ?? null,
+  };
+  const sigDataUrl =
+    overrides.signatureDataUrl ??
+    (pod.signature_url
+      ? await loadStorageDataUrl("delivery-signatures", pod.signature_url)
+      : null);
+  const photoDataUrl =
+    overrides.photoDataUrl ??
+    (pod.delivery_photo_url
+      ? await loadStorageDataUrl("delivery-photos", pod.delivery_photo_url)
+      : null);
 
   // ============ PAGE 1: Auftragsübersicht ============
   let y = 18;
@@ -693,8 +726,11 @@ export async function buildOrderPdf(order: Order): Promise<jsPDF> {
   return doc;
 }
 
-export async function buildOrderPdfBlob(order: Order): Promise<Blob> {
-  const doc = await buildOrderPdf(order);
+export async function buildOrderPdfBlob(
+  order: Order,
+  overrides: BuildOrderPdfOverrides = {},
+): Promise<Blob> {
+  const doc = await buildOrderPdf(order, overrides);
   return doc.output("blob");
 }
 

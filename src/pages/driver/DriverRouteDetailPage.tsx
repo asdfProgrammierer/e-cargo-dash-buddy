@@ -11,10 +11,11 @@ import { toast } from "sonner";
 import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight, PenLine, Play, Home, MessageSquare, Camera } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { SignaturePad, type SignaturePadHandle } from "@/components/driver/SignaturePad";
-import { buildOrderPdfBlob } from "@/lib/orderPdf";
+import { buildOrderPdfBlob, type BuildOrderPdfOverrides } from "@/lib/orderPdf";
 import { useDeliveryModes } from "@/hooks/useDeliveryModes";
 import type { Order } from "@/types/order";
 import { getCurrentGps } from "@/lib/gps";
+import { Capacitor } from "@capacitor/core";
 
 interface Stop {
   id: string;
@@ -161,6 +162,24 @@ const DriverRouteDetailPage = () => {
 
   useEffect(() => {
     load();
+    // GPS-Berechtigung früh anfragen, damit der System-Dialog nicht erst
+    // beim ersten Zustellabschluss erscheint (und dort den Submit blockiert).
+    void (async () => {
+      try {
+        if (Capacitor.isNativePlatform()) {
+          const { Geolocation } = await import("@capacitor/geolocation");
+          const perm = await Geolocation.checkPermissions();
+          if (perm.location !== "granted") {
+            await Geolocation.requestPermissions();
+          }
+        } else if (typeof navigator !== "undefined" && "geolocation" in navigator) {
+          // Browser/PWA: ein "warmer" Aufruf triggert die Permission-Bar.
+          navigator.geolocation.getCurrentPosition(() => {}, () => {}, { timeout: 1 });
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
   }, [id]);
 
   const updateStatus = (
@@ -173,6 +192,8 @@ const DriverRouteDetailPage = () => {
       delivery_recipient?: string;
       signature_base64?: string | null;
       photo_base64?: string | null;
+      gps?: { lat: number; lng: number; acc?: number | null } | null;
+      gpsPromise?: Promise<{ lat: number; lng: number; acc: number } | null>;
     } = {},
   ) => {
     // Sofort optimistisch aktualisieren und Sheet schließen → Fahrer kann weiterarbeiten.
@@ -193,12 +214,20 @@ const DriverRouteDetailPage = () => {
 
     // Hintergrund-Upload: GPS, Status, PDF-Archiv – Fahrer wartet nicht darauf.
     void (async () => {
-      const gps = await getCurrentGps();
+      // Prefer the GPS fix captured at submit time. Fall back to a fresh fix.
+      const gps =
+        payload.gps ??
+        (payload.gpsPromise ? await payload.gpsPromise : await getCurrentGps());
       const { data, error } = await supabase.functions.invoke("driver-update-stop-status", {
         body: {
           stop_id: stopId,
           status,
-          ...payload,
+          reason: payload.reason,
+          delivery_mode: payload.delivery_mode,
+          delivery_note: payload.delivery_note,
+          delivery_recipient: payload.delivery_recipient,
+          signature_base64: payload.signature_base64,
+          photo_base64: payload.photo_base64,
           ...(gps
             ? { completed_lat: gps.lat, completed_lng: gps.lng, completed_accuracy_m: gps.acc }
             : {}),
@@ -219,7 +248,14 @@ const DriverRouteDetailPage = () => {
       }
 
       if (status === "erledigt" && orderId) {
-        const archived = await archiveDeliveryNote(stopId, orderId);
+        const archived = await archiveDeliveryNote(stopId, orderId, {
+          signatureDataUrl: payload.signature_base64 ?? null,
+          photoDataUrl: payload.photo_base64 ?? null,
+          gps: gps ?? null,
+          deliveryMode: payload.delivery_mode ?? null,
+          deliveryNote: payload.delivery_note ?? null,
+          deliveryRecipient: payload.delivery_recipient ?? null,
+        });
         if (archived) toast.success("Lieferschein archiviert");
       }
 
@@ -258,7 +294,11 @@ const DriverRouteDetailPage = () => {
     load();
   };
 
-  const archiveDeliveryNote = async (stopId: string, orderId: string): Promise<boolean> => {
+  const archiveDeliveryNote = async (
+    stopId: string,
+    orderId: string,
+    overrides: BuildOrderPdfOverrides = {},
+  ): Promise<boolean> => {
     try {
       // Load full order data needed for the PDF
       const { data: o, error: oErr } = await supabase
@@ -291,7 +331,7 @@ const DriverRouteDetailPage = () => {
         notizen: o.notizen ?? undefined,
       };
 
-      const blob = await buildOrderPdfBlob(order);
+      const blob = await buildOrderPdfBlob(order, overrides);
       const path = `orders/${orderId}/${stopId}-${Date.now()}.pdf`;
       const { error: upErr } = await supabase.storage
         .from("delivery-notes")
@@ -345,12 +385,16 @@ const DriverRouteDetailPage = () => {
       toast.error("Unterschrift ist Pflicht");
       return;
     }
+    // GPS schon jetzt anfordern – läuft parallel im Hintergrund, blockt den
+    // Fahrer nicht. Wird im Edge-Call und im archivierten PDF verwendet.
+    const gpsPromise = getCurrentGps();
     updateStatus(deliverStop.id, "erledigt", {
       delivery_mode: deliveryMode,
       delivery_note: deliveryNote.trim() || undefined,
       delivery_recipient: deliveryRecipient.trim() || undefined,
       signature_base64: sig,
       photo_base64: photoDataUrl ?? undefined,
+      gpsPromise,
     });
   };
 
