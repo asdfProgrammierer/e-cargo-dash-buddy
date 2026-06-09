@@ -71,6 +71,20 @@ Deno.serve(async (req) => {
     }
 
     // 1) Prefer precise address-level matches; 2) fall back to any match.
+    // ORS sometimes has slow TCP connects from edge runtime — use an
+    // AbortController timeout plus one retry so transient timeouts don't 500.
+    const fetchWithTimeout = async (url: string, timeoutMs: number) => {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        return await fetch(url, {
+          headers: { Accept: "application/json" },
+          signal: ctrl.signal,
+        });
+      } finally {
+        clearTimeout(t);
+      }
+    };
     const fetchFeatures = async (layers?: string) => {
       const url = new URL("https://api.openrouteservice.org/geocode/search");
       url.searchParams.set("api_key", apiKey);
@@ -78,10 +92,19 @@ Deno.serve(async (req) => {
       url.searchParams.set("size", "5");
       url.searchParams.set("boundary.country", "DEU");
       if (layers) url.searchParams.set("layers", layers);
-      const r = await fetch(url.toString(), { headers: { Accept: "application/json" } });
-      if (!r.ok) return null;
-      const j = await r.json();
-      return (j?.features ?? []) as any[];
+      const u = url.toString();
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const r = await fetchWithTimeout(u, 8000);
+          if (!r.ok) return null;
+          const j = await r.json();
+          return (j?.features ?? []) as any[];
+        } catch (e) {
+          console.warn(`[geocode] attempt ${attempt + 1} failed`, e);
+          if (attempt === 1) return null;
+        }
+      }
+      return null;
     };
 
     let features = (await fetchFeatures("address")) ?? [];
