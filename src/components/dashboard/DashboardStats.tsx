@@ -43,8 +43,8 @@ function getChartData(orders: Order[]) {
     .map(([date, count]) => ({ date, auftraege: count }));
 }
 
-// ~0.5 kg CO2 saved per package vs diesel delivery (bike/e-cargo vs van)
-const CO2_PER_PACKAGE = 0.5;
+// ~0.18 kg CO2e saved per package vs diesel delivery (DIN EN ISO 14083, UBA WtW, Fraunhofer ISI)
+const CO2_PER_PACKAGE = 0.18;
 
 export function DashboardStats({ orders, range, onRangeChange }: DashboardStatsProps) {
   const filtered = useMemo(() => filterByRange(orders, range), [orders, range]);
