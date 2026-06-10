@@ -324,6 +324,10 @@ const HaendlerDetailPage = () => {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <AdminEditMerchantDialog
+                profile={profile}
+                onUpdated={(fields) => setProfile((prev) => prev ? { ...prev, ...fields } : prev)}
+              />
               <AdminExcelImportDialog
                 merchantUserId={profile.user_id}
                 merchantLabel={profile.firma_name || profile.ansprechpartner || undefined}
