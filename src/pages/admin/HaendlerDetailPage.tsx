@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { PickupSettingsCell } from "@/components/admin/PickupSettingsCell";
 import { DhlPricingTable } from "@/components/admin/DhlPricingTable";
 import { AdminCreateOrderDialog } from "@/components/admin/AdminCreateOrderDialog";
+import { AdminExcelImportDialog } from "@/components/admin/AdminExcelImportDialog";
 import {
   ArrowLeft, Building2, User, MapPin, Phone, Mail, Globe, FileText,
   Key, Link2, ShoppingBag, CheckCircle2, AlertCircle, Plug,
@@ -40,6 +41,7 @@ interface MerchantProfile {
   pickup_enabled: boolean;
   pickup_weekdays: number[];
   dhl_enabled: boolean;
+  is_virtual: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -101,6 +103,7 @@ const HaendlerDetailPage = () => {
           pickup_enabled: p.pickup_enabled ?? false,
           pickup_weekdays: Array.isArray(p.pickup_weekdays) ? p.pickup_weekdays : [],
           dhl_enabled: p.dhl_enabled ?? false,
+          is_virtual: p.is_virtual ?? false,
         } as MerchantProfile);
 
         // Now fetch shop connections and orders using user_id
@@ -311,12 +314,22 @@ const HaendlerDetailPage = () => {
                 <Badge variant={profile.approved ? "default" : "secondary"}>
                   {profile.approved ? "Aktiv" : "Ausstehend"}
                 </Badge>
+                {profile.is_virtual && (
+                  <Badge variant="outline">Intern</Badge>
+                )}
               </div>
               <p className="text-sm text-muted-foreground truncate">
                 {profile.ansprechpartner} · Registriert am {new Date(profile.created_at).toLocaleDateString("de-DE")}
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <AdminExcelImportDialog
+                merchantUserId={profile.user_id}
+                merchantLabel={profile.firma_name || profile.ansprechpartner || undefined}
+                senderName={profile.firma_name || profile.ansprechpartner || ""}
+                senderAddress={[profile.strasse, profile.plz, profile.stadt].filter(Boolean).join(", ")}
+                onCreated={(count) => setOrderCount((c) => c + count)}
+              />
               <AdminCreateOrderDialog
                 merchantUserId={profile.user_id}
                 merchantLabel={profile.firma_name || profile.ansprechpartner || undefined}
