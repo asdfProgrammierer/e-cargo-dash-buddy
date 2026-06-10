@@ -1,0 +1,2 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_virtual boolean NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS profiles_is_virtual_idx ON public.profiles (is_virtual) WHERE is_virtual = true;

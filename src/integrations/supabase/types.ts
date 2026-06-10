@@ -797,6 +797,7 @@ export type Database = {
           dhl_enabled: boolean
           firma_name: string | null
           id: string
+          is_virtual: boolean
           land: string | null
           logo_url: string | null
           merchant_code: string | null
@@ -823,6 +824,7 @@ export type Database = {
           dhl_enabled?: boolean
           firma_name?: string | null
           id?: string
+          is_virtual?: boolean
           land?: string | null
           logo_url?: string | null
           merchant_code?: string | null
@@ -849,6 +851,7 @@ export type Database = {
           dhl_enabled?: boolean
           firma_name?: string | null
           id?: string
+          is_virtual?: boolean
           land?: string | null
           logo_url?: string | null
           merchant_code?: string | null

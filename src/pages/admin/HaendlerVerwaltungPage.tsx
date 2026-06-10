@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MerchantInvoiceDialog } from "@/components/admin/MerchantInvoiceDialog";
+import { AdminVirtualMerchantDialog } from "@/components/admin/AdminVirtualMerchantDialog";
 import { toast } from "sonner";
 import { Search, Building2, ChevronRight, Trash2 } from "lucide-react";
 import {
@@ -34,6 +35,7 @@ interface MerchantProfile {
   approved: boolean;
   pickup_enabled: boolean;
   pickup_weekdays: number[];
+  is_virtual: boolean;
   created_at: string;
 }
 
@@ -47,7 +49,7 @@ const HaendlerVerwaltungPage = () => {
   const fetchMerchants = async () => {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, user_id, firma_name, ansprechpartner, stadt, telefon, paketpreis, merchant_code, approved, pickup_enabled, pickup_weekdays, created_at")
+      .select("id, user_id, firma_name, ansprechpartner, stadt, telefon, paketpreis, merchant_code, approved, pickup_enabled, pickup_weekdays, is_virtual, created_at")
       .order("created_at", { ascending: false });
     if (error) {
       toast.error("Fehler beim Laden der Händler");
@@ -56,6 +58,7 @@ const HaendlerVerwaltungPage = () => {
         ...m,
         pickup_enabled: m.pickup_enabled ?? false,
         pickup_weekdays: Array.isArray(m.pickup_weekdays) ? m.pickup_weekdays : [],
+        is_virtual: m.is_virtual ?? false,
       })) as MerchantProfile[];
       setMerchants(merchantRows);
     }
@@ -110,14 +113,17 @@ const HaendlerVerwaltungPage = () => {
   return (
     <AdminLayout title="Händlerverwaltung">
       <div className="space-y-4">
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Händler suchen..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex items-center justify-between gap-3">
+          <div className="relative max-w-sm flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Händler suchen..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <AdminVirtualMerchantDialog onCreated={fetchMerchants} />
         </div>
 
         <div className="rounded-lg border">
@@ -157,6 +163,9 @@ const HaendlerVerwaltungPage = () => {
                       <div className="flex items-center gap-2">
                         <Building2 className="h-4 w-4 text-muted-foreground" />
                         {m.firma_name || "–"}
+                        {m.is_virtual && (
+                          <Badge variant="outline" className="text-xs">Intern</Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>{m.ansprechpartner || "–"}</TableCell>
