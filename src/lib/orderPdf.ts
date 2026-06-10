@@ -385,7 +385,7 @@ export async function buildOrderPdf(
     order.packageLengthCm && order.packageWidthCm && order.packageHeightCm
       ? ((order.packageLengthCm * order.packageWidthCm * order.packageHeightCm) / 1000).toFixed(1) + " L"
       : "—";
-  const co2 = (order.pakete * 0.5).toFixed(1) + " kg";
+  const co2 = (order.pakete * 0.18).toFixed(1) + " kg";
 
   const cells: Array<[string, string]> = [
     ["Pakete", String(order.pakete)],
