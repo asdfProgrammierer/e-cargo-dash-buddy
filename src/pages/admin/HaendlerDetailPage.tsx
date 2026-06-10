@@ -16,6 +16,7 @@ import { PickupSettingsCell } from "@/components/admin/PickupSettingsCell";
 import { DhlPricingTable } from "@/components/admin/DhlPricingTable";
 import { AdminCreateOrderDialog } from "@/components/admin/AdminCreateOrderDialog";
 import { AdminExcelImportDialog } from "@/components/admin/AdminExcelImportDialog";
+import { AdminEditMerchantDialog } from "@/components/admin/AdminEditMerchantDialog";
 import {
   ArrowLeft, Building2, User, MapPin, Phone, Mail, Globe, FileText,
   Key, Link2, ShoppingBag, CheckCircle2, AlertCircle, Plug,
