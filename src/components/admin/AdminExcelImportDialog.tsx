@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ExcelImport } from "@/components/dashboard/ExcelImport";
 import type { Order } from "@/types/order";
+import { sendOrderStatusEmailsForIds } from "@/lib/orderEmail";
 
 interface Props {
   merchantUserId: string;
@@ -59,6 +60,10 @@ export function AdminExcelImportDialog({
     }
     const created = data ?? [];
     toast.success(`${created.length} Aufträge importiert`);
+    // Status-Mails (status "neu") für alle neuen Aufträge auslösen
+    if (created.length > 0) {
+      void sendOrderStatusEmailsForIds(created.map((r) => r.id as string), "neu");
+    }
     // Trigger geocoding in background
     for (const row of created) {
       void supabase.functions.invoke("geocode-address", {
