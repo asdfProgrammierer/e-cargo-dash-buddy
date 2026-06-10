@@ -14,6 +14,7 @@ import { Plus, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { sendOrderStatusEmail } from "@/lib/orderEmail";
 
 interface AdminCreateOrderDialogProps {
   merchantUserId?: string;
@@ -122,7 +123,7 @@ export function AdminCreateOrderDialog({
       return;
     }
     setSubmitting(true);
-    const { error } = await supabase.from("orders").insert({
+    const { data: inserted, error } = await supabase.from("orders").insert({
       user_id: effectiveMerchantId,
       auftrags_nr: "",
       absender_name: form.absenderName,
@@ -139,12 +140,25 @@ export function AdminCreateOrderDialog({
       package_width_cm: form.packageWidthCm || null,
       package_height_cm: form.packageHeightCm || null,
       notizen: form.notizen || null,
-    });
+    }).select("id, auftrags_nr").single();
     setSubmitting(false);
     if (error) {
       console.error(error);
       toast.error("Auftrag konnte nicht angelegt werden");
       return;
+    }
+    if (inserted) {
+      void sendOrderStatusEmail({
+        orderId: inserted.id as string,
+        auftragsNr: inserted.auftrags_nr as string,
+        status: "neu",
+        empfaengerName: form.empfaengerName,
+        empfaengerEmail: form.empfaengerEmail || null,
+        empfaengerAdresse: form.empfaengerAdresse,
+        empfaengerPlz: form.empfaengerPlz,
+        empfaengerStadt: form.empfaengerStadt,
+        haendlerUserId: effectiveMerchantId,
+      });
     }
     toast.success("Auftrag erfolgreich angelegt");
     setForm(emptyForm);
