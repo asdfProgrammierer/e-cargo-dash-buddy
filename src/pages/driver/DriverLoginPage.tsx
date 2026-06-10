@@ -28,7 +28,7 @@ const DriverLoginPage = () => {
       toast.error("Login fehlgeschlagen. Bitte Username und PIN prüfen.");
       return;
     }
-    await supabase.from("drivers").update({ last_login_at: new Date().toISOString() }).eq("auth_user_id", data.user.id);
+    await supabase.rpc("driver_touch_last_login");
     navigate("/fahrer");
   };
 
