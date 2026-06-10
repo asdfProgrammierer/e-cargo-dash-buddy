@@ -16,6 +16,7 @@ import { PickupSettingsCell } from "@/components/admin/PickupSettingsCell";
 import { DhlPricingTable } from "@/components/admin/DhlPricingTable";
 import { AdminCreateOrderDialog } from "@/components/admin/AdminCreateOrderDialog";
 import { AdminExcelImportDialog } from "@/components/admin/AdminExcelImportDialog";
+import { AdminEditMerchantDialog } from "@/components/admin/AdminEditMerchantDialog";
 import {
   ArrowLeft, Building2, User, MapPin, Phone, Mail, Globe, FileText,
   Key, Link2, ShoppingBag, CheckCircle2, AlertCircle, Plug,
@@ -323,6 +324,10 @@ const HaendlerDetailPage = () => {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <AdminEditMerchantDialog
+                profile={profile}
+                onUpdated={(fields) => setProfile((prev) => prev ? { ...prev, ...fields } : prev)}
+              />
               <AdminExcelImportDialog
                 merchantUserId={profile.user_id}
                 merchantLabel={profile.firma_name || profile.ansprechpartner || undefined}
