@@ -22,6 +22,10 @@ import { Info } from "lucide-react";
 
 interface ExcelImportProps {
   onImport: (orders: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">[]) => void;
+  /** Override merchant context (admin import for a specific merchant). When set, profile lookup is skipped. */
+  merchantIdOverride?: string | null;
+  /** Override sender defaults (admin import). When provided, profile fetch is skipped. */
+  senderOverride?: { name: string; adresse: string } | null;
 }
 
 interface PreviewRow {
@@ -116,9 +120,9 @@ function downloadTemplate() {
   XLSX.writeFile(wb, "Auftraege_Vorlage.xlsx");
 }
 
-export function ExcelImport({ onImport }: ExcelImportProps) {
+export function ExcelImport({ onImport, merchantIdOverride, senderOverride }: ExcelImportProps) {
   const { user, ownerUserId } = useAuth();
-  const merchantId = ownerUserId ?? user?.id ?? null;
+  const merchantId = merchantIdOverride ?? ownerUserId ?? user?.id ?? null;
   const [preview, setPreview] = useState<PreviewRow[]>([]);
   const [fileName, setFileName] = useState("");
   const [editingRow, setEditingRow] = useState<number | null>(null);
@@ -127,6 +131,10 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
 
   // Load profile for sender defaults
   useEffect(() => {
+    if (senderOverride) {
+      setSenderDefaults(senderOverride);
+      return;
+    }
     if (!merchantId) return;
     const load = async () => {
       const { data } = await supabase
@@ -141,7 +149,7 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
       }
     };
     load();
-  }, [merchantId]);
+  }, [merchantId, senderOverride]);
 
   useEffect(() => {
     if (!user) return;
