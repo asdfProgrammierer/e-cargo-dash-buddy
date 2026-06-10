@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Leaf, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { getPublicSiteUrl } from "@/lib/siteUrl";
 
 const LoginPage = () => {
   const [loading, setLoading] = useState(false);
@@ -32,7 +33,7 @@ const LoginPage = () => {
       email,
       password,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: getPublicSiteUrl(),
         data: { full_name: fullName, firma_name: firma },
       },
     });
@@ -95,7 +96,7 @@ const LoginPage = () => {
                         }
                         setLoading(true);
                         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                          redirectTo: `${window.location.origin}/reset-password`,
+                          redirectTo: `${getPublicSiteUrl()}/reset-password`,
                         });
                         if (error) toast.error(error.message);
                         else toast.success("E-Mail zum Zurücksetzen wurde gesendet");
