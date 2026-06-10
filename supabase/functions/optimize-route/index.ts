@@ -105,11 +105,12 @@ Deno.serve(async (req) => {
       return json({ error: `${missingGeo.length} Stopp(s) ohne Koordinaten – bitte zuerst geocodieren` }, 400);
     }
 
-    const invalidPositions = valid.filter((s, idx) => s.position !== idx + 1);
-    const uniquePositions = new Set(valid.map((s) => s.position));
-    if (invalidPositions.length > 0 || uniquePositions.size !== valid.length) {
-      return json({ error: "Stopppositionen sind inkonsistent – bitte Reihenfolge neu speichern" }, 409);
-    }
+    // Normalize positions to a contiguous 1..N sequence based on current order.
+    // This tolerates gaps/duplicates from concurrent edits; pinned stops keep
+    // their relative order since `valid` is already sorted by position.
+    valid.forEach((s, idx) => {
+      s.position = idx + 1;
+    });
 
     // ----- Positionsbasierte Segment-Optimierung mit fixierten Stopps -----
     // Fixierte Stopps bleiben exakt auf ihrer position. Nur freie Slots vor,
