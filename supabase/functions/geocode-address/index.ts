@@ -114,23 +114,64 @@ Deno.serve(async (req) => {
     const feature =
       (wantsHouseNumber && features.find((f) => f?.properties?.housenumber)) ||
       features[0];
-    if (!feature) {
-      return new Response(JSON.stringify({ error: "Keine Treffer für Adresse" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (feature) {
+      const [lng, lat] = feature.geometry.coordinates;
+      const formatted = feature.properties?.label ?? text;
+      const confidence = feature.properties?.confidence ?? null;
+      const matchType = feature.properties?.match_type ?? null;
+      const layer = feature.properties?.layer ?? null;
+      return new Response(
+        JSON.stringify({ lat, lng, formatted, confidence, matchType, layer, provider: "ors" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
-    const [lng, lat] = feature.geometry.coordinates;
-    const formatted = feature.properties?.label ?? text;
-    const confidence = feature.properties?.confidence ?? null;
-    const matchType = feature.properties?.match_type ?? null;
-    const layer = feature.properties?.layer ?? null;
+    // Fallback: Nominatim (OpenStreetMap). Free, no API key, much better
+    // recall for German residential addresses than ORS/Pelias.
+    try {
+      const nomUrl = new URL("https://nominatim.openstreetmap.org/search");
+      nomUrl.searchParams.set("format", "json");
+      nomUrl.searchParams.set("limit", "5");
+      nomUrl.searchParams.set("countrycodes", "de");
+      nomUrl.searchParams.set("addressdetails", "1");
+      if (body.strasse || body.plz || body.stadt) {
+        if (body.strasse) nomUrl.searchParams.set("street", expandStreet(body.strasse));
+        if (body.stadt) nomUrl.searchParams.set("city", body.stadt);
+        if (body.plz) nomUrl.searchParams.set("postalcode", body.plz);
+      } else {
+        nomUrl.searchParams.set("q", text);
+      }
+      const nomRes = await fetchWithTimeout(nomUrl.toString(), 8000);
+      if (nomRes && nomRes.ok) {
+        const arr = (await nomRes.json()) as any[];
+        // Prefer hit with matching housenumber when one was requested
+        const wantedNum = (body.strasse ?? "").match(/\d+\w?/)?.[0]?.toLowerCase();
+        const pick =
+          (wantedNum && arr.find((h) => (h?.address?.house_number ?? "").toLowerCase() === wantedNum)) ||
+          arr[0];
+        if (pick && pick.lat && pick.lon) {
+          return new Response(
+            JSON.stringify({
+              lat: Number(pick.lat),
+              lng: Number(pick.lon),
+              formatted: pick.display_name ?? text,
+              confidence: null,
+              matchType: pick?.address?.house_number ? "exact" : "interpolated",
+              layer: pick.class ?? null,
+              provider: "nominatim",
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
+    } catch (e) {
+      console.warn("[geocode] nominatim fallback failed", e);
+    }
 
-    return new Response(
-      JSON.stringify({ lat, lng, formatted, confidence, matchType, layer }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: "Keine Treffer für Adresse" }), {
+      status: 404,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (err) {
     console.error("geocode-address error", err);
     return new Response(
