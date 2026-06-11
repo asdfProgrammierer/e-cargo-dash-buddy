@@ -111,10 +111,17 @@ Deno.serve(async (req) => {
     if (!features.length) features = (await fetchFeatures()) ?? [];
     // Prefer features that include a house number when one was requested.
     const wantsHouseNumber = /\d/.test(body.strasse ?? "");
-    const feature =
-      (wantsHouseNumber && features.find((f) => f?.properties?.housenumber)) ||
-      features[0];
-    if (feature) {
+    // If a house number was requested, only accept ORS features that
+    // actually include one. Otherwise ORS often returns a city/locality
+    // centroid which is useless for routing — fall through to Nominatim.
+    const acceptable = wantsHouseNumber
+      ? features.find((f) => f?.properties?.housenumber)
+      : features.find((f) => {
+          const layer = f?.properties?.layer;
+          return layer && layer !== "locality" && layer !== "region" && layer !== "country";
+        }) ?? features[0];
+    if (acceptable) {
+      const feature = acceptable;
       const [lng, lat] = feature.geometry.coordinates;
       const formatted = feature.properties?.label ?? text;
       const confidence = feature.properties?.confidence ?? null;
