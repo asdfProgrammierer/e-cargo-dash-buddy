@@ -159,6 +159,26 @@ export function AdminCreateOrderDialog({
         empfaengerStadt: form.empfaengerStadt,
         haendlerUserId: effectiveMerchantId,
       });
+      // Auto-geocode so the new order is immediately usable on the map.
+      void (async () => {
+        try {
+          const { data, error } = await supabase.functions.invoke("geocode-address", {
+            body: {
+              strasse: form.empfaengerAdresse ?? "",
+              plz: form.empfaengerPlz ?? "",
+              stadt: form.empfaengerStadt ?? "",
+            },
+          });
+          if (!error && data?.lat && data?.lng) {
+            await supabase
+              .from("orders")
+              .update({ lat: data.lat, lng: data.lng, geocoded_at: new Date().toISOString() })
+              .eq("id", inserted.id);
+          }
+        } catch (e) {
+          console.warn("auto-geocode after create failed", e);
+        }
+      })();
     }
     toast.success("Auftrag erfolgreich angelegt");
     setForm(emptyForm);

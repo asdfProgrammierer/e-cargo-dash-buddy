@@ -124,6 +124,27 @@ const RoutenplanungPage = () => {
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
+  // Auto-run background geocoding once when the admin opens this page so
+  // missing coordinates are filled in without manual button clicks.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.functions.invoke("regeocode-pickup-orders");
+        if (cancelled) return;
+        const updated = (data as any)?.updated ?? 0;
+        if (updated > 0) {
+          toast.success(`${updated} Adresse(n) automatisch geocodiert`);
+          bumpRefresh();
+        }
+      } catch (e) {
+        console.warn("auto-geocode failed", e);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const loadNewOrders = async () => {
     setNewOrdersLoading(true);
     const { data, error } = await supabase
@@ -414,9 +435,9 @@ const RoutenplanungPage = () => {
               const failed = (data as any)?.failed ?? 0;
               const total = (data as any)?.total ?? 0;
               if (total === 0) {
-                toast.success("Keine Abhol-Aufträge ohne Koordinaten gefunden");
+                toast.success("Alle Adressen sind bereits geocodiert");
               } else {
-                toast.success(`${updated} von ${total} Abhol-Aufträgen geocodiert${failed ? ` (${failed} fehlgeschlagen)` : ""}`);
+                toast.success(`${updated} von ${total} Adressen geocodiert${failed ? ` (${failed} fehlgeschlagen)` : ""}`);
               }
               bumpRefresh();
             } catch (e: any) {
@@ -425,10 +446,10 @@ const RoutenplanungPage = () => {
               setRegeocoding(false);
             }
           }}
-          title="Fehlende Koordinaten für Abhol-Aufträge nachtragen"
+          title="Fehlende Koordinaten für alle Aufträge nachtragen"
         >
           <Compass className="mr-1 h-4 w-4" />
-          {regeocoding ? "Geocodiere…" : "Abholungen geocoden"}
+          {regeocoding ? "Geocodiere…" : "Adressen geocoden"}
         </Button>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm(buildEmptyForm(date)); setPendingAssignIds(null); } }}>
           <DialogTrigger asChild>

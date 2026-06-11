@@ -111,26 +111,82 @@ Deno.serve(async (req) => {
     if (!features.length) features = (await fetchFeatures()) ?? [];
     // Prefer features that include a house number when one was requested.
     const wantsHouseNumber = /\d/.test(body.strasse ?? "");
-    const feature =
-      (wantsHouseNumber && features.find((f) => f?.properties?.housenumber)) ||
-      features[0];
-    if (!feature) {
-      return new Response(JSON.stringify({ error: "Keine Treffer für Adresse" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // If a house number was requested, only accept ORS features that
+    // actually include one. Otherwise ORS often returns a city/locality
+    // centroid which is useless for routing — fall through to Nominatim.
+    const acceptable = wantsHouseNumber
+      ? features.find((f) => f?.properties?.housenumber)
+      : features.find((f) => {
+          const layer = f?.properties?.layer;
+          return layer && layer !== "locality" && layer !== "region" && layer !== "country";
+        }) ?? features[0];
+    if (acceptable) {
+      const feature = acceptable;
+      const [lng, lat] = feature.geometry.coordinates;
+      const formatted = feature.properties?.label ?? text;
+      const confidence = feature.properties?.confidence ?? null;
+      const matchType = feature.properties?.match_type ?? null;
+      const layer = feature.properties?.layer ?? null;
+      return new Response(
+        JSON.stringify({ lat, lng, formatted, confidence, matchType, layer, provider: "ors" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
-    const [lng, lat] = feature.geometry.coordinates;
-    const formatted = feature.properties?.label ?? text;
-    const confidence = feature.properties?.confidence ?? null;
-    const matchType = feature.properties?.match_type ?? null;
-    const layer = feature.properties?.layer ?? null;
+    // Fallback: Nominatim (OpenStreetMap). Free, no API key, much better
+    // recall for German residential addresses than ORS/Pelias.
+    try {
+      const nomUrl = new URL("https://nominatim.openstreetmap.org/search");
+      nomUrl.searchParams.set("format", "json");
+      nomUrl.searchParams.set("limit", "5");
+      nomUrl.searchParams.set("countrycodes", "de");
+      nomUrl.searchParams.set("addressdetails", "1");
+      if (body.strasse || body.plz || body.stadt) {
+        if (body.strasse) nomUrl.searchParams.set("street", expandStreet(body.strasse));
+        if (body.stadt) nomUrl.searchParams.set("city", body.stadt);
+        if (body.plz) nomUrl.searchParams.set("postalcode", body.plz);
+      } else {
+        nomUrl.searchParams.set("q", text);
+      }
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 8000);
+      const nomRes = await fetch(nomUrl.toString(), {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "e-cargo-logistik/1.0 (kontakt@ecargo-logistik.de)",
+        },
+        signal: ctrl.signal,
+      }).finally(() => clearTimeout(t));
+      if (nomRes && nomRes.ok) {
+        const arr = (await nomRes.json()) as any[];
+        // Prefer hit with matching housenumber when one was requested
+        const wantedNum = (body.strasse ?? "").match(/\d+\w?/)?.[0]?.toLowerCase();
+        const pick =
+          (wantedNum && arr.find((h) => (h?.address?.house_number ?? "").toLowerCase() === wantedNum)) ||
+          arr[0];
+        if (pick && pick.lat && pick.lon) {
+          return new Response(
+            JSON.stringify({
+              lat: Number(pick.lat),
+              lng: Number(pick.lon),
+              formatted: pick.display_name ?? text,
+              confidence: null,
+              matchType: pick?.address?.house_number ? "exact" : "interpolated",
+              layer: pick.class ?? null,
+              provider: "nominatim",
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
+    } catch (e) {
+      console.warn("[geocode] nominatim fallback failed", e);
+    }
 
-    return new Response(
-      JSON.stringify({ lat, lng, formatted, confidence, matchType, layer }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: "Keine Treffer für Adresse" }), {
+      status: 404,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (err) {
     console.error("geocode-address error", err);
     return new Response(
