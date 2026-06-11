@@ -26,6 +26,7 @@ interface Stop {
   order: {
     id: string;
     auftrags_nr: string;
+    absender_name: string;
     empfaenger_name: string;
     empfaenger_adresse: string;
     empfaenger_plz: string;
