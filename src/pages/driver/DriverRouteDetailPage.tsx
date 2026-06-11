@@ -896,7 +896,7 @@ const DriverRouteDetailPage = () => {
             )}
 
             <Button
-              className="w-full h-13 text-base font-semibold"
+              className="w-full h-14 text-base font-semibold"
               disabled={submitting}
               onClick={submitDelivery}
             >
