@@ -124,6 +124,27 @@ const RoutenplanungPage = () => {
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
+  // Auto-run background geocoding once when the admin opens this page so
+  // missing coordinates are filled in without manual button clicks.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.functions.invoke("regeocode-pickup-orders");
+        if (cancelled) return;
+        const updated = (data as any)?.updated ?? 0;
+        if (updated > 0) {
+          toast.success(`${updated} Adresse(n) automatisch geocodiert`);
+          bumpRefresh();
+        }
+      } catch (e) {
+        console.warn("auto-geocode failed", e);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const loadNewOrders = async () => {
     setNewOrdersLoading(true);
     const { data, error } = await supabase
