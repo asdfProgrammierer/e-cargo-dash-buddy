@@ -141,7 +141,15 @@ Deno.serve(async (req) => {
       } else {
         nomUrl.searchParams.set("q", text);
       }
-      const nomRes = await fetchWithTimeout(nomUrl.toString(), 8000);
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 8000);
+      const nomRes = await fetch(nomUrl.toString(), {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "e-cargo-logistik/1.0 (kontakt@ecargo-logistik.de)",
+        },
+        signal: ctrl.signal,
+      }).finally(() => clearTimeout(t));
       if (nomRes && nomRes.ok) {
         const arr = (await nomRes.json()) as any[];
         // Prefer hit with matching housenumber when one was requested
