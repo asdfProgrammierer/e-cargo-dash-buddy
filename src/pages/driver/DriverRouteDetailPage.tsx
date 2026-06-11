@@ -625,7 +625,7 @@ const DriverRouteDetailPage = () => {
                     </p>
                     <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1"><Package className="h-3 w-3" />{o.pakete}</span>
-                      <span>{o.auftrags_nr}</span>
+                      <span className="font-medium text-foreground truncate">Abs.: {o.absender_name}</span>
                     </div>
                     {(() => {
                       const { customerInstructions, internalNotes } = splitNotes(o.notizen);
