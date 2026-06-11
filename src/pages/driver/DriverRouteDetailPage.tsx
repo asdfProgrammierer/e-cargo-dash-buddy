@@ -772,35 +772,35 @@ const DriverRouteDetailPage = () => {
       <Sheet open={!!deliverStop} onOpenChange={(o) => !o && setDeliverStop(null)}>
         <SheetContent
           side="bottom"
-          className="rounded-t-2xl max-h-[92vh] overflow-y-auto pb-[max(env(safe-area-inset-bottom),1rem)]"
+          className="rounded-t-2xl max-h-[95vh] overflow-y-auto pb-[max(env(safe-area-inset-bottom),0.75rem)]"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <SheetHeader>
+          <SheetHeader className="pb-1">
             <SheetTitle>Zustellung bestätigen</SheetTitle>
           </SheetHeader>
-          <div className="py-4 space-y-5">
+          <div className="pt-2 pb-2 space-y-3">
             <div>
-              <Label className="text-xs uppercase tracking-wide text-muted-foreground mb-2 block">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground mb-1.5 block">
                 Übergabe-Art
               </Label>
               <RadioGroup
                 value={deliveryMode}
                 onValueChange={(v) => setDeliveryMode(v)}
-                className="space-y-2"
+                className="grid grid-cols-2 gap-1.5"
               >
                 {deliveryModes.map((m) => (
                   <label
                     key={m.key}
                     htmlFor={`mode-${m.key}`}
-                    className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors min-h-[56px] ${
+                    className={`flex items-center gap-2 p-2.5 rounded-lg border-2 cursor-pointer transition-colors min-h-[44px] ${
                       deliveryMode === m.key
                         ? "border-primary bg-primary/5"
                         : "border-border bg-card hover:border-primary/40"
                     }`}
                   >
-                    <RadioGroupItem value={m.key} id={`mode-${m.key}`} className="mt-0.5" />
+                    <RadioGroupItem value={m.key} id={`mode-${m.key}`} />
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm">{m.label}</div>
+                      <div className="font-medium text-sm truncate">{m.label}</div>
                     </div>
                   </label>
                 ))}
@@ -809,12 +809,12 @@ const DriverRouteDetailPage = () => {
 
             {activeMode?.recipient_name_required && (
               <div>
-                <Label htmlFor="recipient" className="text-sm font-medium mb-1.5 block">
+                <Label htmlFor="recipient" className="text-sm font-medium mb-1 block">
                   Empfängername <span className="text-destructive">*</span>
                 </Label>
                 <input
                   id="recipient"
-                  className="w-full h-12 px-3 rounded-md border bg-background text-base"
+                  className="w-full h-11 px-3 rounded-md border bg-background text-base"
                   value={deliveryRecipient}
                   onChange={(e) => setDeliveryRecipient(e.target.value)}
                   placeholder="z. B. Familie Müller"
@@ -824,7 +824,7 @@ const DriverRouteDetailPage = () => {
             )}
 
             <div>
-              <Label htmlFor="delivery-note" className="text-sm font-medium mb-1.5 block">
+              <Label htmlFor="delivery-note" className="text-sm font-medium mb-1 block">
                 Bemerkung (optional)
               </Label>
               <Textarea
@@ -832,87 +832,71 @@ const DriverRouteDetailPage = () => {
                 placeholder="Tippen um zu schreiben…"
                 value={deliveryNote}
                 onChange={(e) => setDeliveryNote(e.target.value)}
-                rows={2}
+                rows={1}
                 className="text-base"
               />
             </div>
 
-            {(activeMode?.signature_required || activeMode?.key === "persoenlich") && (
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                handlePhotoSelected(e.target.files?.[0] ?? null);
+                e.target.value = "";
+              }}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              {(activeMode?.signature_required || activeMode?.key === "persoenlich") && (
+                <Button
+                  type="button"
+                  variant={hasSignature ? "default" : "outline"}
+                  className="h-12 text-sm"
+                  onClick={() => setSignatureOpen(true)}
+                >
+                  <PenLine className="h-4 w-4 mr-1.5" />
+                  {hasSignature ? "Unterschrift ✓" : "Unterschrift"}
+                  {activeMode?.signature_required && !hasSignature && (
+                    <span className="text-destructive ml-1">*</span>
+                  )}
+                </Button>
+              )}
               <Button
                 type="button"
-                variant="outline"
-                className="w-full h-14 text-base"
-                onClick={() => setSignatureOpen(true)}
+                variant={photoDataUrl ? "default" : "outline"}
+                className="h-12 text-sm"
+                onClick={() => photoInputRef.current?.click()}
               >
-                <PenLine className="h-5 w-5 mr-2" />
-                {hasSignature ? "Unterschrift bearbeiten" : "Unterschrift hinzufügen"}
-                {activeMode?.signature_required && !hasSignature && (
-                  <span className="text-destructive ml-1">*</span>
-                )}
-                {hasSignature && <CheckCircle2 className="h-5 w-5 ml-2 text-primary" />}
-              </Button>
-            )}
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium block">
-                Zustellfoto
+                <Camera className="h-4 w-4 mr-1.5" />
+                {photoDataUrl ? "Foto ✓" : "Foto"}
                 {activeMode?.photo_required && !photoDataUrl && (
                   <span className="text-destructive ml-1">*</span>
                 )}
-              </Label>
-              <input
-                ref={photoInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => {
-                  handlePhotoSelected(e.target.files?.[0] ?? null);
-                  e.target.value = "";
-                }}
-              />
-              {photoDataUrl ? (
-                <div className="space-y-2">
-                  <img
-                    src={photoDataUrl}
-                    alt="Zustellfoto"
-                    className="w-full max-h-56 object-contain rounded-md border bg-muted"
-                  />
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-12"
-                      onClick={() => photoInputRef.current?.click()}
-                    >
-                      <Camera className="h-4 w-4 mr-2" />
-                      Neu aufnehmen
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="h-12 text-destructive hover:text-destructive"
-                      onClick={() => setPhotoDataUrl(null)}
-                    >
-                      Entfernen
-                    </Button>
-                  </div>
-                </div>
-              ) : (
+              </Button>
+            </div>
+            {photoDataUrl && (
+              <div className="flex items-center gap-2">
+                <img
+                  src={photoDataUrl}
+                  alt="Zustellfoto"
+                  className="h-16 w-16 object-cover rounded-md border bg-muted"
+                />
                 <Button
                   type="button"
-                  variant="outline"
-                  className="w-full h-14 text-base"
-                  onClick={() => photoInputRef.current?.click()}
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => setPhotoDataUrl(null)}
                 >
-                  <Camera className="h-5 w-5 mr-2" />
-                  Foto aufnehmen
+                  Foto entfernen
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
 
             <Button
-              className="w-full h-14 text-base font-semibold"
+              className="w-full h-13 text-base font-semibold"
               disabled={submitting}
               onClick={submitDelivery}
             >
