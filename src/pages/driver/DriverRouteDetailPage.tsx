@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight, PenLine, Play, Home, MessageSquare, Camera } from "lucide-react";
+  import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight, PenLine, Play, Home, MessageSquare, Camera, Radio } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { SignaturePad, type SignaturePadHandle } from "@/components/driver/SignaturePad";
 import { buildOrderPdfBlob, type BuildOrderPdfOverrides } from "@/lib/orderPdf";
@@ -185,8 +185,63 @@ const DriverRouteDetailPage = () => {
 
   // Live-Standort: alle 60s den GPS-Fix an die Datenbank senden, solange
   // die Route aktiv ist. Akkuschonend durch maximalAge + 60s-Intervall.
+  const [gpsPermission, setGpsPermission] = useState<"granted" | "prompt" | "denied" | "unknown">("unknown");
+  const [requestingGps, setRequestingGps] = useState(false);
+
+  const checkGpsPermission = async () => {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const { Geolocation } = await import("@capacitor/geolocation");
+        const perm = await Geolocation.checkPermissions();
+        setGpsPermission(perm.location === "granted" ? "granted" : perm.location === "denied" ? "denied" : "prompt");
+        return;
+      }
+      if (typeof navigator !== "undefined" && "permissions" in navigator) {
+        const p = await (navigator as any).permissions.query({ name: "geolocation" });
+        setGpsPermission(p.state as any);
+        p.onchange = () => setGpsPermission(p.state as any);
+      } else {
+        setGpsPermission("prompt");
+      }
+    } catch {
+      setGpsPermission("prompt");
+    }
+  };
+
+  useEffect(() => { void checkGpsPermission(); }, []);
+
+  const requestGpsPermission = async () => {
+    setRequestingGps(true);
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const { Geolocation } = await import("@capacitor/geolocation");
+        const req = await Geolocation.requestPermissions();
+        setGpsPermission(req.location === "granted" ? "granted" : req.location === "denied" ? "denied" : "prompt");
+      } else {
+        // Echter Aufruf → Browser zeigt den Permission-Dialog
+        await new Promise<void>((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            () => { setGpsPermission("granted"); resolve(); },
+            (err) => { setGpsPermission(err.code === err.PERMISSION_DENIED ? "denied" : "prompt"); resolve(); },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+          );
+        });
+      }
+      const fix = await getCurrentGps(15000);
+      if (fix) {
+        await supabase.rpc("driver_update_location", { _lat: fix.lat, _lng: fix.lng, _accuracy: fix.acc ?? null });
+        toast.success("Live-Standort aktiviert");
+      }
+    } catch (e) {
+      console.warn("[gps] request failed", e);
+    } finally {
+      setRequestingGps(false);
+    }
+  };
+
   useEffect(() => {
     if (routeStatus !== "aktiv") return;
+    if (gpsPermission !== "granted") return;
     let cancelled = false;
     const ping = async () => {
       const fix = await getCurrentGps(15000);
@@ -204,7 +259,7 @@ const DriverRouteDetailPage = () => {
     void ping();
     const iv = setInterval(() => { void ping(); }, 60_000);
     return () => { cancelled = true; clearInterval(iv); };
-  }, [routeStatus]);
+  }, [routeStatus, gpsPermission]);
 
   const updateStatus = (
     stopId: string,
@@ -610,6 +665,36 @@ const DriverRouteDetailPage = () => {
               <ArrowRight className="h-5 w-5 flex-shrink-0 opacity-90" />
             </div>
           </button>
+        </div>
+      )}
+
+      {!isPlanned && !isCompleted && gpsPermission !== "granted" && (
+        <div className="px-4 pt-3">
+          <div className={`rounded-xl p-3 border ${gpsPermission === "denied" ? "border-destructive/40 bg-destructive/10" : "border-amber-500/40 bg-amber-500/10"}`}>
+            <div className="flex items-start gap-3">
+              <Radio className="h-5 w-5 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-sm">Live-Standort nicht aktiv</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {gpsPermission === "denied"
+                    ? "Standort wurde blockiert. Bitte in den Browser-/App-Einstellungen freigeben."
+                    : "Erlaube den Standort, damit du auf der Karte sichtbar bist."}
+                </div>
+                {gpsPermission !== "denied" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="mt-2"
+                    onClick={requestGpsPermission}
+                    disabled={requestingGps}
+                  >
+                    {requestingGps ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <MapPin className="h-4 w-4 mr-2" />}
+                    Live-Standort aktivieren
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
