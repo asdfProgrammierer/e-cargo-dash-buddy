@@ -1,6 +1,7 @@
 import QRCode from "qrcode";
 import { supabase } from "@/integrations/supabase/client";
 import type { Order } from "@/types/order";
+import { buildTrackingUrl, getPublicSiteUrl } from "@/lib/siteUrl";
 
 type ZoneMeta = {
   label: string;
@@ -38,23 +39,22 @@ async function getZoneMetaForPostcode(postcode?: string) {
 }
 
 async function createQrCodeDataUrl(order: Order) {
-  return QRCode.toDataURL(
-    [
-      "e-cargo",
-      `Auftrag: ${order.auftragsNr}`,
-      `Empfänger: ${order.empfaengerName}`,
-      `PLZ/Stadt: ${order.empfaengerPlz} ${order.empfaengerStadt}`.trim(),
-      `Pakete: ${order.pakete}`,
-    ].join("\n"),
-    {
+  const { data } = await supabase
+    .from("orders")
+    .select("tracking_token")
+    .eq("id", order.id)
+    .maybeSingle();
+  const payload = data?.tracking_token
+    ? buildTrackingUrl(data.tracking_token)
+    : `${getPublicSiteUrl()}/track`;
+  return QRCode.toDataURL(payload, {
       margin: 0,
       width: 180,
       color: {
         dark: "#000000",
         light: "#FFFFFF",
       },
-    },
-  );
+  });
 }
 
 function renderSingleLabel(order: Order, zone: ZoneMeta | null, qrCodeDataUrl: string) {
