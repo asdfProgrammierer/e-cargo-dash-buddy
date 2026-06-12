@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
       history: (history ?? []).map((h) => ({
         status: h.status,
         statusLabel: STATUS_LABELS[h.status] ?? h.status,
-        reason: h.reason,
+        reason: toCustomerReason(h.reason),
         createdAt: h.created_at,
       })),
       instructions: instructions
