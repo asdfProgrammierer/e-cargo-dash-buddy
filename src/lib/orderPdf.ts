@@ -48,7 +48,9 @@ async function loadStatusHistory(orderId: string): Promise<HistoryEntry[]> {
 async function loadProofOfDelivery(orderId: string): Promise<ProofOfDelivery | null> {
   const { data } = await supabase
     .from("route_stops")
-    .select("delivery_mode, delivery_note, delivery_recipient, signature_url, delivery_photo_url, delivered_at, completed_lat, completed_lng, completed_accuracy_m")
+    .select(
+      "delivery_mode, delivery_note, delivery_recipient, signature_url, delivery_photo_url, delivered_at, completed_lat, completed_lng, completed_accuracy_m",
+    )
     .eq("order_id", orderId)
     .in("status", ["erledigt", "uebersprungen"])
     .order("updated_at", { ascending: false })
@@ -59,9 +61,7 @@ async function loadProofOfDelivery(orderId: string): Promise<ProofOfDelivery | n
 
 async function loadStorageDataUrl(bucket: string, path: string): Promise<string | null> {
   try {
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .download(path);
+    const { data, error } = await supabase.storage.from(bucket).download(path);
     if (error || !data) return null;
     return await new Promise((resolve) => {
       const reader = new FileReader();
@@ -75,14 +75,8 @@ async function loadStorageDataUrl(bucket: string, path: string): Promise<string 
 }
 
 async function generateQrDataUrl(order: Order) {
-  const { data } = await supabase
-    .from("orders")
-    .select("tracking_token")
-    .eq("id", order.id)
-    .maybeSingle();
-  const payload = data?.tracking_token
-    ? buildTrackingUrl(data.tracking_token)
-    : `${getPublicSiteUrl()}/track`;
+  const { data } = await supabase.from("orders").select("tracking_token").eq("id", order.id).maybeSingle();
+  const payload = data?.tracking_token ? buildTrackingUrl(data.tracking_token) : `${getPublicSiteUrl()}/track`;
   return QRCode.toDataURL(payload, {
     margin: 0,
     width: 220,
@@ -205,8 +199,11 @@ async function generateMapDataUrl(lat: number, lng: number): Promise<string | nu
 function formatDateTime(iso: string) {
   try {
     return new Date(iso).toLocaleString("de-DE", {
-      day: "2-digit", month: "2-digit", year: "numeric",
-      hour: "2-digit", minute: "2-digit",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   } catch {
     return iso;
@@ -230,10 +227,7 @@ export interface BuildOrderPdfOverrides {
   deliveryRecipient?: string | null;
 }
 
-export async function buildOrderPdf(
-  order: Order,
-  overrides: BuildOrderPdfOverrides = {},
-): Promise<jsPDF> {
+export async function buildOrderPdf(order: Order, overrides: BuildOrderPdfOverrides = {}): Promise<jsPDF> {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -260,14 +254,10 @@ export async function buildOrderPdf(
   };
   const sigDataUrl =
     overrides.signatureDataUrl ??
-    (pod.signature_url
-      ? await loadStorageDataUrl("delivery-signatures", pod.signature_url)
-      : null);
+    (pod.signature_url ? await loadStorageDataUrl("delivery-signatures", pod.signature_url) : null);
   const photoDataUrl =
     overrides.photoDataUrl ??
-    (pod.delivery_photo_url
-      ? await loadStorageDataUrl("delivery-photos", pod.delivery_photo_url)
-      : null);
+    (pod.delivery_photo_url ? await loadStorageDataUrl("delivery-photos", pod.delivery_photo_url) : null);
 
   // ============ PAGE 1: Auftragsübersicht ============
   let y = 18;
@@ -329,9 +319,7 @@ export async function buildOrderPdf(
   const colW = (contentW - 6) / 2;
   const colTop = y;
 
-  const drawAddressBlock = (
-    title: string, x: number, lines: Array<[string, string | undefined | null]>,
-  ) => {
+  const drawAddressBlock = (title: string, x: number, lines: Array<[string, string | undefined | null]>) => {
     let cy = colTop;
     doc.setFillColor(245, 245, 245);
     doc.roundedRect(x, cy, colW, 6, 1, 1, "F");
@@ -466,7 +454,10 @@ export async function buildOrderPdf(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9.5);
     for (const h of history) {
-      if (y > pageH - 30) { doc.addPage(); y = 20; }
+      if (y > pageH - 30) {
+        doc.addPage();
+        y = 20;
+      }
       const reasonLines = doc.splitTextToSize(h.reason ?? "—", contentW - 78);
       doc.text(formatDateTime(h.created_at), marginX, y);
       doc.text(statusLabel(h.status), marginX + 42, y);
@@ -574,7 +565,7 @@ export async function buildOrderPdf(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   const deliveredDate = pod?.delivered_at ? new Date(pod.delivered_at) : null;
-  doc.text("Übernommen am:", marginX, y);
+  doc.text("Übergeben am:", marginX, y);
   doc.line(marginX + 32, y + 0.5, marginX + 75, y + 0.5);
   if (deliveredDate) {
     doc.text(deliveredDate.toLocaleDateString("de-DE"), marginX + 34, y - 0.5);
@@ -582,11 +573,7 @@ export async function buildOrderPdf(
   doc.text("Uhrzeit:", marginX + 85, y);
   doc.line(marginX + 100, y + 0.5, marginX + 130, y + 0.5);
   if (deliveredDate) {
-    doc.text(
-      deliveredDate.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
-      marginX + 102,
-      y - 0.5,
-    );
+    doc.text(deliveredDate.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }), marginX + 102, y - 0.5);
   }
   y += 8;
 
@@ -645,8 +632,7 @@ export async function buildOrderPdf(
     doc.setFontSize(8);
     doc.setTextColor(110);
     const gpsLine =
-      `GPS-Stempel: ${lat.toFixed(5)}, ${lng.toFixed(5)}` +
-      (acc != null ? `  (±${Math.round(acc)} m)` : "");
+      `GPS-Stempel: ${lat.toFixed(5)}, ${lng.toFixed(5)}` + (acc != null ? `  (±${Math.round(acc)} m)` : "");
     doc.text(gpsLine, marginX, y);
     doc.setTextColor(0);
     y += 5;
@@ -654,7 +640,10 @@ export async function buildOrderPdf(
     // Karte mit Pin
     const mapDataUrl = await generateMapDataUrl(lat, lng);
     if (mapDataUrl) {
-      if (y > pageH - 80) { doc.addPage(); y = 18; }
+      if (y > pageH - 80) {
+        doc.addPage();
+        y = 18;
+      }
       const mapW = 90;
       const mapH = 60;
       doc.setDrawColor(200);
@@ -675,7 +664,10 @@ export async function buildOrderPdf(
 
   // Delivery photo (briefkasten / nachbar)
   if (photoDataUrl) {
-    if (y > pageH - 100) { doc.addPage(); y = 18; }
+    if (y > pageH - 100) {
+      doc.addPage();
+      y = 18;
+    }
     doc.setFillColor(245, 245, 245);
     doc.roundedRect(marginX, y, contentW, 6, 1, 1, "F");
     doc.setFont("helvetica", "bold");
@@ -730,10 +722,7 @@ export async function buildOrderPdf(
   return doc;
 }
 
-export async function buildOrderPdfBlob(
-  order: Order,
-  overrides: BuildOrderPdfOverrides = {},
-): Promise<Blob> {
+export async function buildOrderPdfBlob(order: Order, overrides: BuildOrderPdfOverrides = {}): Promise<Blob> {
   const doc = await buildOrderPdf(order, overrides);
   return doc.output("blob");
 }
