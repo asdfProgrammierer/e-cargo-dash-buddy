@@ -185,8 +185,63 @@ const DriverRouteDetailPage = () => {
 
   // Live-Standort: alle 60s den GPS-Fix an die Datenbank senden, solange
   // die Route aktiv ist. Akkuschonend durch maximalAge + 60s-Intervall.
+  const [gpsPermission, setGpsPermission] = useState<"granted" | "prompt" | "denied" | "unknown">("unknown");
+  const [requestingGps, setRequestingGps] = useState(false);
+
+  const checkGpsPermission = async () => {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const { Geolocation } = await import("@capacitor/geolocation");
+        const perm = await Geolocation.checkPermissions();
+        setGpsPermission(perm.location === "granted" ? "granted" : perm.location === "denied" ? "denied" : "prompt");
+        return;
+      }
+      if (typeof navigator !== "undefined" && "permissions" in navigator) {
+        const p = await (navigator as any).permissions.query({ name: "geolocation" });
+        setGpsPermission(p.state as any);
+        p.onchange = () => setGpsPermission(p.state as any);
+      } else {
+        setGpsPermission("prompt");
+      }
+    } catch {
+      setGpsPermission("prompt");
+    }
+  };
+
+  useEffect(() => { void checkGpsPermission(); }, []);
+
+  const requestGpsPermission = async () => {
+    setRequestingGps(true);
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const { Geolocation } = await import("@capacitor/geolocation");
+        const req = await Geolocation.requestPermissions();
+        setGpsPermission(req.location === "granted" ? "granted" : req.location === "denied" ? "denied" : "prompt");
+      } else {
+        // Echter Aufruf → Browser zeigt den Permission-Dialog
+        await new Promise<void>((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            () => { setGpsPermission("granted"); resolve(); },
+            (err) => { setGpsPermission(err.code === err.PERMISSION_DENIED ? "denied" : "prompt"); resolve(); },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+          );
+        });
+      }
+      const fix = await getCurrentGps(15000);
+      if (fix) {
+        await supabase.rpc("driver_update_location", { _lat: fix.lat, _lng: fix.lng, _accuracy: fix.acc ?? null });
+        toast.success("Live-Standort aktiviert");
+      }
+    } catch (e) {
+      console.warn("[gps] request failed", e);
+    } finally {
+      setRequestingGps(false);
+    }
+  };
+
   useEffect(() => {
     if (routeStatus !== "aktiv") return;
+    if (gpsPermission !== "granted") return;
     let cancelled = false;
     const ping = async () => {
       const fix = await getCurrentGps(15000);
@@ -204,7 +259,7 @@ const DriverRouteDetailPage = () => {
     void ping();
     const iv = setInterval(() => { void ping(); }, 60_000);
     return () => { cancelled = true; clearInterval(iv); };
-  }, [routeStatus]);
+  }, [routeStatus, gpsPermission]);
 
   const updateStatus = (
     stopId: string,
