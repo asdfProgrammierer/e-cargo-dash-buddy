@@ -16,6 +16,26 @@ const STATUS_LABELS: Record<string, string> = {
   storniert: 'Storniert',
 }
 
+function toCustomerReason(reason: string | null): string | null {
+  if (!reason) return null
+  if (reason === 'Admin: Erneut zur Zustellung freigegeben') {
+    return 'Sendung wird erneut zugestellt'
+  }
+  if (reason === 'Admin: Endgültig nicht zugestellt bestätigt') {
+    return 'Zustellung leider nicht möglich'
+  }
+  const m = reason.match(/^Versuch (\d+) fehlgeschlagen\s*[-–—]\s*wartet auf Admin-Freigabe\s*:?\s*(.*)$/i)
+  if (m) {
+    const attempt = m[1]
+    const driverReason = m[2]?.trim()
+    if (driverReason) {
+      return `Zustellversuch ${attempt} nicht erfolgreich: ${driverReason}`
+    }
+    return `Zustellversuch ${attempt} leider nicht erfolgreich`
+  }
+  return reason
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -137,7 +157,7 @@ Deno.serve(async (req) => {
       history: (history ?? []).map((h) => ({
         status: h.status,
         statusLabel: STATUS_LABELS[h.status] ?? h.status,
-        reason: h.reason,
+        reason: toCustomerReason(h.reason),
         createdAt: h.created_at,
       })),
       instructions: instructions
