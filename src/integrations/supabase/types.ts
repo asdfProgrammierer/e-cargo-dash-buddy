@@ -317,6 +317,38 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_locations: {
+        Row: {
+          accuracy: number | null
+          driver_id: string
+          lat: number
+          lng: number
+          updated_at: string
+        }
+        Insert: {
+          accuracy?: number | null
+          driver_id: string
+          lat: number
+          lng: number
+          updated_at?: string
+        }
+        Update: {
+          accuracy?: number | null
+          driver_id?: string
+          lat?: number
+          lng?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_locations_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: true
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       drivers: {
         Row: {
           auth_user_id: string | null
@@ -1537,6 +1569,10 @@ export type Database = {
         Returns: boolean
       }
       driver_touch_last_login: { Args: never; Returns: undefined }
+      driver_update_location: {
+        Args: { _accuracy?: number; _lat: number; _lng: number }
+        Returns: undefined
+      }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number

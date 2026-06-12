@@ -183,6 +183,29 @@ const DriverRouteDetailPage = () => {
     })();
   }, [id]);
 
+  // Live-Standort: alle 60s den GPS-Fix an die Datenbank senden, solange
+  // die Route aktiv ist. Akkuschonend durch maximalAge + 60s-Intervall.
+  useEffect(() => {
+    if (routeStatus !== "aktiv") return;
+    let cancelled = false;
+    const ping = async () => {
+      const fix = await getCurrentGps(15000);
+      if (cancelled || !fix) return;
+      try {
+        await supabase.rpc("driver_update_location", {
+          _lat: fix.lat,
+          _lng: fix.lng,
+          _accuracy: fix.acc ?? null,
+        });
+      } catch (e) {
+        console.warn("[driver-location] update failed", e);
+      }
+    };
+    void ping();
+    const iv = setInterval(() => { void ping(); }, 60_000);
+    return () => { cancelled = true; clearInterval(iv); };
+  }, [routeStatus]);
+
   const updateStatus = (
     stopId: string,
     status: "erledigt" | "uebersprungen",

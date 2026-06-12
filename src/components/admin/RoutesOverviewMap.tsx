@@ -26,6 +26,15 @@ interface StopRow {
   orders: { id: string; auftrags_nr: string; empfaenger_name: string; empfaenger_stadt: string; lat: number | null; lng: number | null; } | null;
 }
 
+interface DriverLoc {
+  driver_id: string;
+  lat: number;
+  lng: number;
+  accuracy: number | null;
+  updated_at: string;
+  driver_name: string | null;
+}
+
 // Distinct, accessible HSL palette for routes
 const ROUTE_COLORS = [
   "hsl(142 71% 42%)",   // emerald
@@ -77,6 +86,7 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
   const [routes, setRoutes] = useState<RouteRow[]>([]);
   const [stops, setStops] = useState<StopRow[]>([]);
   const [depots, setDepots] = useState<Depot[]>([]);
+  const [driverLocs, setDriverLocs] = useState<DriverLoc[]>([]);
   const [hiddenState, setHiddenState] = useState<Set<string>>(new Set());
   const hidden = hiddenProp ?? hiddenState;
   const setHidden = setHiddenState;
@@ -120,6 +130,34 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [date, refreshKey]);
+
+  // Live driver locations: initial load + realtime subscription.
+  useEffect(() => {
+    let cancelled = false;
+    const loadLocs = async () => {
+      const { data } = await supabase
+        .from("driver_locations")
+        .select("driver_id, lat, lng, accuracy, updated_at, drivers(name)");
+      if (cancelled) return;
+      const rows: DriverLoc[] = (data ?? []).map((r: any) => ({
+        driver_id: r.driver_id,
+        lat: Number(r.lat),
+        lng: Number(r.lng),
+        accuracy: r.accuracy != null ? Number(r.accuracy) : null,
+        updated_at: r.updated_at,
+        driver_name: r.drivers?.name ?? null,
+      }));
+      setDriverLocs(rows);
+    };
+    void loadLocs();
+    const channel = supabase
+      .channel("driver-locations")
+      .on("postgres_changes", { event: "*", schema: "public", table: "driver_locations" }, () => {
+        void loadLocs();
+      })
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(channel); };
+  }, []);
 
   // Init map (Carto Positron — clean, only roads + outlines)
   useEffect(() => {
@@ -323,6 +361,44 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
         hasPoint = true;
       });
 
+      // Live driver positions
+      driverLocs.forEach((dl) => {
+        const ageMs = Date.now() - new Date(dl.updated_at).getTime();
+        const stale = ageMs > 5 * 60_000;
+        const el = document.createElement("div");
+        el.style.cursor = "pointer";
+        el.style.position = "relative";
+        el.style.width = "32px";
+        el.style.height = "32px";
+        const color = stale ? "hsl(var(--muted-foreground))" : "hsl(142 71% 42%)";
+        el.innerHTML = `
+          <span style="position:absolute;inset:0;border-radius:9999px;background:${color};opacity:0.25;${stale ? "" : "animation: ovr-ping 1.8s ease-out infinite;"}"></span>
+          <span style="position:absolute;inset:6px;border-radius:9999px;background:${color};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:700;">🚚</span>`;
+        const m = new maplibregl.Marker({ element: el, anchor: "center" })
+          .setLngLat([dl.lng, dl.lat])
+          .addTo(map);
+        const ageMin = Math.round(ageMs / 60000);
+        const html = `
+          <div style="font-family: inherit; min-width: 180px;">
+            <div style="font-size: 10px; color: hsl(var(--muted-foreground)); text-transform: uppercase; letter-spacing: 0.04em;">Fahrer-Standort</div>
+            <div style="font-weight: 600; margin-top: 2px;">${escapeHtml(dl.driver_name ?? "Fahrer")}</div>
+            <div style="font-size: 11px; color: hsl(var(--muted-foreground)); margin-top: 2px;">
+              Aktualisiert vor ${ageMin < 1 ? "<1" : ageMin} Min.${dl.accuracy != null ? ` · ±${Math.round(dl.accuracy)} m` : ""}
+            </div>
+            ${stale ? `<div style="display:inline-block;margin-top:6px;padding:1px 6px;border-radius:4px;font-size:10px;background:hsl(var(--muted));color:hsl(var(--muted-foreground));">veraltet</div>` : ""}
+          </div>`;
+        el.addEventListener("mouseenter", () => { showPopup([dl.lng, dl.lat], html); });
+        el.addEventListener("mouseleave", () => { hidePopupIfNotPinned(); });
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          pinnedRef.current = true;
+          showPopup([dl.lng, dl.lat], html);
+        });
+        markersRef.current.push(m);
+        bounds.extend([dl.lng, dl.lat]);
+        hasPoint = true;
+      });
+
       const defaultDepot = depots.find((d) => d.is_default && d.lat != null && d.lng != null)
         ?? depots.find((d) => d.lat != null && d.lng != null);
       const hasRouteContent = routes.some((r) => !hidden.has(r.id) && (r.geometry || stops.some((s) => s.route_id === r.id && s.orders?.lat != null)));
@@ -337,7 +413,7 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
     };
     if (map.loaded()) apply();
     else map.once("load", apply);
-  }, [routes, stops, depots, hidden, colorByRoute, onSelectRoute, highlightRouteId, newOrders, selectedNewOrderIds, onNewOrderClick]);
+  }, [routes, stops, depots, hidden, colorByRoute, onSelectRoute, highlightRouteId, newOrders, selectedNewOrderIds, onNewOrderClick, driverLocs]);
 
   const toggleHidden = (id: string) => {
     setHidden((prev) => {
