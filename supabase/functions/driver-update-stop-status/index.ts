@@ -236,8 +236,8 @@ Deno.serve(async (req) => {
             user_id: order.user_id,
             status: "nicht_zugestellt",
             reason: reason
-              ? `Versuch ${attemptNumber} fehlgeschlagen – wartet auf Admin-Freigabe: ${reason}`
-              : `Versuch ${attemptNumber} fehlgeschlagen – wartet auf Admin-Freigabe`,
+              ? `Zustellversuch ${attemptNumber} nicht erfolgreich: ${reason}`
+              : `Zustellversuch ${attemptNumber} leider nicht erfolgreich`,
             changed_by: userData.user.id,
           });
         }
