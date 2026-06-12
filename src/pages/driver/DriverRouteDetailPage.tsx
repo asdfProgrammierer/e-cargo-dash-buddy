@@ -668,6 +668,36 @@ const DriverRouteDetailPage = () => {
         </div>
       )}
 
+      {!isPlanned && !isCompleted && gpsPermission !== "granted" && (
+        <div className="px-4 pt-3">
+          <div className={`rounded-xl p-3 border ${gpsPermission === "denied" ? "border-destructive/40 bg-destructive/10" : "border-amber-500/40 bg-amber-500/10"}`}>
+            <div className="flex items-start gap-3">
+              <Radio className="h-5 w-5 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-sm">Live-Standort nicht aktiv</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {gpsPermission === "denied"
+                    ? "Standort wurde blockiert. Bitte in den Browser-/App-Einstellungen freigeben."
+                    : "Erlaube den Standort, damit du auf der Karte sichtbar bist."}
+                </div>
+                {gpsPermission !== "denied" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="mt-2"
+                    onClick={requestGpsPermission}
+                    disabled={requestingGps}
+                  >
+                    {requestingGps ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <MapPin className="h-4 w-4 mr-2" />}
+                    Live-Standort aktivieren
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="p-4 space-y-3">
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
