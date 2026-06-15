@@ -606,38 +606,67 @@ export async function buildOrderPdf(order: Order, overrides: BuildOrderPdfOverri
   }
   y += 10;
 
-  // Signature box
+  // Signature (half width, left) + GPS info (half width, right)
+  const halfW = (contentW - 4) / 2;
+  const boxH = 28;
+  const sigX = marginX;
+  const gpsX = marginX + halfW + 4;
+
   doc.setDrawColor(0);
-  doc.roundedRect(marginX, y, contentW, 28, 2, 2, "S");
+  doc.roundedRect(sigX, y, halfW, boxH, 2, 2, "S");
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(110);
-  doc.text("UNTERSCHRIFT EMPFÄNGER", marginX + 3, y + 5);
+  doc.text("UNTERSCHRIFT EMPFÄNGER", sigX + 3, y + 5);
   doc.setTextColor(0);
   if (sigDataUrl) {
     try {
-      doc.addImage(sigDataUrl, "PNG", marginX + 3, y + 6, contentW - 6, 20);
+      doc.addImage(sigDataUrl, "PNG", sigX + 3, y + 6, halfW - 6, boxH - 8);
     } catch (e) {
       console.warn("Konnte Unterschrift nicht ins PDF einbetten", e);
     }
   }
-  y += 32;
 
-  // GPS-Stempel des Fahrers beim Abschluss
+  // GPS box (right half)
+  doc.setDrawColor(0);
+  doc.roundedRect(gpsX, y, halfW, boxH, 2, 2, "S");
+  doc.setFontSize(8);
+  doc.setTextColor(110);
+  doc.text("GPS-STANDORT FAHRER", gpsX + 3, y + 5);
+  doc.setTextColor(0);
   if (pod?.completed_lat != null && pod?.completed_lng != null) {
     const lat = Number(pod.completed_lat);
     const lng = Number(pod.completed_lng);
     const acc = pod.completed_accuracy_m != null ? Number(pod.completed_accuracy_m) : null;
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${lat.toFixed(5)}, ${lng.toFixed(5)}`, gpsX + 3, y + 12);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(110);
-    const gpsLine =
-      `GPS-Stempel: ${lat.toFixed(5)}, ${lng.toFixed(5)}` + (acc != null ? `  (±${Math.round(acc)} m)` : "");
-    doc.text(gpsLine, marginX, y);
+    if (acc != null) {
+      doc.text(`Genauigkeit: ±${Math.round(acc)} m`, gpsX + 3, y + 17);
+    }
+    if (deliveredDate) {
+      doc.text(
+        `Erfasst: ${deliveredDate.toLocaleDateString("de-DE")} ${deliveredDate.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`,
+        gpsX + 3,
+        y + 22,
+      );
+    }
     doc.setTextColor(0);
-    y += 5;
+  } else {
+    doc.setFontSize(8);
+    doc.setTextColor(160);
+    doc.text("Kein GPS-Standort erfasst", gpsX + 3, y + 14);
+    doc.setTextColor(0);
+  }
+  y += boxH + 4;
 
-    // Karte mit Pin
+  // Karte mit Pin (full width below)
+  if (pod?.completed_lat != null && pod?.completed_lng != null) {
+    const lat = Number(pod.completed_lat);
+    const lng = Number(pod.completed_lng);
     const mapDataUrl = await generateMapDataUrl(lat, lng);
     if (mapDataUrl) {
       if (y > pageH - 80) {
