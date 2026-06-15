@@ -94,6 +94,59 @@ async function loadImageElement(src: string): Promise<HTMLImageElement | null> {
   });
 }
 
+async function prepareSignatureForPdf(src: string): Promise<{ dataUrl: string; width: number; height: number; format: "PNG" | "JPEG" } | null> {
+  const img = await loadImageElement(src);
+  if (!img) return null;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth || img.width;
+  canvas.height = img.naturalHeight || img.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx || canvas.width === 0 || canvas.height === 0) return null;
+  ctx.drawImage(img, 0, 0);
+
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  let minX = canvas.width;
+  let minY = canvas.height;
+  let maxX = 0;
+  let maxY = 0;
+
+  for (let y = 0; y < canvas.height; y += 1) {
+    for (let x = 0; x < canvas.width; x += 1) {
+      const idx = (y * canvas.width + x) * 4;
+      const r = pixels[idx];
+      const g = pixels[idx + 1];
+      const b = pixels[idx + 2];
+      const a = pixels[idx + 3];
+      if (a > 8 && (r < 245 || g < 245 || b < 245)) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+  }
+
+  if (minX > maxX || minY > maxY) {
+    return { dataUrl: src, width: canvas.width, height: canvas.height, format: src.startsWith("data:image/jpeg") ? "JPEG" : "PNG" };
+  }
+
+  const padding = Math.min(80, Math.max(24, Math.round(Math.max(canvas.width, canvas.height) * 0.035)));
+  const cropX = Math.max(0, minX - padding);
+  const cropY = Math.max(0, minY - padding);
+  const cropW = Math.min(canvas.width - cropX, maxX - minX + 1 + padding * 2);
+  const cropH = Math.min(canvas.height - cropY, maxY - minY + 1 + padding * 2);
+  const out = document.createElement("canvas");
+  out.width = cropW;
+  out.height = cropH;
+  const outCtx = out.getContext("2d");
+  if (!outCtx) return null;
+  outCtx.fillStyle = "#ffffff";
+  outCtx.fillRect(0, 0, cropW, cropH);
+  outCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+  return { dataUrl: out.toDataURL("image/png"), width: cropW, height: cropH, format: "PNG" };
+}
+
 /**
  * Renders a small map centered on (lat,lng) using OpenStreetMap tiles
  * with a red pin in the middle. Returns a PNG data URL or null on failure.
@@ -621,7 +674,21 @@ export async function buildOrderPdf(order: Order, overrides: BuildOrderPdfOverri
   doc.setTextColor(0);
   if (sigDataUrl) {
     try {
-      doc.addImage(sigDataUrl, "PNG", sigX + 3, y + 6, halfW - 6, boxH - 8);
+      const preparedSignature = await prepareSignatureForPdf(sigDataUrl);
+      const image = preparedSignature ?? {
+        dataUrl: sigDataUrl,
+        width: 4,
+        height: 1,
+        format: sigDataUrl.startsWith("data:image/jpeg") ? ("JPEG" as const) : ("PNG" as const),
+      };
+      const maxSigW = halfW - 8;
+      const maxSigH = boxH - 12;
+      const scale = Math.min(maxSigW / image.width, maxSigH / image.height);
+      const drawW = image.width * scale;
+      const drawH = image.height * scale;
+      const drawX = sigX + (halfW - drawW) / 2;
+      const drawY = y + 7 + (maxSigH - drawH) / 2;
+      doc.addImage(image.dataUrl, image.format, drawX, drawY, drawW, drawH, undefined, "FAST");
     } catch (e) {
       console.warn("Konnte Unterschrift nicht ins PDF einbetten", e);
     }
@@ -781,8 +848,12 @@ async function downloadArchivedDeliveryNote(order: Order): Promise<boolean> {
 }
 
 export async function downloadOrderPdf(order: Order) {
-  // Prefer the archived (signed) PDF generated when the driver completed the stop
-  if (await downloadArchivedDeliveryNote(order)) return;
-  const doc = await buildOrderPdf(order);
-  doc.save(`auftrag-${order.auftragsNr}.pdf`);
+  try {
+    const doc = await buildOrderPdf(order);
+    doc.save(`auftrag-${order.auftragsNr}.pdf`);
+  } catch (e) {
+    console.warn("Aktueller Lieferschein konnte nicht erstellt werden, versuche Archiv-PDF", e);
+    if (await downloadArchivedDeliveryNote(order)) return;
+    throw e;
+  }
 }

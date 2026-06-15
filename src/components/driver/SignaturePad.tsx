@@ -14,6 +14,47 @@ export const SignaturePad = forwardRef<SignaturePadHandle, { className?: string 
     const lastRef = useRef<{ x: number; y: number } | null>(null);
     const snapshotRef = useRef<ImageData | null>(null);
 
+    const cropSignatureCanvas = (src: HTMLCanvasElement): HTMLCanvasElement => {
+      const ctx = src.getContext("2d");
+      if (!ctx || src.width === 0 || src.height === 0) return src;
+
+      const pixels = ctx.getImageData(0, 0, src.width, src.height).data;
+      let minX = src.width;
+      let minY = src.height;
+      let maxX = 0;
+      let maxY = 0;
+
+      for (let y = 0; y < src.height; y += 1) {
+        for (let x = 0; x < src.width; x += 1) {
+          const alpha = pixels[(y * src.width + x) * 4 + 3];
+          if (alpha > 8) {
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+          }
+        }
+      }
+
+      if (minX > maxX || minY > maxY) return src;
+
+      const padding = Math.min(90, Math.max(28, Math.round(Math.max(src.width, src.height) * 0.035)));
+      const cropX = Math.max(0, minX - padding);
+      const cropY = Math.max(0, minY - padding);
+      const cropW = Math.min(src.width - cropX, maxX - minX + 1 + padding * 2);
+      const cropH = Math.min(src.height - cropY, maxY - minY + 1 + padding * 2);
+
+      const out = document.createElement("canvas");
+      out.width = cropW;
+      out.height = cropH;
+      const outCtx = out.getContext("2d");
+      if (!outCtx) return src;
+      outCtx.fillStyle = "#fff";
+      outCtx.fillRect(0, 0, cropW, cropH);
+      outCtx.drawImage(src, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+      return out;
+    };
+
     const resize = () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -134,17 +175,9 @@ export const SignaturePad = forwardRef<SignaturePadHandle, { className?: string 
       isEmpty: () => emptyRef.current,
       toDataURL: () => {
         if (emptyRef.current) return null;
-        // flatten to white background for better print
         const src = canvasRef.current;
         if (!src) return null;
-        const out = document.createElement("canvas");
-        out.width = src.width;
-        out.height = src.height;
-        const ctx = out.getContext("2d")!;
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(0, 0, out.width, out.height);
-        ctx.drawImage(src, 0, 0);
-        return out.toDataURL("image/png");
+        return cropSignatureCanvas(src).toDataURL("image/png");
       },
     }));
 
