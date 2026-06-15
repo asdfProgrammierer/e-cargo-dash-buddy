@@ -1,4 +1,5 @@
-import { LayoutDashboard, Package, Upload, Leaf, LogOut, UserCircle, BookUser, ShoppingBag, Shield } from "lucide-react";
+import { LayoutDashboard, Package, Upload, LogOut, UserCircle, BookUser, ShoppingBag, Shield } from "lucide-react";
+import logoAsset from "@/assets/logo.png.asset.json";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
