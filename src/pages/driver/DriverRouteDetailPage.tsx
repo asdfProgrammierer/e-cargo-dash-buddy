@@ -1058,6 +1058,7 @@ const DriverRouteDetailPage = () => {
               onClick={() => {
                 sigPadRef.current?.clear();
                 setHasSignature(false);
+                setSignatureDataUrl(null);
                 setSignatureOpen(false);
               }}
             >
