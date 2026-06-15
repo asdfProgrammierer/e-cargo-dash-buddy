@@ -105,6 +105,10 @@ const DriverRouteDetailPage = () => {
   const sigPadRef = useRef<SignaturePadHandle>(null);
   const [signatureOpen, setSignatureOpen] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
+  // Captured signature data URL — kept in state so it survives the
+  // Signature-Sheet unmount (Radix unmounts SheetContent on close, which
+  // otherwise resets the canvas and we'd send a null signature).
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
@@ -442,6 +446,7 @@ const DriverRouteDetailPage = () => {
     setDeliveryRecipient("");
     setHasSignature(false);
     setSignatureOpen(false);
+    setSignatureDataUrl(null);
     setPhotoDataUrl(null);
   };
 
@@ -459,7 +464,7 @@ const DriverRouteDetailPage = () => {
       toast.error("Empfängername ist Pflicht");
       return;
     }
-    const sig = sigPadRef.current?.toDataURL() ?? null;
+    const sig = signatureDataUrl ?? sigPadRef.current?.toDataURL() ?? null;
     if (activeMode.signature_required && !sig) {
       toast.error("Unterschrift ist Pflicht");
       return;
@@ -1062,7 +1067,9 @@ const DriverRouteDetailPage = () => {
               className="h-14 text-base font-semibold"
               onClick={() => {
                 const empty = sigPadRef.current?.isEmpty() ?? true;
-                setHasSignature(!empty);
+                const url = empty ? null : sigPadRef.current?.toDataURL() ?? null;
+                setSignatureDataUrl(url);
+                setHasSignature(!empty && !!url);
                 setSignatureOpen(false);
               }}
             >
