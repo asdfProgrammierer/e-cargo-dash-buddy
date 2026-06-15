@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Leaf, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getPublicSiteUrl } from "@/lib/siteUrl";
+import logoAsset from "@/assets/logo.png.asset.json";
 
 const LoginPage = () => {
   const [loading, setLoading] = useState(false);
@@ -50,9 +51,7 @@ const LoginPage = () => {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary">
-            <Leaf className="h-7 w-7 text-primary-foreground" />
-          </div>
+          <img src={logoAsset.url} alt="e-cargo" className="h-14 w-14 object-contain" />
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground">e-cargo</h1>
             <p className="text-sm text-muted-foreground">Nachhaltige Logistik · Ruhrgebiet</p>
