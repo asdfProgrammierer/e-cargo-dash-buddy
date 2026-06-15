@@ -38,8 +38,8 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary">
-            <Leaf className="h-5 w-5 text-sidebar-primary-foreground" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white">
+            <img src={logoAsset.url} alt="e-cargo" className="h-7 w-7 object-contain" />
           </div>
           {!collapsed && (
             <div>
