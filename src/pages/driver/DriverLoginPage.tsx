@@ -37,9 +37,7 @@ const DriverLoginPage = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary text-primary-foreground mb-4">
-            <Truck className="h-8 w-8" />
-          </div>
+          <img src={logoAsset.url} alt="e-cargo" className="h-16 w-16 object-contain mb-4" />
           <h1 className="text-2xl font-bold">e-cargo Fahrer</h1>
           <p className="text-sm text-muted-foreground mt-1">Bitte melde dich an</p>
         </div>
