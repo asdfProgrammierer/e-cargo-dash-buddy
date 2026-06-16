@@ -11,8 +11,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "cap:dev": "CAP_ENV=dev npx cap sync android",
-    "cap:prod": "npm run build && npx cap sync android",
+    "check:android-permissions": "node scripts/check-android-permissions.mjs",
+    "cap:dev": "CAP_ENV=dev npm run check:android-permissions && npx cap sync android",
+    "cap:prod": "npm run build && npm run check:android-permissions && npx cap sync android",
     "cap:open": "npx cap open android"
   },
   "dependencies": {
