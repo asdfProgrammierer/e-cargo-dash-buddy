@@ -730,61 +730,85 @@ export async function buildOrderPdf(order: Order, overrides: BuildOrderPdfOverri
   }
   y += boxH + 4;
 
-  // Karte mit Pin (full width below)
-  if (pod?.completed_lat != null && pod?.completed_lng != null) {
-    const lat = Number(pod.completed_lat);
-    const lng = Number(pod.completed_lng);
-    const mapDataUrl = await generateMapDataUrl(lat, lng);
-    if (mapDataUrl) {
-      if (y > pageH - 80) {
-        doc.addPage();
-        y = 18;
-      }
-      const mapW = 90;
-      const mapH = 60;
-      doc.setDrawColor(200);
-      doc.roundedRect(marginX, y, mapW, mapH, 1.5, 1.5, "S");
-      try {
-        doc.addImage(mapDataUrl, "PNG", marginX + 1, y + 1, mapW - 2, mapH - 2, undefined, "FAST");
-      } catch (e) {
-        console.warn("Konnte Karte nicht ins PDF einbetten", e);
-      }
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(110);
-      doc.text("Standort des Fahrers bei Abschluss", marginX, y + mapH + 4);
-      doc.setTextColor(0);
-      y += mapH + 8;
-    }
-  }
-
-  // Delivery photo (briefkasten / nachbar)
-  if (photoDataUrl) {
-    if (y > pageH - 100) {
+  // Karte (links) + Zustellfoto (rechts) nebeneinander
+  const hasGps = pod?.completed_lat != null && pod?.completed_lng != null;
+  if (hasGps || photoDataUrl) {
+    const blockHalfW = (contentW - 4) / 2;
+    const blockH = 65;
+    if (y > pageH - blockH - 20) {
       doc.addPage();
       y = 18;
     }
+    // Header strip across both columns
     doc.setFillColor(245, 245, 245);
-    doc.roundedRect(marginX, y, contentW, 6, 1, 1, "F");
+    doc.roundedRect(marginX, y, blockHalfW, 6, 1, 1, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.setTextColor(60);
-    doc.text("ZUSTELLFOTO", marginX + 3, y + 4.2);
+    doc.text("STANDORT FAHRER", marginX + 3, y + 4.2);
+
+    doc.setFillColor(245, 245, 245);
+    doc.roundedRect(marginX + blockHalfW + 4, y, blockHalfW, 6, 1, 1, "F");
+    doc.text("ZUSTELLFOTO", marginX + blockHalfW + 4 + 3, y + 4.2);
     doc.setTextColor(0);
-    y += 9;
-    // Portrait, kleiner: 50mm breit × 70mm hoch, zentriert
-    const photoW = 50;
-    const photoH = 70;
-    const photoX = marginX + (contentW - photoW) / 2;
+    y += 8;
+
+    // Map (left)
+    const mapX = marginX;
+    const photoX2 = marginX + blockHalfW + 4;
     doc.setDrawColor(200);
-    doc.roundedRect(photoX, y, photoW, photoH, 1.5, 1.5, "S");
-    try {
-      const fmt = photoDataUrl.startsWith("data:image/png") ? "PNG" : "JPEG";
-      doc.addImage(photoDataUrl, fmt, photoX + 2, y + 2, photoW - 4, photoH - 4, undefined, "FAST");
-    } catch (e) {
-      console.warn("Konnte Zustellfoto nicht ins PDF einbetten", e);
+    doc.roundedRect(mapX, y, blockHalfW, blockH, 1.5, 1.5, "S");
+    if (hasGps) {
+      const lat = Number(pod!.completed_lat);
+      const lng = Number(pod!.completed_lng);
+      const mapDataUrl = await generateMapDataUrl(lat, lng);
+      if (mapDataUrl) {
+        try {
+          doc.addImage(mapDataUrl, "PNG", mapX + 1, y + 1, blockHalfW - 2, blockH - 2, undefined, "FAST");
+        } catch (e) {
+          console.warn("Konnte Karte nicht ins PDF einbetten", e);
+        }
+      }
+    } else {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(160);
+      doc.text("Kein GPS-Standort erfasst", mapX + 4, y + blockH / 2);
+      doc.setTextColor(0);
     }
-    y += photoH + 6;
+
+    // Photo (right)
+    doc.setDrawColor(200);
+    doc.roundedRect(photoX2, y, blockHalfW, blockH, 1.5, 1.5, "S");
+    if (photoDataUrl) {
+      try {
+        const fmt = photoDataUrl.startsWith("data:image/png") ? "PNG" : "JPEG";
+        // Fit while preserving aspect via jsPDF's auto sizing isn't supported;
+        // use the box and let it stretch within reasonable bounds.
+        const img = await loadImageElement(photoDataUrl);
+        const innerW = blockHalfW - 4;
+        const innerH = blockH - 4;
+        let drawW = innerW;
+        let drawH = innerH;
+        if (img && img.naturalWidth && img.naturalHeight) {
+          const scale = Math.min(innerW / img.naturalWidth, innerH / img.naturalHeight);
+          drawW = img.naturalWidth * scale;
+          drawH = img.naturalHeight * scale;
+        }
+        const dx = photoX2 + (blockHalfW - drawW) / 2;
+        const dy = y + (blockH - drawH) / 2;
+        doc.addImage(photoDataUrl, fmt, dx, dy, drawW, drawH, undefined, "FAST");
+      } catch (e) {
+        console.warn("Konnte Zustellfoto nicht ins PDF einbetten", e);
+      }
+    } else {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(160);
+      doc.text("Kein Zustellfoto vorhanden", photoX2 + 4, y + blockH / 2);
+      doc.setTextColor(0);
+    }
+    y += blockH + 6;
   }
 
   // Bemerkungen Fahrer
