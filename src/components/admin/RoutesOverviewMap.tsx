@@ -362,8 +362,10 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
       });
 
       // Live driver positions
+      const STALE_MS = 300 * 60_000; // 300 minutes
       driverLocs.forEach((dl) => {
         const ageMs = Date.now() - new Date(dl.updated_at).getTime();
+        if (ageMs > STALE_MS) return; // hide drivers that haven't sent a fix in >300min
         const stale = ageMs > 5 * 60_000;
         const el = document.createElement("div");
         el.style.cursor = "pointer";
