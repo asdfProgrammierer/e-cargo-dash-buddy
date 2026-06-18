@@ -979,7 +979,7 @@ const DriverRouteDetailPage = () => {
               <Button
                 type="button"
                 variant={photoDataUrl ? "default" : "outline"}
-                className="h-12 text-sm whitespace-normal leading-tight px-2"
+                className="h-12 text-xs px-2"
                 onClick={() => photoInputRef.current?.click()}
               >
                 <Camera className="h-4 w-4 mr-1.5 shrink-0" />
