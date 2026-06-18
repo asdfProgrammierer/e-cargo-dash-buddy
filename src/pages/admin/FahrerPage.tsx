@@ -177,7 +177,17 @@ const FahrerPage = () => {
                 <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Keine Fahrer vorhanden</TableCell></TableRow>
               ) : drivers.map((d) => (
                 <TableRow key={d.id}>
-                  <TableCell className="font-medium"><div className="flex items-center gap-2"><UserCircle className="h-4 w-4 text-muted-foreground" />{d.name}</div></TableCell>
+                  <TableCell className="font-medium">
+                    <button
+                      type="button"
+                      onClick={() => setStatsDriver(d)}
+                      className="flex items-center gap-2 hover:text-primary transition-colors text-left"
+                      title="Statistiken anzeigen"
+                    >
+                      <UserCircle className="h-4 w-4 text-muted-foreground" />
+                      {d.name}
+                    </button>
+                  </TableCell>
                   <TableCell>
                     {d.auth_user_id ? (
                       <div className="flex flex-col gap-0.5">
