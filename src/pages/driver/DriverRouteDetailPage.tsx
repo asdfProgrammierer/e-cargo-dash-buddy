@@ -966,7 +966,7 @@ const DriverRouteDetailPage = () => {
                 <Button
                   type="button"
                   variant={hasSignature ? "default" : "outline"}
-                  className="h-12 text-sm whitespace-normal leading-tight px-2"
+                  className="h-12 text-xs px-2"
                   onClick={() => setSignatureOpen(true)}
                 >
                   <PenLine className="h-4 w-4 mr-1.5 shrink-0" />
