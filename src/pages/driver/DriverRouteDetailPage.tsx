@@ -786,7 +786,7 @@ const DriverRouteDetailPage = () => {
                     <div className="grid grid-cols-2 gap-2.5">
                       <Button
                         variant="outline"
-                        className="h-12 text-sm whitespace-normal leading-tight px-2 active:scale-[0.98] transition-transform"
+                        className="h-12 text-xs px-2 active:scale-[0.98] transition-transform"
                         onClick={() => navigate(s)}
                       >
                         <Navigation className="h-4 w-4 mr-1.5 shrink-0" />
@@ -795,7 +795,7 @@ const DriverRouteDetailPage = () => {
                       {o.empfaenger_telefon ? (
                         <Button
                           variant="outline"
-                          className="h-12 text-sm whitespace-normal leading-tight px-2 active:scale-[0.98] transition-transform"
+                          className="h-12 text-xs px-2 active:scale-[0.98] transition-transform"
                           asChild
                         >
                           <a href={`tel:${o.empfaenger_telefon}`}>
@@ -804,7 +804,7 @@ const DriverRouteDetailPage = () => {
                           </a>
                         </Button>
                       ) : (
-                        <Button variant="outline" className="h-12 text-sm whitespace-normal leading-tight px-2" disabled>
+                        <Button variant="outline" className="h-12 text-xs px-2" disabled>
                           <Phone className="h-4 w-4 mr-1.5 opacity-30 shrink-0" />
                           Anrufen
                         </Button>
@@ -812,7 +812,7 @@ const DriverRouteDetailPage = () => {
                     </div>
                     <Button
                       variant="outline"
-                      className="w-full h-12 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive whitespace-normal leading-tight px-2 active:scale-[0.98] transition-transform"
+                      className="w-full h-12 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive px-2 active:scale-[0.98] transition-transform"
                       disabled={isPlanned}
                       onClick={() => {
                         if (isPlanned) {
@@ -966,7 +966,7 @@ const DriverRouteDetailPage = () => {
                 <Button
                   type="button"
                   variant={hasSignature ? "default" : "outline"}
-                  className="h-12 text-sm whitespace-normal leading-tight px-2"
+                  className="h-12 text-xs px-2"
                   onClick={() => setSignatureOpen(true)}
                 >
                   <PenLine className="h-4 w-4 mr-1.5 shrink-0" />
@@ -979,7 +979,7 @@ const DriverRouteDetailPage = () => {
               <Button
                 type="button"
                 variant={photoDataUrl ? "default" : "outline"}
-                className="h-12 text-sm whitespace-normal leading-tight px-2"
+                className="h-12 text-xs px-2"
                 onClick={() => photoInputRef.current?.click()}
               >
                 <Camera className="h-4 w-4 mr-1.5 shrink-0" />
