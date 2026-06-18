@@ -780,39 +780,39 @@ const DriverRouteDetailPage = () => {
                       }}
                       disabled={submitting || isPlanned}
                     >
-                      <CheckCircle2 className="h-5 w-5 mr-2" />
+                      <CheckCircle2 className="h-5 w-5 mr-2 shrink-0" />
                       Zugestellt
                     </Button>
                     <div className="grid grid-cols-2 gap-2.5">
                       <Button
                         variant="outline"
-                        className="h-12 text-sm active:scale-[0.98] transition-transform"
+                        className="h-12 text-sm whitespace-normal leading-tight px-2 active:scale-[0.98] transition-transform"
                         onClick={() => navigate(s)}
                       >
-                        <Navigation className="h-4 w-4 mr-2" />
+                        <Navigation className="h-4 w-4 mr-1.5 shrink-0" />
                         Navi
                       </Button>
                       {o.empfaenger_telefon ? (
                         <Button
                           variant="outline"
-                          className="h-12 text-sm active:scale-[0.98] transition-transform"
+                          className="h-12 text-sm whitespace-normal leading-tight px-2 active:scale-[0.98] transition-transform"
                           asChild
                         >
                           <a href={`tel:${o.empfaenger_telefon}`}>
-                            <Phone className="h-4 w-4 mr-2" />
+                            <Phone className="h-4 w-4 mr-1.5 shrink-0" />
                             Anrufen
                           </a>
                         </Button>
                       ) : (
-                        <Button variant="outline" className="h-12 text-sm" disabled>
-                          <Phone className="h-4 w-4 mr-2 opacity-30" />
+                        <Button variant="outline" className="h-12 text-sm whitespace-normal leading-tight px-2" disabled>
+                          <Phone className="h-4 w-4 mr-1.5 opacity-30 shrink-0" />
                           Anrufen
                         </Button>
                       )}
                     </div>
                     <Button
                       variant="outline"
-                      className="w-full h-12 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive active:scale-[0.98] transition-transform"
+                      className="w-full h-12 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive whitespace-normal leading-tight px-2 active:scale-[0.98] transition-transform"
                       disabled={isPlanned}
                       onClick={() => {
                         if (isPlanned) {
@@ -822,7 +822,7 @@ const DriverRouteDetailPage = () => {
                         setActiveStop(s); setReason(REASONS[0]); setExtraNote("");
                       }}
                     >
-                      <XCircle className="h-4 w-4 mr-2" />
+                      <XCircle className="h-4 w-4 mr-1.5 shrink-0" />
                       Nicht zugestellt
                     </Button>
                   </div>
@@ -966,10 +966,10 @@ const DriverRouteDetailPage = () => {
                 <Button
                   type="button"
                   variant={hasSignature ? "default" : "outline"}
-                  className="h-12 text-sm"
+                  className="h-12 text-sm whitespace-normal leading-tight px-2"
                   onClick={() => setSignatureOpen(true)}
                 >
-                  <PenLine className="h-4 w-4 mr-1.5" />
+                  <PenLine className="h-4 w-4 mr-1.5 shrink-0" />
                   {hasSignature ? "Unterschrift ✓" : "Unterschrift"}
                   {activeMode?.signature_required && !hasSignature && (
                     <span className="text-destructive ml-1">*</span>
@@ -979,10 +979,10 @@ const DriverRouteDetailPage = () => {
               <Button
                 type="button"
                 variant={photoDataUrl ? "default" : "outline"}
-                className="h-12 text-sm"
+                className="h-12 text-sm whitespace-normal leading-tight px-2"
                 onClick={() => photoInputRef.current?.click()}
               >
-                <Camera className="h-4 w-4 mr-1.5" />
+                <Camera className="h-4 w-4 mr-1.5 shrink-0" />
                 {photoDataUrl ? "Foto ✓" : "Foto"}
                 {activeMode?.photo_required && !photoDataUrl && (
                   <span className="text-destructive ml-1">*</span>
@@ -1017,7 +1017,7 @@ const DriverRouteDetailPage = () => {
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
                 <>
-                  <CheckCircle2 className="h-5 w-5 mr-2" />
+                  <CheckCircle2 className="h-5 w-5 mr-2 shrink-0" />
                   Zustellung bestätigen
                 </>
               )}
