@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, UserCircle, Pencil, Trash2, KeyRound, Smartphone, Copy } from "lucide-react";
+import { Plus, UserCircle, Pencil, Trash2, KeyRound, Smartphone, Copy, BarChart3 } from "lucide-react";
+import { DriverStatsDialog } from "@/components/admin/DriverStatsDialog";
 
 interface Driver {
   id: string;
@@ -36,6 +37,7 @@ const FahrerPage = () => {
   const [credUsername, setCredUsername] = useState("");
   const [credBusy, setCredBusy] = useState(false);
   const [showPin, setShowPin] = useState<{ username: string; pin: string } | null>(null);
+  const [statsDriver, setStatsDriver] = useState<Driver | null>(null);
 
   const fetch = async () => {
     const { data } = await supabase.from("drivers").select("*").order("created_at", { ascending: false });
@@ -193,6 +195,9 @@ const FahrerPage = () => {
                   <TableCell>{d.fuehrerscheinklasse || "–"}</TableCell>
                   <TableCell><Badge variant={d.status === "aktiv" ? "default" : "secondary"}>{d.status === "aktiv" ? "Aktiv" : "Inaktiv"}</Badge></TableCell>
                   <TableCell className="text-right space-x-1">
+                    <Button variant="ghost" size="icon" title="Statistiken" onClick={() => setStatsDriver(d)}>
+                      <BarChart3 className="h-4 w-4" />
+                    </Button>
                     {d.auth_user_id ? (
                       <Button variant="ghost" size="icon" title="PIN zurücksetzen" onClick={() => handleResetPin(d)} disabled={credBusy}>
                         <KeyRound className="h-4 w-4" />
@@ -260,6 +265,12 @@ const FahrerPage = () => {
             </div>
           </DialogContent>
         </Dialog>
+
+        <DriverStatsDialog
+          driverId={statsDriver?.id ?? null}
+          driverName={statsDriver?.name}
+          onClose={() => setStatsDriver(null)}
+        />
       </div>
     </AdminLayout>
   );
