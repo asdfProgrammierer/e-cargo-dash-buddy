@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-  import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight, PenLine, Play, Home, MessageSquare, Camera, Radio } from "lucide-react";
+import { Loader2, Navigation, Phone, CheckCircle2, XCircle, Package, MapPin, ArrowRight, PenLine, Play, Home, MessageSquare, Camera, Radio } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { SignaturePad, type SignaturePadHandle } from "@/components/driver/SignaturePad";
 import { buildOrderPdfBlob, type BuildOrderPdfOverrides } from "@/lib/orderPdf";
@@ -16,6 +16,7 @@ import { useDeliveryModes } from "@/hooks/useDeliveryModes";
 import type { Order } from "@/types/order";
 import { getCurrentGps } from "@/lib/gps";
 import { Capacitor } from "@capacitor/core";
+import { driverBtn } from "@/lib/driverButtonConfig";
 
 interface Stop {
   id: string;
