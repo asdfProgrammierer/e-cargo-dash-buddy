@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { DriverLayout } from "@/components/driver/DriverLayout";
 import { Button } from "@/components/ui/button";
 import { LogOut, UserCircle } from "lucide-react";
+import { driverBtn } from "@/lib/driverButtonConfig";
 
 const DriverProfilePage = () => {
   const { user, signOut } = useAuth();
@@ -34,7 +35,7 @@ const DriverProfilePage = () => {
           <h2 className="font-semibold text-lg">{name}</h2>
           <p className="text-sm text-muted-foreground">@{username}</p>
         </div>
-        <Button variant="outline" className="w-full" onClick={handleLogout}>
+        <Button variant="outline" className={driverBtn.form} onClick={handleLogout}>
           <LogOut className="h-4 w-4 mr-2" />
           Abmelden
         </Button>
