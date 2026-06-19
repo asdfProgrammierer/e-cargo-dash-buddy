@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { driverBtn } from "@/lib/driverButtonConfig";
 import logoAsset from "@/assets/logo.png.asset.json";
 
 const DriverLoginPage = () => {
@@ -68,7 +69,7 @@ const DriverLoginPage = () => {
               className="mt-1 text-center text-2xl tracking-widest"
             />
           </div>
-          <Button type="submit" className="w-full h-12" disabled={loading}>
+          <Button type="submit" className={driverBtn.form} disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Einloggen"}
           </Button>
         </form>
