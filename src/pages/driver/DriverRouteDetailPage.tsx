@@ -637,7 +637,7 @@ const DriverRouteDetailPage = () => {
               <Button
                 type="button"
                 variant="secondary"
-                className="w-full"
+                className={driverBtn.form}
                 onClick={() => navigateToDepot(endDepot)}
               >
                 <Home className="h-4 w-4 mr-2" />
@@ -690,7 +690,7 @@ const DriverRouteDetailPage = () => {
                   <Button
                     type="button"
                     size="sm"
-                    className="mt-2"
+                    className={driverBtn.sm + " mt-2"}
                     onClick={requestGpsPermission}
                     disabled={requestingGps}
                   >
@@ -771,7 +771,7 @@ const DriverRouteDetailPage = () => {
                 {!isDone && !isSkipped && (
                   <div className="mt-4 space-y-2.5">
                     <Button
-                      className="w-full h-14 text-base font-semibold active:scale-[0.98] transition-transform"
+                      className={driverBtn.ctaFull}
                       onClick={() => {
                         if (isPlanned) {
                           toast.info("Bitte zuerst Route starten");
@@ -787,7 +787,7 @@ const DriverRouteDetailPage = () => {
                     <div className="grid grid-cols-2 gap-2.5">
                       <Button
                         variant="outline"
-                        className="h-12 text-xs px-2 active:scale-[0.98] transition-transform"
+                        className={driverBtn.grid}
                         onClick={() => navigate(s)}
                       >
                         <Navigation className="h-4 w-4 mr-1.5 shrink-0" />
@@ -796,7 +796,7 @@ const DriverRouteDetailPage = () => {
                       {o.empfaenger_telefon ? (
                         <Button
                           variant="outline"
-                          className="h-12 text-xs px-2 active:scale-[0.98] transition-transform"
+                          className={driverBtn.grid}
                           asChild
                         >
                           <a href={`tel:${o.empfaenger_telefon}`}>
@@ -805,7 +805,7 @@ const DriverRouteDetailPage = () => {
                           </a>
                         </Button>
                       ) : (
-                        <Button variant="outline" className="h-12 text-xs px-2" disabled>
+                        <Button variant="outline" className={driverBtn.grid} disabled>
                           <Phone className="h-4 w-4 mr-1.5 opacity-30 shrink-0" />
                           Anrufen
                         </Button>
@@ -813,7 +813,7 @@ const DriverRouteDetailPage = () => {
                     </div>
                     <Button
                       variant="outline"
-                      className="w-full h-12 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive px-2 active:scale-[0.98] transition-transform"
+                      className={driverBtn.dangerFull}
                       disabled={isPlanned}
                       onClick={() => {
                         if (isPlanned) {
@@ -868,7 +868,7 @@ const DriverRouteDetailPage = () => {
               className="text-base"
             />
             <Button
-              className="w-full h-14 text-base font-semibold"
+              className={driverBtn.ctaFull}
               variant="destructive"
               disabled={submitting}
               onClick={() => {
@@ -967,7 +967,7 @@ const DriverRouteDetailPage = () => {
                 <Button
                   type="button"
                   variant={hasSignature ? "default" : "outline"}
-                  className="h-12 text-xs px-2"
+                  className={driverBtn.grid}
                   onClick={() => setSignatureOpen(true)}
                 >
                   <PenLine className="h-4 w-4 mr-1.5 shrink-0" />
@@ -980,7 +980,7 @@ const DriverRouteDetailPage = () => {
               <Button
                 type="button"
                 variant={photoDataUrl ? "default" : "outline"}
-                className="h-12 text-xs px-2"
+                className={driverBtn.grid}
                 onClick={() => photoInputRef.current?.click()}
               >
                 <Camera className="h-4 w-4 mr-1.5 shrink-0" />
@@ -1001,7 +1001,7 @@ const DriverRouteDetailPage = () => {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="text-destructive hover:text-destructive"
+                  className={driverBtn.ghost + " text-destructive hover:text-destructive"}
                   onClick={() => setPhotoDataUrl(null)}
                 >
                   Foto entfernen
@@ -1010,7 +1010,7 @@ const DriverRouteDetailPage = () => {
             )}
 
             <Button
-              className="w-full h-14 text-base font-semibold"
+              className={driverBtn.ctaFull}
               disabled={submitting}
               onClick={submitDelivery}
             >
@@ -1040,7 +1040,7 @@ const DriverRouteDetailPage = () => {
             </div>
             <Button
               variant="outline"
-              className="h-11 px-4"
+              className={driverBtn.outlineSm}
               onClick={() => sigPadRef.current?.clear()}
             >
               Löschen
@@ -1055,7 +1055,7 @@ const DriverRouteDetailPage = () => {
           <div className="grid grid-cols-2 gap-2.5 p-4 border-t pb-[max(env(safe-area-inset-bottom),1rem)]">
             <Button
               variant="outline"
-              className="h-14 text-base"
+              className={driverBtn.ctaHalf}
               onClick={() => {
                 sigPadRef.current?.clear();
                 setHasSignature(false);
@@ -1066,7 +1066,7 @@ const DriverRouteDetailPage = () => {
               Abbrechen
             </Button>
             <Button
-              className="h-14 text-base font-semibold"
+              className={driverBtn.ctaHalf}
               onClick={() => {
                 const empty = sigPadRef.current?.isEmpty() ?? true;
                 const url = empty ? null : sigPadRef.current?.toDataURL() ?? null;
