@@ -36,6 +36,7 @@ import NotificationsPage from "./pages/admin/NotificationsPage";
 import NotFound from "./pages/NotFound";
 import UnsubscribePage from "./pages/UnsubscribePage";
 import TrackingPage from "./pages/TrackingPage";
+import TrustPage from "./pages/TrustPage";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { useDriverCheck } from "@/hooks/useDriverCheck";
 import DriverLoginPage from "./pages/driver/DriverLoginPage";
@@ -124,6 +125,7 @@ const AppRoutes = () => (
     <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route path="/unsubscribe" element={<UnsubscribePage />} />
     <Route path="/track/:token" element={<TrackingPage />} />
+    <Route path="/sicherheit" element={<TrustPage />} />
     <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
     <Route path="/admin/haendler" element={<AdminRoute><HaendlerVerwaltungPage /></AdminRoute>} />
     <Route path="/admin/haendler/:id" element={<AdminRoute><HaendlerDetailPage /></AdminRoute>} />
