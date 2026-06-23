@@ -259,6 +259,16 @@ export default function TrackingPage() {
 
   async function handleSaveInstructions() {
     if (!session) return;
+    const needsNote = selectedOptions.some((v) => NOTE_REQUIRED_OPTIONS.has(v));
+    if (needsNote && !freetext.trim()) {
+      toast({
+        title: "Hinweis erforderlich",
+        description:
+          "Bitte ergänzen Sie im Feld \"Zusätzlicher Hinweis\", wo bzw. wie die Sendung abgelegt werden soll.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSaving(true);
     const res = await callFunction<{ success: boolean }>("update-delivery-instructions", {
       method: "POST",
