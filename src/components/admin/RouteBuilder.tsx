@@ -147,7 +147,11 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin }: {
           {stop.orders.empfaenger_name}
         </p>
         <div className="flex items-center gap-2 text-caption text-muted-foreground tabular-nums truncate">
-          <span className="truncate">{stop.orders.auftrags_nr} · {stop.orders.empfaenger_plz} {stop.orders.empfaenger_stadt}</span>
+          <span className="truncate">{stop.orders.auftrags_nr}</span>
+        </div>
+        <div className="text-caption text-muted-foreground truncate">
+          {stop.orders.empfaenger_adresse ? `${stop.orders.empfaenger_adresse} · ` : ""}
+          {stop.orders.empfaenger_plz} {stop.orders.empfaenger_stadt}
         </div>
         <div className="text-caption text-muted-foreground tabular-nums truncate">
           {stop.orders.pakete} Paket(e) · {Number(stop.orders.gewicht).toFixed(1)} kg
