@@ -16,12 +16,16 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as strin
 
 const STORAGE_PREFIX = "ecargo_tracking_session_";
 
-const INSTRUCTION_OPTIONS: { value: string; label: string }[] = [
+const INSTRUCTION_OPTIONS: { value: string; label: string; requiresNote?: boolean }[] = [
   { value: "nachbar", label: "Bei Nachbar abgeben" },
   { value: "hausflur", label: "Im Hausflur ablegen" },
-  { value: "sicherer_ort", label: "An einem sicheren Ort ablegen" },
-  { value: "garage", label: "In Garage / Briefkasten" },
+  { value: "sicherer_ort", label: "An einem sicheren Ort ablegen", requiresNote: true },
+  { value: "sonstiges", label: "Sonstiges", requiresNote: true },
 ];
+
+const NOTE_REQUIRED_OPTIONS = new Set(
+  INSTRUCTION_OPTIONS.filter((o) => o.requiresNote).map((o) => o.value),
+);
 
 const plzSchema = z.string().trim().regex(/^\d{4,5}$/u, "Bitte eine gültige Postleitzahl eingeben");
 
