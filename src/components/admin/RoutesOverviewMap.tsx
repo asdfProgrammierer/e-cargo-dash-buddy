@@ -23,7 +23,7 @@ interface RouteRow {
 interface StopRow {
   id: string; route_id: string; position: number;
   status: "offen" | "erledigt" | "uebersprungen";
-  orders: { id: string; auftrags_nr: string; empfaenger_name: string; empfaenger_stadt: string; lat: number | null; lng: number | null; } | null;
+  orders: { id: string; auftrags_nr: string; empfaenger_name: string; empfaenger_adresse: string | null; empfaenger_plz: string | null; empfaenger_stadt: string; lat: number | null; lng: number | null; } | null;
 }
 
 interface DriverLoc {
@@ -72,7 +72,7 @@ interface Props {
   /** Bumped by parent to force a reload. */
   refreshKey?: number;
   /** Optional new orders to also render on the map. */
-  newOrders?: Array<{ id: string; auftrags_nr: string; empfaenger_name: string; empfaenger_stadt: string; lat: number | null; lng: number | null; }>;
+  newOrders?: Array<{ id: string; auftrags_nr: string; empfaenger_name: string; empfaenger_adresse?: string | null; empfaenger_plz?: string | null; empfaenger_stadt: string; lat: number | null; lng: number | null; }>;
   /** Selected new order ids (highlighted). */
   selectedNewOrderIds?: Set<string>;
   /** Called when a new-order pin is clicked. */
@@ -119,7 +119,7 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
     if (routeList.length > 0) {
       const ids = routeList.map((x) => x.id);
       const { data: s } = await supabase.from("route_stops")
-        .select("id, route_id, position, status, orders(id, auftrags_nr, empfaenger_name, empfaenger_stadt, lat, lng)")
+        .select("id, route_id, position, status, orders(id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, lat, lng)")
         .in("route_id", ids)
         .order("position", { ascending: true });
       setStops((s as unknown as StopRow[]) ?? []);
@@ -130,6 +130,13 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [date, refreshKey]);
+
+  // Auto-refresh routes/stops every 30s so the map stays current without manual reload.
+  useEffect(() => {
+    const id = window.setInterval(() => { void load(); }, 30_000);
+    return () => window.clearInterval(id);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [date]);
 
   // Live driver locations: initial load + realtime subscription.
   useEffect(() => {
@@ -301,6 +308,7 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
               <div style="font-size: 10px; color: hsl(var(--muted-foreground)); text-transform: uppercase; letter-spacing: 0.04em;">${escapeHtml(r.name)} · #${idx + 1}</div>
               <div style="font-weight: 600; margin-top: 2px;">${escapeHtml(o.auftrags_nr)}</div>
               <div style="margin-top: 2px;">${escapeHtml(o.empfaenger_name)}</div>
+              ${o.empfaenger_adresse ? `<div style="font-size: 11px; color: hsl(var(--muted-foreground)); margin-top: 2px;">${escapeHtml(o.empfaenger_adresse)}${o.empfaenger_plz || o.empfaenger_stadt ? `, ${escapeHtml(`${o.empfaenger_plz ?? ""} ${o.empfaenger_stadt ?? ""}`.trim())}` : ""}</div>` : ""}
               <div style="display: inline-block; margin-top: 6px; padding: 1px 6px; border-radius: 4px; font-size: 10px; background: hsl(var(--muted)); color: hsl(var(--muted-foreground));">${stopStatusLabel}</div>
             </div>`;
           el.addEventListener("mouseenter", () => { showPopup([Number(o.lng), Number(o.lat)], stopHtml); });
@@ -345,7 +353,7 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
             <div style="font-size: 10px; color: hsl(var(--muted-foreground)); text-transform: uppercase; letter-spacing: 0.04em;">Neue Sendung</div>
             <div style="font-weight: 600; margin-top: 2px;">${escapeHtml(o.auftrags_nr)}</div>
             <div style="margin-top: 2px;">${escapeHtml(o.empfaenger_name)}</div>
-            <div style="font-size: 11px; color: hsl(var(--muted-foreground)); margin-top: 2px;">${escapeHtml(o.empfaenger_stadt)}</div>
+            <div style="font-size: 11px; color: hsl(var(--muted-foreground)); margin-top: 2px;">${o.empfaenger_adresse ? `${escapeHtml(o.empfaenger_adresse)}, ` : ""}${escapeHtml(`${o.empfaenger_plz ?? ""} ${o.empfaenger_stadt}`.trim())}</div>
             <div style="display: inline-block; margin-top: 6px; padding: 1px 6px; border-radius: 4px; font-size: 10px; background: hsl(var(--primary) / 0.15); color: hsl(var(--primary));">Neu</div>
           </div>`;
         el.addEventListener("mouseenter", () => { showPopup([Number(o.lng), Number(o.lat)], newHtml); });
