@@ -10,7 +10,7 @@ const ALLOWED_OPTIONS = new Set([
   'nachbar',
   'hausflur',
   'sicherer_ort',
-  'garage',
+  'sonstiges',
   'keine',
 ])
 
@@ -18,9 +18,11 @@ const OPTION_LABELS: Record<string, string> = {
   nachbar: 'Beim Nachbarn abgeben',
   hausflur: 'Im Hausflur ablegen',
   sicherer_ort: 'An sicherem Ort ablegen',
-  garage: 'In Garage / Carport ablegen',
+  sonstiges: 'Sonstiges',
   keine: 'Keine Sonderwünsche',
 }
+
+const NOTE_REQUIRED_OPTIONS = new Set(['sicherer_ort', 'sonstiges'])
 
 const NOTE_MARKER_START = '--- Lieferanweisung des Kunden ---'
 const NOTE_MARKER_END = '--- Ende Lieferanweisung ---'
@@ -93,6 +95,13 @@ Deno.serve(async (req) => {
   if (typeof body.freetext === 'string') {
     const trimmed = body.freetext.trim().slice(0, 200)
     freetext = trimmed.length ? trimmed : null
+  }
+
+  if (options.some((o) => NOTE_REQUIRED_OPTIONS.has(o)) && !freetext) {
+    return new Response(
+      JSON.stringify({ error: 'note_required' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
   }
 
   const supabase = createClient(supabaseUrl, serviceKey)
