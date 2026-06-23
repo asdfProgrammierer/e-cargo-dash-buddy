@@ -493,12 +493,20 @@ export default function TrackingPage() {
                   />
                   <Label htmlFor={`opt-${opt.value}`} className="font-normal cursor-pointer">
                     {opt.label}
+                    {opt.requiresNote && (
+                      <span className="ml-1 text-xs text-muted-foreground">(Hinweis erforderlich)</span>
+                    )}
                   </Label>
                 </div>
               ))}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="freetext">Zusätzlicher Hinweis (max. 200 Zeichen)</Label>
+              <Label htmlFor="freetext">
+                Zusätzlicher Hinweis (max. 200 Zeichen)
+                {selectedOptions.some((v) => NOTE_REQUIRED_OPTIONS.has(v)) && (
+                  <span className="ml-1 text-destructive">*</span>
+                )}
+              </Label>
               <Textarea
                 id="freetext"
                 value={freetext}
