@@ -1,6 +1,6 @@
 export const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, Helvetica, sans-serif', margin: 0, padding: 0 }
 export const container = { maxWidth: '560px', margin: '0 auto', padding: '32px 24px' }
-export const brand = { fontSize: '14px', fontWeight: 700, color: '#16a34a', letterSpacing: '1px', textTransform: 'uppercase' as const, margin: '0 0 4px' }
+export const brand = { fontSize: '14px', fontWeight: 700, color: '#16a34a', letterSpacing: '1px', margin: '0 0 4px' }
 export const tagline = { fontSize: '12px', color: '#6b7280', margin: '0 0 24px' }
 export const h1 = { fontSize: '22px', fontWeight: 700, color: '#0f172a', margin: '0 0 16px', lineHeight: '1.3' }
 export const text = { fontSize: '15px', color: '#334155', lineHeight: '1.6', margin: '0 0 16px' }
