@@ -321,6 +321,7 @@ export function NewOrdersTable({
                 </th>
                 <th className="px-2 py-2 text-left font-medium">Auftrag</th>
                 <th className="px-2 py-2 text-left font-medium">Empfänger</th>
+                <th className="px-2 py-2 text-left font-medium">Straße</th>
                 <th className="px-2 py-2 text-left font-medium">PLZ / Stadt</th>
                 <th className="px-2 py-2 text-right font-medium">Pakete</th>
                 <th className="px-2 py-2 text-right font-medium">Gewicht</th>
@@ -329,9 +330,9 @@ export function NewOrdersTable({
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Lade…</td></tr>
+                <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">Lade…</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
+                <tr><td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
                   Keine neuen Sendungen.
                 </td></tr>
               ) : (
@@ -363,6 +364,9 @@ export function NewOrdersTable({
                         </span>
                       </td>
                       <td className="px-2 py-2 truncate max-w-[180px]">{o.empfaenger_name}</td>
+                      <td className="px-2 py-2 truncate max-w-[200px]" title={o.empfaenger_adresse ?? ""}>
+                        {o.empfaenger_adresse ?? <span className="text-muted-foreground">–</span>}
+                      </td>
                       <td className="px-2 py-2 tabular-nums truncate max-w-[180px]">
                         <span className="inline-flex items-center gap-1.5">
                           <span>{o.empfaenger_plz} {o.empfaenger_stadt}</span>
