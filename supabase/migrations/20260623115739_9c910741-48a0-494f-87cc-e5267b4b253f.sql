@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Drivers can update orders of own routes" ON public.orders;
