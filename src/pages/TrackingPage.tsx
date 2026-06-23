@@ -16,12 +16,16 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as strin
 
 const STORAGE_PREFIX = "ecargo_tracking_session_";
 
-const INSTRUCTION_OPTIONS: { value: string; label: string }[] = [
+const INSTRUCTION_OPTIONS: { value: string; label: string; requiresNote?: boolean }[] = [
   { value: "nachbar", label: "Bei Nachbar abgeben" },
   { value: "hausflur", label: "Im Hausflur ablegen" },
-  { value: "sicherer_ort", label: "An einem sicheren Ort ablegen" },
-  { value: "garage", label: "In Garage / Briefkasten" },
+  { value: "sicherer_ort", label: "An einem sicheren Ort ablegen", requiresNote: true },
+  { value: "sonstiges", label: "Sonstiges", requiresNote: true },
 ];
+
+const NOTE_REQUIRED_OPTIONS = new Set(
+  INSTRUCTION_OPTIONS.filter((o) => o.requiresNote).map((o) => o.value),
+);
 
 const plzSchema = z.string().trim().regex(/^\d{4,5}$/u, "Bitte eine gültige Postleitzahl eingeben");
 
@@ -255,6 +259,16 @@ export default function TrackingPage() {
 
   async function handleSaveInstructions() {
     if (!session) return;
+    const needsNote = selectedOptions.some((v) => NOTE_REQUIRED_OPTIONS.has(v));
+    if (needsNote && !freetext.trim()) {
+      toast({
+        title: "Hinweis erforderlich",
+        description:
+          "Bitte ergänzen Sie im Feld \"Zusätzlicher Hinweis\", wo bzw. wie die Sendung abgelegt werden soll.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSaving(true);
     const res = await callFunction<{ success: boolean }>("update-delivery-instructions", {
       method: "POST",
@@ -479,12 +493,20 @@ export default function TrackingPage() {
                   />
                   <Label htmlFor={`opt-${opt.value}`} className="font-normal cursor-pointer">
                     {opt.label}
+                    {opt.requiresNote && (
+                      <span className="ml-1 text-xs text-muted-foreground">(Hinweis erforderlich)</span>
+                    )}
                   </Label>
                 </div>
               ))}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="freetext">Zusätzlicher Hinweis (max. 200 Zeichen)</Label>
+              <Label htmlFor="freetext">
+                Zusätzlicher Hinweis (max. 200 Zeichen)
+                {selectedOptions.some((v) => NOTE_REQUIRED_OPTIONS.has(v)) && (
+                  <span className="ml-1 text-destructive">*</span>
+                )}
+              </Label>
               <Textarea
                 id="freetext"
                 value={freetext}
