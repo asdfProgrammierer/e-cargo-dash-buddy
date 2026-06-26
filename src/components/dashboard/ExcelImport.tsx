@@ -19,6 +19,9 @@ import { useAuth } from "@/context/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { fetchCoveredPostcodes, isCheckablePostcode, isCoveredPostcode } from "@/lib/deliveryCoverage";
 import { Info } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+type TemplateKey = "standard" | "grosskunde";
 
 interface ExcelImportProps {
   onImport: (orders: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">[]) => void;
@@ -112,12 +115,46 @@ const TEMPLATE_EXAMPLE = [
   "Zerbrechlich",
 ];
 
-function downloadTemplate() {
+const GROSSKUNDE_HEADERS = [
+  "Datum",
+  "Postleitzahl",
+  "Ort",
+  "Straße",
+  "Kunde",
+  "Filiale",
+  "Lieferung",
+];
+
+const GROSSKUNDE_EXAMPLE = [
+  "26.06.2026",
+  "44787",
+  "Bochum",
+  "Dorstener Str. 46",
+  "Anja Mustermann",
+  "5304",
+  "5220266730",
+];
+
+function normalizeHeader(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
+    .trim();
+}
+
+function downloadTemplate(template: TemplateKey) {
   const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS, TEMPLATE_EXAMPLE]);
-  ws["!cols"] = TEMPLATE_HEADERS.map((h) => ({ wch: Math.max(h.length + 4, 16) }));
+  const headers = template === "grosskunde" ? GROSSKUNDE_HEADERS : TEMPLATE_HEADERS;
+  const example = template === "grosskunde" ? GROSSKUNDE_EXAMPLE : TEMPLATE_EXAMPLE;
+  const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+  ws["!cols"] = headers.map((h) => ({ wch: Math.max(h.length + 4, 16) }));
   XLSX.utils.book_append_sheet(wb, ws, "Aufträge");
-  XLSX.writeFile(wb, "Auftraege_Vorlage.xlsx");
+  const fileName =
+    template === "grosskunde" ? "Grosskunde_Vorlage.xlsx" : "Auftraege_Vorlage.xlsx";
+  XLSX.writeFile(wb, fileName);
 }
 
 export function ExcelImport({ onImport, merchantIdOverride, senderOverride }: ExcelImportProps) {
@@ -128,6 +165,7 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride }: Ex
   const [editingRow, setEditingRow] = useState<number | null>(null);
   const [senderDefaults, setSenderDefaults] = useState({ name: "", adresse: "" });
   const [coveredPostcodes, setCoveredPostcodes] = useState<Set<string>>(new Set());
+  const [template, setTemplate] = useState<TemplateKey>("standard");
 
   // Load profile for sender defaults
   useEffect(() => {
@@ -177,6 +215,39 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride }: Ex
         const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
 
         const rows: PreviewRow[] = json.map((row) => {
+          if (template === "grosskunde") {
+            const get = (header: string): string => {
+              const target = normalizeHeader(header);
+              for (const [k, v] of Object.entries(row)) {
+                if (normalizeHeader(k) === target) {
+                  if (v === null || v === undefined) return "";
+                  return String(v).trim();
+                }
+              }
+              return "";
+            };
+            const lieferung = get("Lieferung");
+            const filiale = get("Filiale");
+            const notizParts: string[] = [];
+            if (lieferung) notizParts.push(`Lieferung ${lieferung}`);
+            if (filiale) notizParts.push(`Filiale ${filiale}`);
+            return {
+              absenderName: senderDefaults.name,
+              absenderAdresse: senderDefaults.adresse,
+              empfaengerName: get("Kunde"),
+              empfaengerAdresse: get("Straße"),
+              empfaengerPlz: get("Postleitzahl"),
+              empfaengerStadt: get("Ort"),
+              empfaengerEmail: "",
+              empfaengerTelefon: "",
+              pakete: 1,
+              gewicht: 0,
+              packageLengthCm: 0,
+              packageWidthCm: 0,
+              packageHeightCm: 0,
+              notizen: notizParts.join(" · "),
+            };
+          }
           const mapped: Partial<PreviewRow> = {};
           Object.entries(row).forEach(([key, val]) => {
             const normalized = key.toLowerCase().trim();
@@ -213,7 +284,7 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride }: Ex
       }
     };
     reader.readAsArrayBuffer(file);
-  }, [senderDefaults]);
+  }, [senderDefaults, template]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -259,6 +330,27 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride }: Ex
 
   return (
     <div className="space-y-6">
+      {/* Template selector */}
+      <Card>
+        <CardContent className="p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium">Vorlage</p>
+            <p className="text-xs text-muted-foreground">
+              Wähle das Excel-Format, das du importieren möchtest.
+            </p>
+          </div>
+          <Select value={template} onValueChange={(v) => setTemplate(v as TemplateKey)}>
+            <SelectTrigger className="w-full sm:w-72">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="standard">Standard (e-cargo Vorlage)</SelectItem>
+              <SelectItem value="grosskunde">Großkunde (Filiale / Lieferung)</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
       {/* Sender info from profile */}
       {senderDefaults.name && (
         <Card>
@@ -311,7 +403,7 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride }: Ex
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium text-muted-foreground">Erwartete Spalten</CardTitle>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={downloadTemplate}>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => downloadTemplate(template)}>
               <Download className="h-3.5 w-3.5" />
               Vorlage herunterladen
             </Button>
@@ -319,7 +411,7 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride }: Ex
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2 text-xs">
-            {TEMPLATE_HEADERS.map((col) => (
+            {(template === "grosskunde" ? GROSSKUNDE_HEADERS : TEMPLATE_HEADERS).map((col) => (
               <span key={col} className="rounded-md bg-muted px-2.5 py-1 text-muted-foreground">
                 {col}
               </span>
