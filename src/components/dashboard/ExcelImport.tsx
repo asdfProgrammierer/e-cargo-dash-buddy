@@ -21,7 +21,16 @@ import { fetchCoveredPostcodes, isCheckablePostcode, isCoveredPostcode } from "@
 import { Info } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-type TemplateKey = "standard" | "grosskunde";
+type TemplateKey = "auto" | "standard" | "grosskunde";
+
+function detectTemplate(headers: string[]): "standard" | "grosskunde" {
+  const norm = new Set(headers.map(normalizeHeader));
+  // Großkunde: hat sowohl "kunde" als auch "filiale" und/oder "lieferung"
+  if (norm.has("kunde") && (norm.has("filiale") || norm.has("lieferung"))) {
+    return "grosskunde";
+  }
+  return "standard";
+}
 
 interface ExcelImportProps {
   onImport: (orders: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">[]) => void;
