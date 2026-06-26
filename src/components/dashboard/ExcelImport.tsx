@@ -174,7 +174,8 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride }: Ex
   const [editingRow, setEditingRow] = useState<number | null>(null);
   const [senderDefaults, setSenderDefaults] = useState({ name: "", adresse: "" });
   const [coveredPostcodes, setCoveredPostcodes] = useState<Set<string>>(new Set());
-  const [template, setTemplate] = useState<TemplateKey>("standard");
+  const [template, setTemplate] = useState<TemplateKey>("auto");
+  const [detectedTemplate, setDetectedTemplate] = useState<"standard" | "grosskunde" | null>(null);
 
   // Load profile for sender defaults
   useEffect(() => {
@@ -223,8 +224,13 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride }: Ex
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
 
+        const headers = json.length > 0 ? Object.keys(json[0]) : [];
+        const activeTemplate: "standard" | "grosskunde" =
+          template === "auto" ? detectTemplate(headers) : template;
+        setDetectedTemplate(activeTemplate);
+
         const rows: PreviewRow[] = json.map((row) => {
-          if (template === "grosskunde") {
+          if (activeTemplate === "grosskunde") {
             const get = (header: string): string => {
               const target = normalizeHeader(header);
               for (const [k, v] of Object.entries(row)) {
