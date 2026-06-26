@@ -422,7 +422,7 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride }: Ex
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium text-muted-foreground">Erwartete Spalten</CardTitle>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => downloadTemplate(template)}>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => downloadTemplate(template === "auto" ? (detectedTemplate ?? "standard") : template)}>
               <Download className="h-3.5 w-3.5" />
               Vorlage herunterladen
             </Button>
@@ -430,7 +430,7 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride }: Ex
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2 text-xs">
-            {(template === "grosskunde" ? GROSSKUNDE_HEADERS : TEMPLATE_HEADERS).map((col) => (
+            {((template === "grosskunde" || (template === "auto" && detectedTemplate === "grosskunde")) ? GROSSKUNDE_HEADERS : TEMPLATE_HEADERS).map((col) => (
               <span key={col} className="rounded-md bg-muted px-2.5 py-1 text-muted-foreground">
                 {col}
               </span>
