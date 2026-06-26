@@ -1,25 +1,42 @@
+
 ## Ziel
-In der Routenplanung (Stop-Liste der Route) zusätzlich die Straße/Hausnummer des Empfängers anzeigen.
+Im Excel-Import soll man zwischen zwei Vorlagen wählen können:
+- **Standard** (bisheriges Format der e-cargo-Vorlage)
+- **Großkunde** (Format der hochgeladenen Datei `Auszuliefernde Sendungen …xlsx`)
 
-## Änderung
-**Datei:** `src/components/admin/RouteBuilder.tsx` (Zeile ~149–151, Stop-Zeile in der Routenliste)
+Erkanntes Spaltenformat des Großkunden:
 
-Aktuell:
-```
-EC-0000123 · 44137 Dortmund
-```
+| Datum | Postleitzahl | Ort | Straße | Kunde | Filiale | Lieferung |
+|-------|--------------|-----|--------|-------|---------|-----------|
 
-Neu (zwei Zeilen, damit nichts abgeschnitten wird):
-```
-EC-0000123
-Musterstraße 12 · 44137 Dortmund
-```
+Mapping in unsere Felder:
+- `Kunde` → Empfänger Name
+- `Straße` → Empfänger Straße
+- `Postleitzahl` → PLZ
+- `Ort` → Stadt
+- `Lieferung` → Notiz (z. B. „Lieferung 5220266730")
+- `Filiale` → wird der Notiz angehängt (z. B. „Filiale 5304")
+- `Datum` → ignoriert (wird nicht benötigt, Erstelldatum kommt vom System)
+- Pakete = 1, Gewicht = 0 (Default, kann in der Vorschau editiert werden)
 
-Konkret: die bestehende eine Zeile aufteilen — `auftrags_nr` bleibt als Caption, und darunter eine neue Caption-Zeile mit `empfaenger_adresse · empfaenger_plz empfaenger_stadt` (mit `truncate`, damit das Layout nicht bricht). Wenn `empfaenger_adresse` leer ist, nur PLZ/Stadt zeigen.
+## Änderungen
 
-Die Daten (`empfaenger_adresse`) werden bereits aus der Datenbank geladen (Zeile 219), es ist also kein Query-Change nötig.
+### 1. `src/components/dashboard/ExcelImport.tsx`
+- Neuen State `template: "standard" | "grosskunde"` einführen.
+- Oberhalb der Upload-Zone ein `Select` „Vorlage" einbauen mit den zwei Optionen.
+- Den Parsing-Block in `handleFile` so umbauen, dass je nach gewählter Vorlage eine andere Mapping-Funktion läuft:
+  - **standard**: bestehende `COLUMN_MAP`-Logik unverändert.
+  - **grosskunde**: feste Spaltenzuordnung anhand der Header `Kunde`, `Straße`, `Postleitzahl`, `Ort`, `Lieferung`, `Filiale` (case-insensitive, Umlaute toleriert). Erzeugt eine `PreviewRow` mit kombinierter Notiz.
+- Karte „Erwartete Spalten" zeigt die Spaltenliste der jeweils aktiven Vorlage an.
+- Button „Vorlage herunterladen" liefert je nach Auswahl die passende Beispiel-Datei.
 
-## Nicht geändert
-- Keine Backend-/RLS-Änderungen.
-- Keine Anpassung der PDF (zeigt die Adresse bereits).
-- Keine Änderung am Sucheingang (sucht bereits in Adresse).
+### 2. Keine Backend-Änderungen
+Der Insert-Pfad in `AdminExcelImportDialog.tsx` und der eigenen `ImportPage` bleibt identisch, da nur das Frontend-Parsing erweitert wird. Geocoding und Status-Mails laufen wie bisher.
+
+### 3. Labeling
+Die zweite Vorlage wird neutral „Großkunde (Filiale/Lieferung)" benannt, damit kein konkreter Kundenname im UI auftaucht. Falls du einen Namen möchtest, sag kurz Bescheid – das ist eine 1-Zeilen-Anpassung.
+
+## Technische Details
+- Header-Erkennung über `normalize(str) = str.toLowerCase().replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss').trim()`.
+- Datumsspalte wird ignoriert, damit Excel-Datumswerte keine Probleme machen.
+- Validierung (Empfänger Name + Stadt Pflicht) und Vorschau/Editier-UI bleiben unverändert für beide Vorlagen.
