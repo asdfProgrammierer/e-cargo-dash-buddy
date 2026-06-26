@@ -351,7 +351,10 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride }: Ex
           <div>
             <p className="text-sm font-medium">Vorlage</p>
             <p className="text-xs text-muted-foreground">
-              Wähle das Excel-Format, das du importieren möchtest.
+              Das Format wird automatisch erkannt. Du kannst es bei Bedarf manuell festlegen.
+              {detectedTemplate && template === "auto" && (
+                <> Erkannt: <strong className="text-foreground">{detectedTemplate === "grosskunde" ? "Großkunde" : "Standard"}</strong>.</>
+              )}
             </p>
           </div>
           <Select value={template} onValueChange={(v) => setTemplate(v as TemplateKey)}>
@@ -359,6 +362,7 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride }: Ex
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="auto">Automatisch erkennen</SelectItem>
               <SelectItem value="standard">Standard (e-cargo Vorlage)</SelectItem>
               <SelectItem value="grosskunde">Großkunde (Filiale / Lieferung)</SelectItem>
             </SelectContent>
