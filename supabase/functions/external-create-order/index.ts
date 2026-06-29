@@ -141,6 +141,8 @@ Deno.serve(async (req) => {
     } catch (e) { console.warn("auto-geocode failed", e); }
   })();
 
+  const trackingUrl = buildTrackingUrl(inserted.tracking_token, req);
+
   // Trigger order-neu email (fire-and-forget)
   if (empfaengerEmail) {
     const lieferadresse = [
