@@ -17,6 +17,7 @@ import { DhlPricingTable } from "@/components/admin/DhlPricingTable";
 import { AdminCreateOrderDialog } from "@/components/admin/AdminCreateOrderDialog";
 import { AdminExcelImportDialog } from "@/components/admin/AdminExcelImportDialog";
 import { AdminEditMerchantDialog } from "@/components/admin/AdminEditMerchantDialog";
+import { MerchantApiKeysCard } from "@/components/admin/MerchantApiKeysCard";
 import {
   ArrowLeft, Building2, User, MapPin, Phone, Mail, Globe, FileText,
   Key, Link2, ShoppingBag, CheckCircle2, AlertCircle, Plug,
@@ -541,6 +542,8 @@ const HaendlerDetailPage = () => {
                 </div>
               </CardContent>
             </Card>
+
+            <MerchantApiKeysCard merchantUserId={profile.user_id} />
           </TabsContent>
 
           {/* Settings Tab */}
