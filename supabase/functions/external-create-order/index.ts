@@ -143,18 +143,29 @@ Deno.serve(async (req) => {
 
   // Trigger order-neu email (fire-and-forget)
   if (empfaengerEmail) {
+    const lieferadresse = [
+      empfaengerName,
+      empfaengerStrasse,
+      [empfaengerPlz, empfaengerStadt].filter(Boolean).join(" "),
+    ].filter((s) => s && s.trim().length > 0).join(", ");
     void fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
       body: JSON.stringify({
-        templateKey: "order-neu",
-        orderId: inserted.id,
-        haendlerUserId: merchantUserId,
+        templateName: "order-neu",
+        recipientEmail: empfaengerEmail,
+        idempotencyKey: `order-status-${inserted.id}-neu`,
+        templateData: {
+          kundenname: empfaengerName,
+          haendlerName: absenderName,
+          auftragsNr: inserted.auftrags_nr,
+          lieferadresse,
+          trackingUrl,
+        },
       }),
     }).catch((e) => console.warn("email trigger failed", e));
   }
 
-  const trackingUrl = buildTrackingUrl(inserted.tracking_token, req);
   return new Response(JSON.stringify({
     order_id: inserted.id,
     auftrags_nr: inserted.auftrags_nr,
