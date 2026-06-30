@@ -248,6 +248,12 @@ const DriverRouteDetailPage = () => {
   useEffect(() => {
     if (routeStatus !== "aktiv") return;
     if (gpsPermission !== "granted") return;
+    // Sicherstellen, dass eine Arbeitszeit-Session läuft (idempotent serverseitig).
+    if (id) {
+      void supabase.rpc("driver_start_work_session", { _route_id: id }).then(({ error }) => {
+        if (error) console.warn("[work-session] ensure failed", error);
+      });
+    }
     let cancelled = false;
     const sendFix = async (fix: { lat: number; lng: number; acc: number } | null) => {
       if (cancelled || !fix) return;
