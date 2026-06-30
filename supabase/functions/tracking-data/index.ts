@@ -102,14 +102,22 @@ Deno.serve(async (req) => {
 
   const editable = order.status === 'neu' || order.status === 'in_bearbeitung'
 
-  // Lade Routen-Stopp (für ETA und Übergabe-Details)
-  const { data: stopRow } = await supabase
+  // Lade aktuellen Routen-Stopp (für ETA und Übergabe-Details).
+  // Bei erneuter Zustellung gibt es mehrere route_stops für dieselbe Bestellung;
+  // wir nehmen immer den zuletzt erstellten / aktualisierten Stopp, damit die
+  // Sendungsverfolgung die aktuelle ETA des neuen Zustellversuchs zeigt.
+  const { data: stopRows } = await supabase
     .from('route_stops')
-    .select('eta, delivery_mode, delivery_recipient, delivery_note, delivered_at')
+    .select('eta, delivery_mode, delivery_recipient, delivery_note, delivered_at, status, created_at, updated_at')
     .eq('order_id', order.id)
-    .order('eta', { ascending: true, nullsFirst: false })
-    .limit(1)
-    .maybeSingle()
+    .order('created_at', { ascending: false })
+    .limit(5)
+
+  // Bevorzuge einen offenen Stopp (nicht erledigt), sonst neuesten.
+  const stopRow =
+    (stopRows ?? []).find((s: { status: string | null }) => s.status !== 'erledigt') ??
+    (stopRows ?? [])[0] ??
+    null
 
   // ETA-Fenster (sinnvoll ab Status "in_bearbeitung", solange noch nicht zugestellt)
   let etaWindow: { window: string; center: string; fromIso: string; toIso: string; centerIso: string } | null = null
