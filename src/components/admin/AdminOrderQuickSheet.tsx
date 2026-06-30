@@ -29,6 +29,7 @@ interface Props {
  */
 export function AdminOrderQuickSheet({ orderId, open, onOpenChange, onChanged }: Props) {
   const [order, setOrder] = useState<Order | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -58,6 +59,7 @@ export function AdminOrderQuickSheet({ orderId, open, onOpenChange, onChanged }:
       if (cancelled) return;
       const o = orderRes.data as any;
       if (o) {
+        setUserId(o.user_id ?? null);
         setOrder({
           id: o.id,
           auftragsNr: o.auftrags_nr,
@@ -84,6 +86,7 @@ export function AdminOrderQuickSheet({ orderId, open, onOpenChange, onChanged }:
           deliveryUnconfirmed: o.delivery_unconfirmed ?? undefined,
         });
       } else {
+        setUserId(null);
         setOrder(null);
       }
       setHistory(
@@ -121,7 +124,7 @@ export function AdminOrderQuickSheet({ orderId, open, onOpenChange, onChanged }:
         empfaengerAdresse: order.empfaengerAdresse,
         empfaengerPlz: order.empfaengerPlz,
         empfaengerStadt: order.empfaengerStadt,
-        haendlerUserId: (order as any).userId ?? undefined,
+        haendlerUserId: userId ?? undefined,
         reason,
       });
     }
