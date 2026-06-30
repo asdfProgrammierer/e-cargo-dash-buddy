@@ -170,38 +170,45 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrd
         </div>
       </button>
       {(() => {
-        const doneTs = stop.delivered_at ?? stop.updated_at;
-        if (stop.status === "erledigt" && formatTime(doneTs)) {
-          return (
-            <span
-              className="shrink-0 rounded bg-success/10 px-1.5 py-0.5 text-[11px] font-medium text-success tabular-nums"
-              title="Zugestellt um"
-            >
-              ✓ {formatTime(doneTs)}
-            </span>
-          );
+        const etaLabel = formatTime(stop.eta);
+        const doneTs = stop.delivered_at ?? (stop.status !== "offen" ? stop.updated_at : null);
+        const doneLabel = formatTime(doneTs);
+        const isDone = stop.status === "erledigt";
+        const isSkip = stop.status === "uebersprungen";
+
+        // Außerhalb des ±30-Minuten-Fensters?
+        let outOfWindow = false;
+        if (doneTs && stop.eta) {
+          const diffMin = Math.abs(new Date(doneTs).getTime() - new Date(stop.eta).getTime()) / 60000;
+          outOfWindow = diffMin > 30;
         }
-        if (stop.status === "uebersprungen" && formatTime(doneTs)) {
-          return (
-            <span
-              className="shrink-0 rounded bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning tabular-nums"
-              title="Nicht zugestellt um"
-            >
-              ✗ {formatTime(doneTs)}
-            </span>
-          );
-        }
-        if (formatTime(stop.eta)) {
-          return (
-            <span
-              className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary tabular-nums"
-              title="Geschätzte Ankunftszeit"
-            >
-              {formatTime(stop.eta)}
-            </span>
-          );
-        }
-        return null;
+
+        return (
+          <div className="flex items-center gap-1 shrink-0">
+            {etaLabel && (
+              <span
+                className="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary tabular-nums"
+                title="Geschätzte Ankunftszeit"
+              >
+                {etaLabel}
+              </span>
+            )}
+            {doneLabel && (isDone || isSkip) && (
+              <span
+                className={`rounded px-1.5 py-0.5 text-[11px] font-medium tabular-nums ${
+                  outOfWindow
+                    ? "bg-warning/20 text-warning"
+                    : isDone
+                    ? "bg-success/10 text-success"
+                    : "bg-destructive/10 text-destructive"
+                }`}
+                title={isDone ? "Tatsächlich zugestellt" : "Nicht zugestellt"}
+              >
+                {isDone ? "✓" : "✗"} {doneLabel}
+              </span>
+            )}
+          </div>
+        );
       })()}
       <button
         onClick={() => onCycleStatus(stop.id, stop.status)}
