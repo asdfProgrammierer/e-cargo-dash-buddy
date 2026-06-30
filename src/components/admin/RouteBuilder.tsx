@@ -41,6 +41,8 @@ interface StopRow {
   eta: string | null;
   status: "offen" | "erledigt" | "uebersprungen";
   pinned: boolean;
+  delivered_at: string | null;
+  updated_at: string | null;
   orders: OrderRow;
 }
 
@@ -167,14 +169,40 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrd
           )}
         </div>
       </button>
-      {formatTime(stop.eta) && (
-        <span
-          className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary tabular-nums"
-          title="Geschätzte Ankunftszeit"
-        >
-          {formatTime(stop.eta)}
-        </span>
-      )}
+      {(() => {
+        const doneTs = stop.delivered_at ?? stop.updated_at;
+        if (stop.status === "erledigt" && formatTime(doneTs)) {
+          return (
+            <span
+              className="shrink-0 rounded bg-success/10 px-1.5 py-0.5 text-[11px] font-medium text-success tabular-nums"
+              title="Zugestellt um"
+            >
+              ✓ {formatTime(doneTs)}
+            </span>
+          );
+        }
+        if (stop.status === "uebersprungen" && formatTime(doneTs)) {
+          return (
+            <span
+              className="shrink-0 rounded bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning tabular-nums"
+              title="Nicht zugestellt um"
+            >
+              ✗ {formatTime(doneTs)}
+            </span>
+          );
+        }
+        if (formatTime(stop.eta)) {
+          return (
+            <span
+              className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary tabular-nums"
+              title="Geschätzte Ankunftszeit"
+            >
+              {formatTime(stop.eta)}
+            </span>
+          );
+        }
+        return null;
+      })()}
       <button
         onClick={() => onCycleStatus(stop.id, stop.status)}
         title={`Status: ${stop.status} (klicken zum Wechseln)`}
@@ -229,7 +257,7 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick }: RouteBu
     const [r, s, d] = await Promise.all([
       supabase.from("routes").select("*").eq("id", routeId).single(),
       supabase.from("route_stops")
-        .select("id, route_id, order_id, position, leg_distance_m, leg_duration_s, eta, status, pinned, orders(id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, gewicht, lat, lng, status, notizen)")
+        .select("id, route_id, order_id, position, leg_distance_m, leg_duration_s, eta, status, pinned, delivered_at, updated_at, orders(id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, gewicht, lat, lng, status, notizen)")
         .eq("route_id", routeId)
         .order("position", { ascending: true }),
       supabase.from("depots").select("id, name, lat, lng, is_default").eq("active", true).order("name"),
