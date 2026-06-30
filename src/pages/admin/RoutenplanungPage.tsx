@@ -78,7 +78,6 @@ const RoutenplanungPage = () => {
   const [printOpen, setPrintOpen] = useState(false);
   const [printRouteId, setPrintRouteId] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
-  const [pendingAssignIds, setPendingAssignIds] = useState<string[] | null>(null);
   // Order detail sheet (opened from new-orders table or route stop click)
   const [editOrderId, setEditOrderId] = useState<string | null>(null);
   const [editOrderOpen, setEditOrderOpen] = useState(false);
