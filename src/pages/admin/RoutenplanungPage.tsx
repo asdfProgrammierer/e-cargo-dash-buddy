@@ -591,7 +591,7 @@ const RoutenplanungPage = () => {
                   onClick={() => printRouteId && generateRoutePdf(printRouteId)}
                 >
                   <Printer className="mr-2 h-4 w-4" />
-                  {printing ? "Erstelle PDF..." : "PDF herunterladen"}
+                  {printing ? "Bereite Druck vor..." : "Drucken"}
                 </Button>
               </>
             )}
