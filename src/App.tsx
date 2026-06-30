@@ -29,7 +29,6 @@ import DepotsPage from "./pages/admin/DepotsPage";
 import RouteSettingsPage from "./pages/admin/RouteSettingsPage";
 import DeliveryModesPage from "./pages/admin/DeliveryModesPage";
 import EmailTemplatesPage from "./pages/admin/EmailTemplatesPage";
-import PickupCronPage from "./pages/admin/PickupCronPage";
 import DhlSettingsPage from "./pages/admin/DhlSettingsPage";
 import AccountSettingsPage from "./pages/admin/AccountSettingsPage";
 import NotificationsPage from "./pages/admin/NotificationsPage";
