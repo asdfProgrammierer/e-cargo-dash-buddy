@@ -1,36 +1,47 @@
-# Abhol-Auftrag-Logik vereinfachen
+# Zeiterfassung pro Fahrer
 
-Statt eines minütlichen Cron-Jobs mit Deadline-Gate wird der Abhol-Auftrag **automatisch erzeugt, sobald ein Händler am passenden Wochentag seine erste reguläre Sendung des Tages anlegt**.
+Brutto-Fahrzeit erfassen: **Start** wenn Fahrer Route auf "aktiv" schaltet, **Ende** automatisch sobald die Background-GPS-Position innerhalb von **150 m** um das End-Depot der Route liegt.
 
-## Neue Logik (DB-Trigger)
+## Datenbank
 
-Migration mit einem `AFTER INSERT`-Trigger auf `public.orders`:
+Neue Tabelle `public.driver_work_sessions`:
+- `driver_id`, `route_id`, `start_depot_id`, `end_depot_id`
+- `started_at`, `ended_at`, `duration_seconds` (generated)
+- `end_reason` (`auto_depot` | `manual` | `route_completed`)
+- RLS: Fahrer sehen/erzeugen nur eigene Sessions, Admins sehen alles.
+- Indexe auf `(driver_id, started_at)`.
 
-- Feuert nur, wenn `NEW.is_pickup = false`
-- Lädt das Händler-Profil: muss `pickup_enabled = true` und `approved = true` sein, und der aktuelle Berlin-Wochentag muss in `pickup_weekdays` enthalten sein
-- Prüft, ob heute (Berlin-Tag) bereits ein `is_pickup = true`-Auftrag für diesen `user_id` existiert → wenn ja, nichts tun
-- Andernfalls `INSERT` eines Abhol-Auftrags mit Absender = Empfänger = Händler-Adresse, `pakete=1`, `gewicht=0`, `notizen='[ABHOLUNG] Automatisch generierter Abhol-Auftrag'`, `is_pickup=true`
-- Geocoding erfolgt nicht im Trigger (kein Netzwerk in Postgres). Die bestehende automatische Geocodierung auf der Routenplanungsseite holt die Koordinaten beim nächsten Aufruf nach — derselbe Mechanismus, der heute schon für Empfänger-Adressen läuft.
+Neue RPCs (SECURITY DEFINER):
+- `driver_start_work_session(_route_id uuid)` — schließt offene Sessions des Fahrers, legt neue an, setzt `start_depot_id`/`end_depot_id` aus `routes`.
+- `driver_end_work_session(_reason text)` — beendet die aktuell offene Session des Fahrers (idempotent).
+- `admin_driver_time_stats(_driver_id uuid)` — Aggregat pro Tag (gesamt Sekunden + Anzahl Sessions, letzte 90 Tage).
 
-Trigger ist `SECURITY DEFINER` mit gepinntem `search_path`, damit RLS umgangen werden kann.
+Erweiterung `driver_update_location`: nach Insert prüfen, ob eine offene Session existiert und Position < 150 m am `end_depot` → `driver_end_work_session('auto_depot')` aufrufen. Distanz via Haversine in PL/pgSQL (kein PostGIS nötig).
 
-## Aufräumen
+## Fahrer-App
 
-- Cron-Job `generate-pickup-orders-daily` per `cron.unschedule(...)` entfernen
-- Edge Functions löschen: `generate-pickup-orders`, `regeocode-pickup-orders`
-- Tabelle `public.pickup_cron_settings` droppen
-- DB-Funktionen entfernen: `admin_get_pickup_cron_status`, `admin_get_pickup_cron_runs`, `admin_set_pickup_deadline`
-- Frontend: `src/pages/admin/PickupCronPage.tsx` löschen, Route in `App.tsx` entfernen, Sidebar-/Settings-Verlinkung entfernen
-- `PickupSettingsCell` (pickup_enabled + pickup_weekdays am Händler) bleibt — das ist weiterhin der Schalter, mit dem ein Admin Abholung pro Händler steuert
+`DriverRouteDetailPage.tsx`:
+- Beim Wechsel des Route-Status auf `aktiv` → `driver_start_work_session(routeId)` aufrufen (zusätzlich zu bestehender `driver-start-route` Edge Function).
+- Bestehender Background-GPS-Watcher (`backgroundGps.ts`) sendet weiterhin alle 60 s Positionen — Auto-Stopp passiert serverseitig.
+- Optionaler manueller "Schicht beenden"-Button entfällt (User wünscht nur Auto-Stopp via GPS).
 
-## Was unverändert bleibt
+## Admin-Statistiken
 
-- Profil-Felder `pickup_enabled` und `pickup_weekdays`
-- `orders.is_pickup` und die UI-Darstellung von Abhol-Aufträgen
-- Auftrags-Nummern-Generator (`generate_auftrags_nr` behandelt `is_pickup` schon korrekt mit `-P…`)
+`DriverStatsDialog.tsx` bekommt einen neuen Abschnitt **„Arbeitszeit"**:
+- KPIs: Gesamtstunden (30 T / 90 T), ⌀ Stunden/Tag (aktiv), Anzahl Routen.
+- Tagesliste (letzte 30 Tage, scrollbar): Datum · Start–Ende · Dauer (hh:mm) · Routen-Link.
+- Tage mit mehreren Sessions werden summiert und einzeln aufgeklappt.
 
-## Effekt für den Nutzer
+Datenquelle: neue RPC `admin_driver_time_stats`.
 
-- Keine Settings-Seite, kein Deadline-Tuning, keine Cron-Logs mehr nötig
-- Abhol-Auftrag erscheint sofort beim Anlegen der ersten Sendung des Tages → kein Warten bis 14:00
-- Wird am jeweiligen Tag keine Sendung angelegt, entsteht auch kein Abhol-Auftrag (gleiches Verhalten wie heute)
+## Edge Cases
+
+- Offene Session ohne Depot-Ankunft (Fahrer fährt nicht zurück): bleibt offen; eine nightly Cleanup-Funktion (`pg_cron`, 03:00) schließt Sessions > 14 h Laufzeit automatisch mit `end_reason='timeout'` und `ended_at = started_at + 14h`, damit die Statistik nicht verzerrt.
+- Mehrere Routen am selben Tag: jede Route = eigene Session; Tageszeit ist die Summe.
+- Falls `routes.end_depot_id` NULL ist, Fallback auf `start_depot_id`.
+
+## Reihenfolge der Umsetzung
+
+1. Migration: Tabelle + RLS + GRANTs + RPCs + Update auf `driver_update_location` + Cron-Cleanup.
+2. Fahrer-App: Start-RPC beim Route-Aktivieren.
+3. Admin-Dialog: neuer Tab „Arbeitszeit" mit KPIs und Tagesliste.
