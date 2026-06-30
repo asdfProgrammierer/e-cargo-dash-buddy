@@ -23,9 +23,6 @@ verify_jwt = false
 [functions.update-delivery-instructions]
 verify_jwt = false
 
-[functions.generate-pickup-orders]
-verify_jwt = false
-
 [functions.shopify-sync]
 verify_jwt = false
 
