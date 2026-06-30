@@ -25,6 +25,7 @@ import {
   RotateCcw,
   AlertTriangle,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { Order, OrderStatus, STATUS_LABELS, STATUS_COLORS, MAX_DELIVERY_ATTEMPTS } from "@/types/order";
 import { getZoneBadgeStyle } from "@/lib/deliveryZones";
@@ -85,6 +86,8 @@ export function OrderDetailSheet({
   const [pdfLoading, setPdfLoading] = useState(false);
   const [resolvingAction, setResolvingAction] = useState<"retry" | "final" | null>(null);
   const [fallbackDates, setFallbackDates] = useState<{ created?: string; delivered?: string }>({});
+  const [confirmDelete, setConfirmDelete] = useState<0 | 1 | 2>(0);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,6 +161,7 @@ export function OrderDetailSheet({
       setStatusReason("");
       setConfirmCancel(false);
       setConfirmReactivate(false);
+      setConfirmDelete(0);
     }
   }, [open]);
 
