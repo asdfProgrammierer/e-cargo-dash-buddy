@@ -117,11 +117,12 @@ const STATUS_DOT: Record<StopRow["status"], string> = {
   uebersprungen: "bg-warning shadow-[0_0_8px_hsl(var(--warning)/0.4)]",
 };
 
-function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin }: {
+function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrderClick }: {
   stop: StopRow; index: number;
   onRemove: (id: string) => void;
   onCycleStatus: (id: string, current: StopRow["status"]) => void;
   onTogglePin: (id: string, current: boolean) => void;
+  onOrderClick?: (orderId: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stop.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -142,8 +143,14 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin }: {
       <span className={`text-[10px] font-bold tabular-nums w-5 text-right shrink-0 ${stop.pinned ? "text-primary" : "text-muted-foreground"}`}>
         {String(index + 1).padStart(2, "0")}
       </span>
-      <div className="flex-1 min-w-0">
-        <p className={`text-body font-medium truncate ${stop.status === "erledigt" ? "line-through text-muted-foreground" : "text-foreground"}`}>
+      <button
+        type="button"
+        onClick={onOrderClick ? () => onOrderClick(stop.orders.id) : undefined}
+        disabled={!onOrderClick}
+        className={`flex-1 min-w-0 text-left ${onOrderClick ? "cursor-pointer hover:text-primary" : "cursor-default"}`}
+        title={onOrderClick ? "Auftrag anzeigen / bearbeiten" : undefined}
+      >
+        <p className={`text-body font-medium truncate ${stop.status === "erledigt" ? "line-through text-muted-foreground" : ""}`}>
           {stop.orders.empfaenger_name}
         </p>
         <div className="flex items-center gap-2 text-caption text-muted-foreground tabular-nums truncate">
@@ -159,7 +166,7 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin }: {
             <> · {formatDistance(stop.leg_distance_m)} · {formatDuration(stop.leg_duration_s)}</>
           )}
         </div>
-      </div>
+      </button>
       {formatTime(stop.eta) && (
         <span
           className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary tabular-nums"
@@ -197,9 +204,11 @@ interface RouteBuilderProps {
   routeId: string;
   /** When true, hide the inner map column (used as compact panel). Default false. */
   compact?: boolean;
+  /** Optional: open detail/edit sheet for an order when its stop entry is clicked. */
+  onOrderClick?: (orderId: string) => void;
 }
 
-export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
+export function RouteBuilder({ routeId, compact = false, onOrderClick }: RouteBuilderProps) {
   const [route, setRoute] = useState<RouteRow | null>(null);
   const [stops, setStops] = useState<StopRow[]>([]);
   const [depots, setDepots] = useState<Depot[]>([]);
@@ -539,7 +548,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
                 <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                   <ScrollArea className="flex-1 min-h-0">
                     <div className="border-y border-border/50">
-                      {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} onTogglePin={togglePin} />)}
+                      {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} onTogglePin={togglePin} onOrderClick={onOrderClick} />)}
                     </div>
                   </ScrollArea>
                 </SortableContext>
@@ -623,7 +632,7 @@ export function RouteBuilder({ routeId, compact = false }: RouteBuilderProps) {
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                   <div className="border-y border-border/50">
-                    {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} onTogglePin={togglePin} />)}
+                    {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} onTogglePin={togglePin} onOrderClick={onOrderClick} />)}
                   </div>
                 </SortableContext>
               </DndContext>

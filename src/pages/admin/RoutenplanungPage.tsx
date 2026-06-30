@@ -15,6 +15,7 @@ import { Plus, MapPin, Pencil, Trash2, ExternalLink, Printer, Compass } from "lu
 import { RouteBuilder } from "@/components/admin/RouteBuilder";
 import { RoutesOverviewMap } from "@/components/admin/RoutesOverviewMap";
 import { NewOrdersTable, type NewOrderRow } from "@/components/admin/NewOrdersTable";
+import { AdminOrderQuickSheet } from "@/components/admin/AdminOrderQuickSheet";
 import { Switch } from "@/components/ui/switch";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -78,6 +79,10 @@ const RoutenplanungPage = () => {
   const [printRouteId, setPrintRouteId] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
   const [regeocoding, setRegeocoding] = useState(false);
+  // Order detail sheet (opened from new-orders table or route stop click)
+  const [editOrderId, setEditOrderId] = useState<string | null>(null);
+  const [editOrderOpen, setEditOrderOpen] = useState(false);
+  const openOrderSheet = (id: string) => { setEditOrderId(id); setEditOrderOpen(true); };
 
   const selectedId = searchParams.get("route");
 
@@ -671,7 +676,7 @@ const RoutenplanungPage = () => {
           {/* Stops of selected route (bottom) */}
           <div className="flex-1 min-h-0 overflow-hidden">
             {selectedId ? (
-              <RouteBuilder key={selectedId + ":" + refreshKey} routeId={selectedId} compact />
+              <RouteBuilder key={selectedId + ":" + refreshKey} routeId={selectedId} compact onOrderClick={openOrderSheet} />
             ) : (
               <Card>
                 <CardContent className="py-10 text-center text-caption text-muted-foreground">
@@ -726,11 +731,21 @@ const RoutenplanungPage = () => {
               zoneByPostcode={zoneByPostcode}
               selectedZoneIds={selectedZoneIds}
               setSelectedZoneIds={setSelectedZoneIds}
+              onOrderClick={openOrderSheet}
             />
           </div>
         </div>
       </div>
       </div>
+      <AdminOrderQuickSheet
+        orderId={editOrderId}
+        open={editOrderOpen}
+        onOpenChange={(v) => {
+          setEditOrderOpen(v);
+          if (!v) setEditOrderId(null);
+        }}
+        onChanged={() => { bumpRefresh(); }}
+      />
     </AdminLayout>
   );
 };

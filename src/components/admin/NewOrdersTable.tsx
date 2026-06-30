@@ -67,6 +67,8 @@ interface Props {
   /** Selected zone ids (use NO_ZONE_ID for unmapped postcodes). Empty = no filter. */
   selectedZoneIds: Set<string>;
   setSelectedZoneIds: (next: Set<string>) => void;
+  /** Clicking an order row (auftrags-nr) opens the detail/edit sheet. */
+  onOrderClick?: (orderId: string) => void;
 }
 
 export function NewOrdersTable({
@@ -75,6 +77,7 @@ export function NewOrdersTable({
   showOnMap, setShowOnMap, focusedOrderId,
   routesForDate, onCreateNewRoute, onSelectRoute,
   zones, zoneByPostcode, selectedZoneIds, setSelectedZoneIds,
+  onOrderClick,
 }: Props) {
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
@@ -353,17 +356,46 @@ export function NewOrdersTable({
                           onCheckedChange={(c) => toggleOne(o.id, !!c)}
                         />
                       </td>
-                      <td className="px-2 py-2 tabular-nums font-medium">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span>{o.auftrags_nr}</span>
-                          {o.is_pickup && (
-                            <Badge variant="outline" className="border-warning text-warning text-[9px] py-0 px-1">
-                              Abholung
-                            </Badge>
-                          )}
-                        </span>
-                      </td>
-                      <td className="px-2 py-2 truncate max-w-[180px]">{o.empfaenger_name}</td>
+                       <td className="px-2 py-2 tabular-nums font-medium">
+                         {onOrderClick ? (
+                           <button
+                             type="button"
+                             onClick={() => onOrderClick(o.id)}
+                             className="inline-flex items-center gap-1.5 text-primary hover:underline"
+                             title="Auftrag anzeigen / bearbeiten"
+                           >
+                             <span>{o.auftrags_nr}</span>
+                             {o.is_pickup && (
+                               <Badge variant="outline" className="border-warning text-warning text-[9px] py-0 px-1">
+                                 Abholung
+                               </Badge>
+                             )}
+                           </button>
+                         ) : (
+                           <span className="inline-flex items-center gap-1.5">
+                             <span>{o.auftrags_nr}</span>
+                             {o.is_pickup && (
+                               <Badge variant="outline" className="border-warning text-warning text-[9px] py-0 px-1">
+                                 Abholung
+                               </Badge>
+                             )}
+                           </span>
+                         )}
+                       </td>
+                       <td className="px-2 py-2 truncate max-w-[180px]">
+                         {onOrderClick ? (
+                           <button
+                             type="button"
+                             onClick={() => onOrderClick(o.id)}
+                             className="text-left hover:underline"
+                             title="Auftrag anzeigen / bearbeiten"
+                           >
+                             {o.empfaenger_name}
+                           </button>
+                         ) : (
+                           o.empfaenger_name
+                         )}
+                       </td>
                       <td className="px-2 py-2 truncate max-w-[200px]" title={o.empfaenger_adresse ?? ""}>
                         {o.empfaenger_adresse ?? <span className="text-muted-foreground">–</span>}
                       </td>
