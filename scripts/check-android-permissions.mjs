@@ -8,18 +8,18 @@ const MANIFEST = resolve(process.cwd(), "android/app/src/main/AndroidManifest.xm
 const REL = relative(process.cwd(), MANIFEST);
 
 // --- Konfig ---------------------------------------------------------------
-// Pflicht-Permissions fuer den Fahrer-GPS-Flow (Vordergrund).
+// Pflicht-Permissions fuer den Fahrer-GPS-Flow.
+// Hintergrund-Tracking ist jetzt fester Bestandteil (Plugin: @capacitor-community/background-geolocation),
+// damit der Standort auch dann aktualisiert wird, wenn der Fahrer Google Maps oeffnet.
 const REQUIRED = [
   "android.permission.INTERNET",
   "android.permission.ACCESS_COARSE_LOCATION",
   "android.permission.ACCESS_FINE_LOCATION",
-];
-// Optional: Hintergrund-Tracking. Falls deklariert, muessen FGS-Permissions + Service-Typ stimmen.
-const BG_PERM = "android.permission.ACCESS_BACKGROUND_LOCATION";
-const FGS_PERMS = [
+  "android.permission.ACCESS_BACKGROUND_LOCATION",
   "android.permission.FOREGROUND_SERVICE",
   "android.permission.FOREGROUND_SERVICE_LOCATION", // ab Android 14 / targetSdk 34 Pflicht
 ];
+const BG_PERM = "android.permission.ACCESS_BACKGROUND_LOCATION";
 
 // --- Helpers --------------------------------------------------------------
 const errors = [];
