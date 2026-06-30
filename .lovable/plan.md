@@ -1,24 +1,36 @@
-## Ziel
-Beim Anlegen von Aufträgen für interne/virtuelle Händler soll der Admin auf ein Adressbuch pro Händler zugreifen können — Empfänger schnell wiederverwenden statt jedes Mal neu eintippen.
+# Abhol-Auftrag-Logik vereinfachen
 
-## Hintergrund
-Die Tabelle `address_book` existiert bereits und wird im Händler-Dashboard genutzt (Favoriten, Inline-Speichern). Sie ist pro `user_id` (Händler-Owner) gescoped. Virtuelle Händler haben aber keinen Login — daher kommt aktuell niemand an deren Adressbuch ran. Admins können momentan im `AdminCreateOrderDialog` weder lesen noch speichern.
+Statt eines minütlichen Cron-Jobs mit Deadline-Gate wird der Abhol-Auftrag **automatisch erzeugt, sobald ein Händler am passenden Wochentag seine erste reguläre Sendung des Tages anlegt**.
 
-## Umfang
-1. **RLS:** Admins dürfen `address_book` aller Händler lesen/schreiben/löschen (4 neue Policies via `has_role(auth.uid(),'admin')`).
-2. **Admin-Dialog (`AdminCreateOrderDialog`):**
-   - Nach Auswahl eines Händlers werden dessen Adressbuch-Einträge geladen.
-   - Neues Combobox-Feld „Empfänger aus Adressbuch wählen" (suchbar, Favoriten oben). Auswahl füllt Name, Straße, PLZ, Stadt, E-Mail, Telefon automatisch.
-   - Checkbox „In Adressbuch speichern" (default an für neue Adressen). Beim Submit wird der Empfänger via Upsert (Match auf `user_id` + normalisierte Adresse) in `address_book` gespeichert.
-   - Stern-Icon neben der Combobox, um Eintrag als Favorit zu markieren.
-3. **Optional sichtbarer Einstiegspunkt:** Auf der `HaendlerDetailPage` (Detailseite eines virtuellen Händlers) eine kleine Karte „Adressbuch (X Einträge)" mit Link/Aktion „Verwalten" — verwendet eine schlanke Verwaltungsansicht (Liste + Löschen + Favorit-Toggle). Falls außerhalb des Scopes gewünscht, kann das in einem späteren Schritt erfolgen.
+## Neue Logik (DB-Trigger)
 
-## Technische Details
-- Neue Migration: SELECT/INSERT/UPDATE/DELETE-Policies auf `public.address_book` mit `has_role(auth.uid(),'admin')`.
-- `AdminCreateOrderDialog`: Adressbuch-Query `select * from address_book where user_id = effectiveMerchantId order by is_favorite desc, firma_name`. Verwendung der bestehenden `Command`/`Popover`-Komponenten für die Combobox (analog zum Merchant-Picker im Händler-Dashboard, falls vorhanden) oder ein einfacher Select mit Suche.
-- Upsert-Logik beim Anlegen: Wenn die ausgewählte Adresse aus dem Adressbuch stammt, kein Insert. Wenn der Admin eine neue Adresse eingegeben und die Checkbox aktiv ist, wird ein neuer Adressbuch-Eintrag angelegt.
-- Keine Änderungen am bestehenden Händler-Dashboard-Adressbuch nötig.
+Migration mit einem `AFTER INSERT`-Trigger auf `public.orders`:
 
-## Nicht im Umfang
-- Keine Änderung an Order-Erstellung von Händlern selbst (funktioniert bereits).
-- Keine Bulk-Import-Funktion für Adressbuch im Admin (kann später kommen).
+- Feuert nur, wenn `NEW.is_pickup = false`
+- Lädt das Händler-Profil: muss `pickup_enabled = true` und `approved = true` sein, und der aktuelle Berlin-Wochentag muss in `pickup_weekdays` enthalten sein
+- Prüft, ob heute (Berlin-Tag) bereits ein `is_pickup = true`-Auftrag für diesen `user_id` existiert → wenn ja, nichts tun
+- Andernfalls `INSERT` eines Abhol-Auftrags mit Absender = Empfänger = Händler-Adresse, `pakete=1`, `gewicht=0`, `notizen='[ABHOLUNG] Automatisch generierter Abhol-Auftrag'`, `is_pickup=true`
+- Geocoding erfolgt nicht im Trigger (kein Netzwerk in Postgres). Die bestehende automatische Geocodierung auf der Routenplanungsseite holt die Koordinaten beim nächsten Aufruf nach — derselbe Mechanismus, der heute schon für Empfänger-Adressen läuft.
+
+Trigger ist `SECURITY DEFINER` mit gepinntem `search_path`, damit RLS umgangen werden kann.
+
+## Aufräumen
+
+- Cron-Job `generate-pickup-orders-daily` per `cron.unschedule(...)` entfernen
+- Edge Functions löschen: `generate-pickup-orders`, `regeocode-pickup-orders`
+- Tabelle `public.pickup_cron_settings` droppen
+- DB-Funktionen entfernen: `admin_get_pickup_cron_status`, `admin_get_pickup_cron_runs`, `admin_set_pickup_deadline`
+- Frontend: `src/pages/admin/PickupCronPage.tsx` löschen, Route in `App.tsx` entfernen, Sidebar-/Settings-Verlinkung entfernen
+- `PickupSettingsCell` (pickup_enabled + pickup_weekdays am Händler) bleibt — das ist weiterhin der Schalter, mit dem ein Admin Abholung pro Händler steuert
+
+## Was unverändert bleibt
+
+- Profil-Felder `pickup_enabled` und `pickup_weekdays`
+- `orders.is_pickup` und die UI-Darstellung von Abhol-Aufträgen
+- Auftrags-Nummern-Generator (`generate_auftrags_nr` behandelt `is_pickup` schon korrekt mit `-P…`)
+
+## Effekt für den Nutzer
+
+- Keine Settings-Seite, kein Deadline-Tuning, keine Cron-Logs mehr nötig
+- Abhol-Auftrag erscheint sofort beim Anlegen der ersten Sendung des Tages → kein Warten bis 14:00
+- Wird am jeweiligen Tag keine Sendung angelegt, entsteht auch kein Abhol-Auftrag (gleiches Verhalten wie heute)
