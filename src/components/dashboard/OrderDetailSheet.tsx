@@ -25,6 +25,7 @@ import {
   RotateCcw,
   AlertTriangle,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { Order, OrderStatus, STATUS_LABELS, STATUS_COLORS, MAX_DELIVERY_ATTEMPTS } from "@/types/order";
 import { getZoneBadgeStyle } from "@/lib/deliveryZones";
@@ -85,6 +86,8 @@ export function OrderDetailSheet({
   const [pdfLoading, setPdfLoading] = useState(false);
   const [resolvingAction, setResolvingAction] = useState<"retry" | "final" | null>(null);
   const [fallbackDates, setFallbackDates] = useState<{ created?: string; delivered?: string }>({});
+  const [confirmDelete, setConfirmDelete] = useState<0 | 1 | 2>(0);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,6 +161,7 @@ export function OrderDetailSheet({
       setStatusReason("");
       setConfirmCancel(false);
       setConfirmReactivate(false);
+      setConfirmDelete(0);
     }
   }, [open]);
 
@@ -804,6 +808,72 @@ export function OrderDetailSheet({
               >
                 <Pencil className="mr-2 h-4 w-4" />
                 Auftrag bearbeiten
+              </Button>
+            )
+          )}
+
+          {canUpdateStatus && (
+            confirmDelete > 0 ? (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 space-y-3">
+                <p className="text-sm font-medium text-destructive">
+                  {confirmDelete === 1
+                    ? "Auftrag wirklich löschen?"
+                    : "Wirklich unwiderruflich löschen?"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {confirmDelete === 1
+                    ? "Der Auftrag wird aus der Datenbank entfernt."
+                    : "Diese Aktion kann nicht rückgängig gemacht werden. Sendungsverlauf und Stopps werden ebenfalls gelöscht."}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={deleting}
+                    onClick={() => setConfirmDelete(0)}
+                  >
+                    Abbrechen
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    disabled={deleting}
+                    onClick={async () => {
+                      if (confirmDelete === 1) {
+                        setConfirmDelete(2);
+                        return;
+                      }
+                      setDeleting(true);
+                      const { error } = await supabase.from("orders").delete().eq("id", order.id);
+                      setDeleting(false);
+                      if (error) {
+                        toast.error(error.message || "Auftrag konnte nicht gelöscht werden");
+                        return;
+                      }
+                      toast.success("Auftrag gelöscht");
+                      setConfirmDelete(0);
+                      onOpenChange(false);
+                    }}
+                  >
+                    {deleting ? (
+                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="mr-1 h-3.5 w-3.5" />
+                    )}
+                    {confirmDelete === 1 ? "Weiter" : "Endgültig löschen"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full text-destructive hover:text-destructive"
+                onClick={() => setConfirmDelete(1)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Auftrag löschen
               </Button>
             )
           )}
