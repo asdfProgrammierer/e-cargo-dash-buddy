@@ -12,6 +12,8 @@ function normalizeDomain(input: string | null | undefined): string | null {
   d = d.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
   if (!d) return null;
   if (!d.includes(".")) d = `${d}.myshopify.com`;
+  // SSRF guard: only allow Shopify-hosted shop domains.
+  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(d)) return null;
   return d;
 }
 
