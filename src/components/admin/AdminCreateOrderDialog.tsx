@@ -78,7 +78,7 @@ export function AdminCreateOrderDialog({
   const [addressBook, setAddressBook] = useState<AddressBookEntry[]>([]);
   const [addressPickerOpen, setAddressPickerOpen] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
-  const [saveToAddressBook, setSaveToAddressBook] = useState(true);
+  const [saveToAddressBook, setSaveToAddressBook] = useState(false);
 
   const needsMerchantPicker = !merchantUserId;
   const effectiveMerchantId = merchantUserId ?? selectedMerchantId;
