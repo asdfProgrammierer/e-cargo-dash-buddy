@@ -41,6 +41,8 @@ interface StopRow {
   eta: string | null;
   status: "offen" | "erledigt" | "uebersprungen";
   pinned: boolean;
+  delivered_at: string | null;
+  updated_at: string | null;
   orders: OrderRow;
 }
 
