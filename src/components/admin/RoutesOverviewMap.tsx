@@ -282,6 +282,8 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
         if (dp.lat == null || dp.lng == null) return;
         const el = document.createElement("div");
         el.className = "flex h-6 w-6 items-center justify-center rounded-sm bg-foreground text-background text-[10px] font-bold border-2 border-background shadow";
+        el.style.width = "24px";
+        el.style.height = "24px";
         el.textContent = dp.is_default ? "★" : "D";
         el.title = dp.name;
         const m = new maplibregl.Marker({ element: el }).setLngLat([Number(dp.lng), Number(dp.lat)]).addTo(map);
@@ -316,6 +318,8 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
           const stopStatusLabel = done ? "Erledigt" : skip ? "Übersprungen" : "Offen";
           const el = document.createElement("div");
           el.className = "flex h-6 w-6 items-center justify-center rounded-full text-white text-[10px] font-bold border-2 border-white shadow cursor-pointer";
+          el.style.width = "24px";
+          el.style.height = "24px";
           el.style.backgroundColor = done ? "hsl(142 71% 35%)" : skip ? "hsl(38 92% 45%)" : color;
           if (done) el.style.opacity = "0.7";
           if (dimmed) el.style.opacity = "0.35";
@@ -389,11 +393,13 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
         hasPoint = true;
       });
 
-      // Live driver positions – immer letzte bekannte Position anzeigen,
-      // ältere Fixes werden lediglich als "veraltet" markiert.
+      // Live driver positions – nur anzeigen wenn jünger als 300 Minuten.
+      const STALE_HIDE_MS = 300 * 60_000;
+      const STALE_LABEL_MS = 5 * 60_000;
       driverLocs.forEach((dl) => {
         const ageMs = Date.now() - new Date(dl.updated_at).getTime();
-        const stale = ageMs > 5 * 60_000;
+        if (ageMs > STALE_HIDE_MS) return;
+        const stale = ageMs > STALE_LABEL_MS;
         const el = document.createElement("div");
         el.style.cursor = "pointer";
         el.style.position = "relative";
