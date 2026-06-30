@@ -138,6 +138,26 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [date]);
 
+  // Realtime: reload immediately when route geometry/stops/status changes
+  // (e.g. after admin optimizes a route, or a driver marks a stop in the app).
+  useEffect(() => {
+    let debounce: number | undefined;
+    const trigger = () => {
+      window.clearTimeout(debounce);
+      debounce = window.setTimeout(() => { void load(); }, 300);
+    };
+    const channel = supabase
+      .channel("routes-overview-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "route_stops" }, trigger)
+      .on("postgres_changes", { event: "*", schema: "public", table: "routes" }, trigger)
+      .subscribe();
+    return () => {
+      window.clearTimeout(debounce);
+      supabase.removeChannel(channel);
+    };
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [date]);
+
   // Live driver locations: initial load + realtime subscription.
   useEffect(() => {
     let cancelled = false;
