@@ -389,11 +389,10 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
         hasPoint = true;
       });
 
-      // Live driver positions
-      const STALE_MS = 300 * 60_000; // 300 minutes
+      // Live driver positions – immer letzte bekannte Position anzeigen,
+      // ältere Fixes werden lediglich als "veraltet" markiert.
       driverLocs.forEach((dl) => {
         const ageMs = Date.now() - new Date(dl.updated_at).getTime();
-        if (ageMs > STALE_MS) return; // hide drivers that haven't sent a fix in >300min
         const stale = ageMs > 5 * 60_000;
         const el = document.createElement("div");
         el.style.cursor = "pointer";
@@ -408,12 +407,17 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
           .setLngLat([dl.lng, dl.lat])
           .addTo(map);
         const ageMin = Math.round(ageMs / 60000);
+        const ageLabel =
+          ageMin < 1 ? "<1 Min." :
+          ageMin < 60 ? `${ageMin} Min.` :
+          ageMin < 60 * 24 ? `${Math.round(ageMin / 60)} Std.` :
+          `${Math.round(ageMin / (60 * 24))} Tg.`;
         const html = `
           <div style="font-family: inherit; min-width: 180px;">
             <div style="font-size: 10px; color: hsl(var(--muted-foreground)); text-transform: uppercase; letter-spacing: 0.04em;">Fahrer-Standort</div>
             <div style="font-weight: 600; margin-top: 2px;">${escapeHtml(dl.driver_name ?? "Fahrer")}</div>
             <div style="font-size: 11px; color: hsl(var(--muted-foreground)); margin-top: 2px;">
-              Aktualisiert vor ${ageMin < 1 ? "<1" : ageMin} Min.${dl.accuracy != null ? ` · ±${Math.round(dl.accuracy)} m` : ""}
+              Aktualisiert vor ${ageLabel}${dl.accuracy != null ? ` · ±${Math.round(dl.accuracy)} m` : ""}
             </div>
             ${stale ? `<div style="display:inline-block;margin-top:6px;padding:1px 6px;border-radius:4px;font-size:10px;background:hsl(var(--muted));color:hsl(var(--muted-foreground));">veraltet</div>` : ""}
           </div>`;
