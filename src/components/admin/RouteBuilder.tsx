@@ -169,14 +169,40 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrd
           )}
         </div>
       </button>
-      {formatTime(stop.eta) && (
-        <span
-          className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary tabular-nums"
-          title="Geschätzte Ankunftszeit"
-        >
-          {formatTime(stop.eta)}
-        </span>
-      )}
+      {(() => {
+        const doneTs = stop.delivered_at ?? stop.updated_at;
+        if (stop.status === "erledigt" && formatTime(doneTs)) {
+          return (
+            <span
+              className="shrink-0 rounded bg-success/10 px-1.5 py-0.5 text-[11px] font-medium text-success tabular-nums"
+              title="Zugestellt um"
+            >
+              ✓ {formatTime(doneTs)}
+            </span>
+          );
+        }
+        if (stop.status === "uebersprungen" && formatTime(doneTs)) {
+          return (
+            <span
+              className="shrink-0 rounded bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning tabular-nums"
+              title="Nicht zugestellt um"
+            >
+              ✗ {formatTime(doneTs)}
+            </span>
+          );
+        }
+        if (formatTime(stop.eta)) {
+          return (
+            <span
+              className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary tabular-nums"
+              title="Geschätzte Ankunftszeit"
+            >
+              {formatTime(stop.eta)}
+            </span>
+          );
+        }
+        return null;
+      })()}
       <button
         onClick={() => onCycleStatus(stop.id, stop.status)}
         title={`Status: ${stop.status} (klicken zum Wechseln)`}
