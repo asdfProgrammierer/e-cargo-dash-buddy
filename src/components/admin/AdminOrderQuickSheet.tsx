@@ -121,6 +121,7 @@ export function AdminOrderQuickSheet({ orderId, open, onOpenChange, onChanged }:
         empfaengerAdresse: order.empfaengerAdresse,
         empfaengerPlz: order.empfaengerPlz,
         empfaengerStadt: order.empfaengerStadt,
+        haendlerUserId: (order as any).userId ?? undefined,
         reason,
       });
     }
