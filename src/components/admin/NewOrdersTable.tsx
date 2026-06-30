@@ -67,6 +67,8 @@ interface Props {
   /** Selected zone ids (use NO_ZONE_ID for unmapped postcodes). Empty = no filter. */
   selectedZoneIds: Set<string>;
   setSelectedZoneIds: (next: Set<string>) => void;
+  /** Clicking an order row (auftrags-nr) opens the detail/edit sheet. */
+  onOrderClick?: (orderId: string) => void;
 }
 
 export function NewOrdersTable({
@@ -75,6 +77,7 @@ export function NewOrdersTable({
   showOnMap, setShowOnMap, focusedOrderId,
   routesForDate, onCreateNewRoute, onSelectRoute,
   zones, zoneByPostcode, selectedZoneIds, setSelectedZoneIds,
+  onOrderClick,
 }: Props) {
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
