@@ -1,4 +1,9 @@
 import { Capacitor } from "@capacitor/core";
+import { registerPlugin } from "@capacitor/core";
+import type { BackgroundGeolocationPlugin } from "@capacitor-community/background-geolocation";
+
+const BackgroundGeolocation =
+  registerPlugin<BackgroundGeolocationPlugin>("BackgroundGeolocation");
 
 /**
  * Starts a background location watcher on native platforms.
@@ -19,15 +24,6 @@ export async function startBackgroundGpsWatcher(
   if (!Capacitor.isNativePlatform()) return null;
   const minInterval = opts.minIntervalMs ?? 60_000;
   const distance = opts.distanceFilterM ?? 25;
-
-  let mod: typeof import("@capacitor-community/background-geolocation");
-  try {
-    mod = await import("@capacitor-community/background-geolocation");
-  } catch (e) {
-    console.warn("[bg-gps] plugin not available", e);
-    return null;
-  }
-  const { BackgroundGeolocation } = mod;
 
   let lastSentAt = 0;
   let watcherId: string | null = null;
