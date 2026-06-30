@@ -349,6 +349,77 @@ export type Database = {
           },
         ]
       }
+      driver_work_sessions: {
+        Row: {
+          created_at: string
+          driver_id: string
+          duration_seconds: number | null
+          end_depot_id: string | null
+          end_reason: string | null
+          ended_at: string | null
+          id: string
+          route_id: string | null
+          start_depot_id: string | null
+          started_at: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          driver_id: string
+          duration_seconds?: number | null
+          end_depot_id?: string | null
+          end_reason?: string | null
+          ended_at?: string | null
+          id?: string
+          route_id?: string | null
+          start_depot_id?: string | null
+          started_at?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          driver_id?: string
+          duration_seconds?: number | null
+          end_depot_id?: string | null
+          end_reason?: string | null
+          ended_at?: string | null
+          id?: string
+          route_id?: string | null
+          start_depot_id?: string | null
+          started_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_work_sessions_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_work_sessions_end_depot_id_fkey"
+            columns: ["end_depot_id"]
+            isOneToOne: false
+            referencedRelation: "depots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_work_sessions_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_work_sessions_start_depot_id_fkey"
+            columns: ["start_depot_id"]
+            isOneToOne: false
+            referencedRelation: "depots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       drivers: {
         Row: {
           auth_user_id: string | null
@@ -1375,6 +1446,16 @@ export type Database = {
         Args: { _connection_id: string }
         Returns: undefined
       }
+      admin_driver_time_stats: {
+        Args: { _driver_id: string }
+        Returns: {
+          day: string
+          first_start: string
+          last_end: string
+          session_count: number
+          total_seconds: number
+        }[]
+      }
       admin_get_shop_connection: {
         Args: { _user_id: string }
         Returns: {
@@ -1540,10 +1621,19 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      cleanup_stale_work_sessions: { Args: never; Returns: undefined }
       current_driver_id: { Args: never; Returns: string }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
+      }
+      driver_end_work_session: {
+        Args: { _reason?: string }
+        Returns: undefined
+      }
+      driver_start_work_session: {
+        Args: { _route_id: string }
+        Returns: string
       }
       driver_touch_last_login: { Args: never; Returns: undefined }
       driver_update_location: {
@@ -1561,6 +1651,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      haversine_m: {
+        Args: { lat1: number; lat2: number; lon1: number; lon2: number }
+        Returns: number
       }
       is_depot_used_by_driver: { Args: { _depot_id: string }; Returns: boolean }
       is_order_in_driver_route: {
