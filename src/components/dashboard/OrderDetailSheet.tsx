@@ -857,6 +857,7 @@ export function OrderDetailSheet({
                       toast.success("Auftrag gelöscht");
                       setConfirmDelete(0);
                       onOpenChange(false);
+                      onDeleted?.(order.id);
                     }}
                   >
                     {deleting ? (
