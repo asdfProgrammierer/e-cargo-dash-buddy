@@ -388,6 +388,11 @@ export function OrderDetailSheet({
                       {isCurrent && (
                         <p className="text-xs text-muted-foreground mt-0.5">Aktueller Status</p>
                       )}
+                      {isActive && statusDates[step.status] && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {statusDates[step.status]}
+                        </p>
+                      )}
                     </div>
                   </div>
                 );
