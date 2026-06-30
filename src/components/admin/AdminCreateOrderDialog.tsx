@@ -274,7 +274,7 @@ export function AdminCreateOrderDialog({
     setForm(emptyForm);
     setSelectedMerchantId("");
     setSelectedAddressId(null);
-    setSaveToAddressBook(true);
+    setSaveToAddressBook(false);
     setOpen(false);
     onCreated?.();
   };
