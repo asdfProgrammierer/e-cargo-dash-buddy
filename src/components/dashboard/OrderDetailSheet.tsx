@@ -84,6 +84,20 @@ export function OrderDetailSheet({
   const [dhlLoading, setDhlLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [resolvingAction, setResolvingAction] = useState<"retry" | "final" | null>(null);
+
+  const statusDates = useMemo(() => {
+    const map: Record<string, string> = {};
+    if (!statusHistory?.length) return map;
+    // history is usually sorted descending; iterate backwards to find earliest entry per status
+    for (let i = statusHistory.length - 1; i >= 0; i--) {
+      const entry = statusHistory[i];
+      if (!map[entry.status]) {
+        map[entry.status] = entry.createdAt;
+      }
+    }
+    return map;
+  }, [statusHistory]);
+
   const currentStep = order ? STATUS_ORDER[order.status] : 0;
   const isAdminView = canUpdateStatus;
   const canEdit = order
@@ -373,6 +387,11 @@ export function OrderDetailSheet({
                       </p>
                       {isCurrent && (
                         <p className="text-xs text-muted-foreground mt-0.5">Aktueller Status</p>
+                      )}
+                      {isActive && statusDates[step.status] && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {statusDates[step.status]}
+                        </p>
                       )}
                     </div>
                   </div>
