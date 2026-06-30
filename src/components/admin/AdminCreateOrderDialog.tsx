@@ -224,6 +224,7 @@ export function AdminCreateOrderDialog({
             .insert({
               user_id: effectiveMerchantId,
               firma_name: form.empfaengerName,
+              ansprechpartner: form.empfaengerName,
               strasse: form.empfaengerAdresse || null,
               plz: form.empfaengerPlz || null,
               stadt: form.empfaengerStadt || null,
