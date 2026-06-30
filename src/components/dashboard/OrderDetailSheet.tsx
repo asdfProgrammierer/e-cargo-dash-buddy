@@ -84,19 +84,58 @@ export function OrderDetailSheet({
   const [dhlLoading, setDhlLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [resolvingAction, setResolvingAction] = useState<"retry" | "final" | null>(null);
+  const [fallbackDates, setFallbackDates] = useState<{ created?: string; delivered?: string }>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!order?.id || !open) {
+      setFallbackDates({});
+      return;
+    }
+    (async () => {
+      const { data } = await supabase
+        .from("orders")
+        .select("created_at, delivered_at")
+        .eq("id", order.id)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      setFallbackDates({
+        created: data.created_at ?? undefined,
+        delivered: data.delivered_at ?? undefined,
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [order?.id, open]);
 
   const statusDates = useMemo(() => {
     const map: Record<string, string> = {};
-    if (!statusHistory?.length) return map;
-    // history is usually sorted descending; iterate backwards to find earliest entry per status
-    for (let i = statusHistory.length - 1; i >= 0; i--) {
-      const entry = statusHistory[i];
-      if (!map[entry.status]) {
-        map[entry.status] = entry.createdAt;
+    const fmt = (iso: string) =>
+      new Date(iso).toLocaleString("de-DE", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    if (statusHistory?.length) {
+      for (let i = statusHistory.length - 1; i >= 0; i--) {
+        const entry = statusHistory[i];
+        if (!map[entry.status]) {
+          map[entry.status] = fmt(entry.createdAt);
+        }
       }
     }
+    // Fallbacks für ältere Aufträge ohne vollständige Status-Historie
+    if (!map.neu && fallbackDates.created) {
+      map.neu = fmt(fallbackDates.created);
+    }
+    if (!map.zugestellt && fallbackDates.delivered) {
+      map.zugestellt = fmt(fallbackDates.delivered);
+    }
     return map;
-  }, [statusHistory]);
+  }, [statusHistory, fallbackDates]);
 
   const currentStep = order ? STATUS_ORDER[order.status] : 0;
   const isAdminView = canUpdateStatus;
