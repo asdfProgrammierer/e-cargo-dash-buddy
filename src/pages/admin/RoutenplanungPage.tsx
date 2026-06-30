@@ -363,9 +363,15 @@ const RoutenplanungPage = () => {
         },
       });
 
-      const safeName = route.name.replace(/[^a-z0-9-_]+/gi, "_");
-      doc.save(`Route_${safeName}_${route.datum}.pdf`);
-      toast.success("PDF erstellt");
+      // Print direkt auslösen statt PDF herunterzuladen
+      doc.autoPrint();
+      const blobUrl = doc.output("bloburl");
+      const win = window.open(blobUrl, "_blank");
+      if (!win) {
+        toast.error("Popup blockiert – bitte Popups für diese Seite erlauben");
+      } else {
+        toast.success("Druckdialog wird geöffnet");
+      }
       setPrintOpen(false);
     } catch (e: any) {
       console.error(e);
@@ -585,7 +591,7 @@ const RoutenplanungPage = () => {
                   onClick={() => printRouteId && generateRoutePdf(printRouteId)}
                 >
                   <Printer className="mr-2 h-4 w-4" />
-                  {printing ? "Erstelle PDF..." : "PDF herunterladen"}
+                  {printing ? "Bereite Druck vor..." : "Drucken"}
                 </Button>
               </>
             )}
