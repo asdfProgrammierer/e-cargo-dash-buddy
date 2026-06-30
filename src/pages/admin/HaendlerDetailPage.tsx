@@ -232,9 +232,25 @@ const HaendlerDetailPage = () => {
 
     let error;
     if (shopConn) {
-      ({ error } = await supabase.from("shop_connections").update(payload).eq("id", shopConn.id));
+      const res = await (supabase as any).rpc("admin_upsert_shop_connection", {
+        _user_id: profile.user_id,
+        _platform: platform,
+        _api_url: apiUrl,
+        _api_key: apiKey,
+        _active: shopActive,
+        _notizen: shopNotizen || null,
+      });
+      error = res.error;
+      if (res.data) setShopConn(res.data as ShopConnection);
     } else {
-      const res = await supabase.from("shop_connections").insert(payload).select().single();
+      const res = await (supabase as any).rpc("admin_upsert_shop_connection", {
+        _user_id: profile.user_id,
+        _platform: platform,
+        _api_url: apiUrl,
+        _api_key: apiKey,
+        _active: shopActive,
+        _notizen: shopNotizen || null,
+      });
       error = res.error;
       if (res.data) setShopConn(res.data as ShopConnection);
     }
@@ -248,7 +264,9 @@ const HaendlerDetailPage = () => {
 
   const deleteShopConnection = async () => {
     if (!shopConn) return;
-    const { error } = await supabase.from("shop_connections").delete().eq("id", shopConn.id);
+    const { error } = await (supabase as any).rpc("admin_delete_shop_connection", {
+      _connection_id: shopConn.id,
+    });
     if (error) {
       toast.error("Fehler beim Löschen");
     } else {
