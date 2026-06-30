@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Package, CheckCircle2, XCircle, Clock, Target, Route as RouteIcon, Timer } from "lucide-react";
+import { Loader2, Package, CheckCircle2, XCircle, Clock, Target, Route as RouteIcon, Timer, CalendarClock } from "lucide-react";
 
 interface Props {
   driverId: string | null;
@@ -25,16 +25,33 @@ interface Stats {
   last30Delivered: number;
 }
 
+interface WorkDay {
+  day: string;
+  total_seconds: number;
+  session_count: number;
+  first_start: string;
+  last_end: string;
+}
+
+interface WorkStats {
+  days: WorkDay[];
+  totalSec30: number;
+  totalSec90: number;
+  activeDays30: number;
+}
+
 const ON_TIME_WINDOW_MIN = 30;
 
 export const DriverStatsDialog = ({ driverId, driverName, onClose }: Props) => {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [work, setWork] = useState<WorkStats | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!driverId) return;
     setLoading(true);
     setStats(null);
+    setWork(null);
     (async () => {
       const { data: routes } = await supabase
         .from("routes")
@@ -91,16 +108,45 @@ export const DriverStatsDialog = ({ driverId, driverName, onClose }: Props) => {
         avgAbsDeviationMin: withEta > 0 ? sumAbs / withEta : 0,
         last30Delivered: last30,
       });
+
+      const { data: timeRows } = await supabase.rpc("admin_driver_time_stats", { _driver_id: driverId });
+      const days: WorkDay[] = ((timeRows ?? []) as any[]).map((r) => ({
+        day: r.day,
+        total_seconds: Number(r.total_seconds ?? 0),
+        session_count: Number(r.session_count ?? 0),
+        first_start: r.first_start,
+        last_end: r.last_end,
+      }));
+      const cutoff30d = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      let s30 = 0, s90 = 0, active30 = 0;
+      for (const d of days) {
+        s90 += d.total_seconds;
+        if (new Date(d.day).getTime() >= cutoff30d) {
+          s30 += d.total_seconds;
+          if (d.total_seconds > 0) active30++;
+        }
+      }
+      setWork({ days, totalSec30: s30, totalSec90: s90, activeDays30: active30 });
+
       setLoading(false);
     })();
   }, [driverId]);
 
   const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
   const fmtMin = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)} min`;
+  const fmtHM = (sec: number) => {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    return `${h}h ${m.toString().padStart(2, "0")}m`;
+  };
+  const fmtTime = (iso: string) =>
+    new Date(iso).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  const fmtDay = (d: string) =>
+    new Date(d).toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "2-digit" });
 
   return (
     <Dialog open={!!driverId} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Statistiken – {driverName ?? "Fahrer"}</DialogTitle>
         </DialogHeader>
@@ -155,6 +201,37 @@ export const DriverStatsDialog = ({ driverId, driverName, onClose }: Props) => {
                 </>
               )}
             </div>
+
+            {work && (
+              <div>
+                <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                  <CalendarClock className="h-4 w-4" /> Arbeitszeit
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
+                  <Kpi icon={<Timer className="h-4 w-4 text-primary" />} label="Letzte 30 Tage" value={fmtHM(work.totalSec30)} sub={`${work.activeDays30} aktive Tage`} accent />
+                  <Kpi icon={<Timer className="h-4 w-4" />} label="Letzte 90 Tage" value={fmtHM(work.totalSec90)} />
+                  <Kpi icon={<Clock className="h-4 w-4" />} label="Ø pro aktivem Tag" value={work.activeDays30 > 0 ? fmtHM(Math.round(work.totalSec30 / work.activeDays30)) : "–"} sub="der letzten 30 Tage" />
+                </div>
+                {work.days.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Noch keine Arbeitszeit erfasst.</p>
+                ) : (
+                  <div className="rounded-lg border divide-y max-h-72 overflow-y-auto">
+                    {work.days.slice(0, 30).map((d) => (
+                      <div key={d.day} className="flex items-center justify-between px-3 py-2 text-sm">
+                        <div className="font-medium">{fmtDay(d.day)}</div>
+                        <div className="flex items-center gap-3 text-muted-foreground">
+                          <span className="tabular-nums">{fmtTime(d.first_start)} – {fmtTime(d.last_end)}</span>
+                          {d.session_count > 1 && (
+                            <span className="text-[10px] uppercase">{d.session_count} Sessions</span>
+                          )}
+                          <span className="font-semibold text-foreground tabular-nums min-w-[70px] text-right">{fmtHM(d.total_seconds)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </DialogContent>
