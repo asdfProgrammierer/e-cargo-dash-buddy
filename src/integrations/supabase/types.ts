@@ -1371,6 +1371,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_delete_shop_connection: {
+        Args: { _connection_id: string }
+        Returns: undefined
+      }
       admin_get_shop_connection: {
         Args: { _user_id: string }
         Returns: {
@@ -1498,6 +1502,40 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_upsert_shop_connection: {
+        Args: {
+          _active: boolean
+          _api_key: string
+          _api_url: string
+          _notizen?: string
+          _platform: string
+          _user_id: string
+        }
+        Returns: {
+          active: boolean
+          api_key: string
+          api_url: string
+          auto_fulfill: boolean
+          created_at: string
+          id: string
+          last_external_order_id: string | null
+          last_sync_at: string | null
+          last_sync_error: string | null
+          last_sync_status: string | null
+          notizen: string | null
+          platform: string
+          shop_domain: string | null
+          updated_at: string
+          user_id: string
+          webhook_secret: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shop_connections"
           isOneToOne: true
           isSetofReturn: false
         }
