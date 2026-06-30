@@ -140,7 +140,6 @@ const AppRoutes = () => (
     <Route path="/admin/einstellungen/routen" element={<AdminRoute><RouteSettingsPage /></AdminRoute>} />
     <Route path="/admin/einstellungen/uebergabe" element={<AdminRoute><DeliveryModesPage /></AdminRoute>} />
     <Route path="/admin/einstellungen/emails" element={<AdminRoute><EmailTemplatesPage /></AdminRoute>} />
-    <Route path="/admin/einstellungen/abholungen" element={<AdminRoute><PickupCronPage /></AdminRoute>} />
     <Route path="/admin/einstellungen/dhl" element={<AdminRoute><DhlSettingsPage /></AdminRoute>} />
     <Route path="/admin/einstellungen/konto" element={<AdminRoute><AccountSettingsPage /></AdminRoute>} />
     <Route path="/admin/benachrichtigungen" element={<AdminRoute><NotificationsPage /></AdminRoute>} />
