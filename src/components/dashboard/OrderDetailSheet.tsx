@@ -44,6 +44,7 @@ interface OrderDetailSheetProps {
   onUpdateOrder: (id: string, updates: Partial<Order>) => void;
   canUpdateStatus?: boolean;
   statusHistory?: { id: string; status: OrderStatus; reason?: string; createdAt: string }[];
+  onDeleted?: (id: string) => void;
 }
 
 const TIMELINE_STEPS: { status: OrderStatus; label: string; icon: React.ElementType }[] = [
@@ -74,6 +75,7 @@ export function OrderDetailSheet({
   onUpdateOrder,
   canUpdateStatus = false,
   statusHistory,
+  onDeleted,
 }: OrderDetailSheetProps) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Partial<Order>>({});
@@ -855,6 +857,7 @@ export function OrderDetailSheet({
                       toast.success("Auftrag gelöscht");
                       setConfirmDelete(0);
                       onOpenChange(false);
+                      onDeleted?.(order.id);
                     }}
                   >
                     {deleting ? (

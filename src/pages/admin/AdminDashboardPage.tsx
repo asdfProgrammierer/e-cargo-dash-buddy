@@ -516,6 +516,7 @@ const AdminDashboardPage = () => {
           reason: entry.reason ?? undefined,
           createdAt: dateTimeFormatter.format(new Date(entry.created_at)),
         }))}
+        onDeleted={(id) => setOrders((prev) => prev.filter((o) => o.id !== id))}
       />
     </AdminLayout>
   );

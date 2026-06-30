@@ -179,6 +179,7 @@ export function AdminOrderQuickSheet({ orderId, open, onOpenChange, onChanged }:
       onUpdateOrder={handleUpdateOrder}
       canUpdateStatus
       statusHistory={history}
+      onDeleted={() => onChanged?.()}
     />
   );
 }
