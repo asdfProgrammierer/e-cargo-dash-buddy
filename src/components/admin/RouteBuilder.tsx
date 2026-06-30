@@ -176,7 +176,7 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrd
         const isDone = stop.status === "erledigt";
         const isSkip = stop.status === "uebersprungen";
 
-        // Außerhalb des ±30-Minuten-Fensters?
+        // Zeitfenster-Prüfung: ±30 Minuten zur ETA
         let outOfWindow = false;
         if (doneTs && stop.eta) {
           const diffMin = Math.abs(new Date(doneTs).getTime() - new Date(stop.eta).getTime()) / 60000;
@@ -198,9 +198,7 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrd
                 className={`rounded px-1.5 py-0.5 text-[11px] font-medium tabular-nums ${
                   outOfWindow
                     ? "bg-warning/20 text-warning"
-                    : isDone
-                    ? "bg-success/10 text-success"
-                    : "bg-destructive/10 text-destructive"
+                    : "bg-success/10 text-success"
                 }`}
                 title={isDone ? "Tatsächlich zugestellt" : "Nicht zugestellt"}
               >
