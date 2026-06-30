@@ -8,18 +8,18 @@ const MANIFEST = resolve(process.cwd(), "android/app/src/main/AndroidManifest.xm
 const REL = relative(process.cwd(), MANIFEST);
 
 // --- Konfig ---------------------------------------------------------------
-// Pflicht-Permissions fuer den Fahrer-GPS-Flow (Vordergrund).
+// Pflicht-Permissions fuer den Fahrer-GPS-Flow.
+// Hintergrund-Tracking ist jetzt fester Bestandteil (Plugin: @capacitor-community/background-geolocation),
+// damit der Standort auch dann aktualisiert wird, wenn der Fahrer Google Maps oeffnet.
 const REQUIRED = [
   "android.permission.INTERNET",
   "android.permission.ACCESS_COARSE_LOCATION",
   "android.permission.ACCESS_FINE_LOCATION",
-];
-// Optional: Hintergrund-Tracking. Falls deklariert, muessen FGS-Permissions + Service-Typ stimmen.
-const BG_PERM = "android.permission.ACCESS_BACKGROUND_LOCATION";
-const FGS_PERMS = [
+  "android.permission.ACCESS_BACKGROUND_LOCATION",
   "android.permission.FOREGROUND_SERVICE",
   "android.permission.FOREGROUND_SERVICE_LOCATION", // ab Android 14 / targetSdk 34 Pflicht
 ];
+const BG_PERM = "android.permission.ACCESS_BACKGROUND_LOCATION";
 
 // --- Helpers --------------------------------------------------------------
 const errors = [];
@@ -64,43 +64,16 @@ for (const perm of REQUIRED) {
   }
 }
 
-// 3) Hintergrund-Standort: nur validieren, wenn explizit gewollt
-const wantsBackground = !!matchPerm(xml, BG_PERM);
-if (wantsBackground) {
-  for (const perm of FGS_PERMS) {
-    if (!matchPerm(xml, perm)) {
-      errors.push(
-        `Hintergrund-Standort deklariert, aber ${perm} fehlt (ab Android 14 / targetSdk 34 Pflicht).`
-      );
-      recommendations.push(`    <uses-permission android:name="${perm}" />`);
-    }
-  }
-  // Foreground-Service mit foregroundServiceType="location" vorhanden?
-  const hasLocationFgs = /<service\b[^>]*android:foregroundServiceType\s*=\s*"[^"]*\blocation\b[^"]*"/i.test(
-    xml
-  );
+// 3) Foreground-Service-Tag: das Plugin @capacitor-community/background-geolocation
+//    registriert seinen Service ueber den Android-Manifest-Merger. Wir pruefen nur,
+//    dass kein eigener <service> einen anderen foregroundServiceType blockiert.
+//    (Kein harter Fehler – nur Hinweis.)
+if (matchPerm(xml, BG_PERM)) {
+  const hasLocationFgs = /<service\b[^>]*android:foregroundServiceType\s*=\s*"[^"]*\blocation\b[^"]*"/i.test(xml);
   if (!hasLocationFgs) {
-    errors.push(
-      "Hintergrund-Standort deklariert, aber kein <service> mit android:foregroundServiceType=\"location\" gefunden."
+    warnings.push(
+      "Kein <service> mit android:foregroundServiceType=\"location\" im Manifest gefunden – das ist meist OK, weil das Plugin den Service per Manifest-Merger einfuegt. Falls nach `npx cap sync` kein Hintergrund-GPS funktioniert, Plugin neu installieren und Build cache leeren."
     );
-    recommendations.push(
-      [
-        "    <!-- innerhalb von <application> ... </application> einfuegen: -->",
-        '    <service',
-        '        android:name="com.getcapacitor.community.bgloc.BackgroundLocationService"',
-        '        android:exported="false"',
-        '        android:foregroundServiceType="location" />',
-      ].join("\n")
-    );
-  }
-} else {
-  // Reine Vordergrund-Nutzung \u2014 nur ein Hinweis, falls FGS-Permissions ohne Bedarf gesetzt sind.
-  for (const perm of FGS_PERMS) {
-    if (matchPerm(xml, perm)) {
-      warnings.push(
-        `${perm} ist gesetzt, aber ${BG_PERM} nicht. Falls Hintergrund-GPS nicht benoetigt wird, kann das Recht entfernt werden.`
-      );
-    }
   }
 }
 

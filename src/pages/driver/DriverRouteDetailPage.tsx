@@ -15,6 +15,7 @@ import { buildOrderPdfBlob, type BuildOrderPdfOverrides } from "@/lib/orderPdf";
 import { useDeliveryModes } from "@/hooks/useDeliveryModes";
 import type { Order } from "@/types/order";
 import { getCurrentGps } from "@/lib/gps";
+import { startBackgroundGpsWatcher } from "@/lib/backgroundGps";
 import { Capacitor } from "@capacitor/core";
 import { driverBtn } from "@/lib/driverButtonConfig";
 
@@ -248,8 +249,7 @@ const DriverRouteDetailPage = () => {
     if (routeStatus !== "aktiv") return;
     if (gpsPermission !== "granted") return;
     let cancelled = false;
-    const ping = async () => {
-      const fix = await getCurrentGps(15000);
+    const sendFix = async (fix: { lat: number; lng: number; acc: number } | null) => {
       if (cancelled || !fix) return;
       try {
         await supabase.rpc("driver_update_location", {
@@ -261,9 +261,33 @@ const DriverRouteDetailPage = () => {
         console.warn("[driver-location] update failed", e);
       }
     };
+    const ping = async () => {
+      const fix = await getCurrentGps(15000);
+      await sendFix(fix);
+    };
     void ping();
+    // Foreground-Fallback (Browser/PWA + Sicherheitsnetz auf nativ, falls
+    // der Hintergrund-Watcher noch keine Bewegung gesehen hat).
     const iv = setInterval(() => { void ping(); }, 60_000);
-    return () => { cancelled = true; clearInterval(iv); };
+
+    // Nativer Hintergrund-Watcher: läuft via Foreground-Service weiter,
+    // wenn der Fahrer Maps oder WhatsApp öffnet. Liefert mind. alle 60s
+    // einen Fix (gedrosselt), sobald sich das Gerät bewegt.
+    let stopBg: (() => Promise<void>) | null = null;
+    void (async () => {
+      stopBg = await startBackgroundGpsWatcher((fix) => { void sendFix(fix); }, {
+        minIntervalMs: 60_000,
+        distanceFilterM: 25,
+        notificationTitle: "e-cargo · Route aktiv",
+        notificationText: "Standort wird für die laufende Route übertragen.",
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+      void stopBg?.();
+    };
   }, [routeStatus, gpsPermission]);
 
   const updateStatus = (
