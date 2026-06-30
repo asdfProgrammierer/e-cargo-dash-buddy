@@ -26,6 +26,8 @@ function normalizeDomain(input: string | null | undefined): string | null {
   if (!d) return null;
   // accept "name" → "name.myshopify.com"
   if (!d.includes(".")) d = `${d}.myshopify.com`;
+  // SSRF guard: only allow Shopify-hosted shop domains.
+  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(d)) return null;
   return d;
 }
 
