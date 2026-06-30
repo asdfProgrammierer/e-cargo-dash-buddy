@@ -116,7 +116,7 @@ const STATUS_COLOR = {
 const STATUS_DOT: Record<StopRow["status"], string> = {
   offen: "bg-muted-foreground/40",
   erledigt: "bg-success shadow-[0_0_8px_hsl(var(--success)/0.4)]",
-  uebersprungen: "bg-warning shadow-[0_0_8px_hsl(var(--warning)/0.4)]",
+  uebersprungen: "bg-destructive shadow-[0_0_8px_hsl(var(--destructive)/0.4)]",
 };
 
 function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrderClick }: {
