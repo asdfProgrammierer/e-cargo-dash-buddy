@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Package, CheckCircle2, XCircle, Clock, Target, Route as RouteIcon, Timer, CalendarClock } from "lucide-react";
+import { Loader2, Package, CheckCircle2, XCircle, Clock, Target, Route as RouteIcon, Timer, CalendarClock, CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
 
 interface Props {
   driverId: string | null;
@@ -46,6 +52,7 @@ export const DriverStatsDialog = ({ driverId, driverName, onClose }: Props) => {
   const [stats, setStats] = useState<Stats | null>(null);
   const [work, setWork] = useState<WorkStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<Date | undefined>(new Date());
 
   useEffect(() => {
     if (!driverId) return;
@@ -144,6 +151,10 @@ export const DriverStatsDialog = ({ driverId, driverName, onClose }: Props) => {
   const fmtDay = (d: string) =>
     new Date(d).toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "2-digit" });
 
+  const selectedDayKey = selectedDay ? format(selectedDay, "yyyy-MM-dd") : null;
+  const selectedWorkDay =
+    selectedDayKey && work ? work.days.find((d) => d.day === selectedDayKey) : undefined;
+
   return (
     <Dialog open={!!driverId} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -209,7 +220,46 @@ export const DriverStatsDialog = ({ driverId, driverName, onClose }: Props) => {
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
                   <Kpi icon={<Timer className="h-4 w-4 text-primary" />} label="Letzte 30 Tage" value={fmtHM(work.totalSec30)} sub={`${work.activeDays30} aktive Tage`} accent />
-                  <Kpi icon={<Timer className="h-4 w-4" />} label="Letzte 90 Tage" value={fmtHM(work.totalSec90)} />
+                  <div className="rounded-lg border p-3 bg-card">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                      <CalendarIcon className="h-4 w-4" />
+                      <span className="truncate">Tag auswählen</span>
+                    </div>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={cn("w-full justify-start text-left font-normal h-8 mb-1", !selectedDay && "text-muted-foreground")}
+                        >
+                          {selectedDay ? format(selectedDay, "EEE, dd.MM.yy", { locale: de }) : "Tag wählen"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={selectedDay}
+                          onSelect={setSelectedDay}
+                          locale={de}
+                          weekStartsOn={1}
+                          disabled={(d) => d > new Date()}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <div className="text-lg font-semibold leading-tight tabular-nums">
+                      {selectedWorkDay ? fmtHM(selectedWorkDay.total_seconds) : "–"}
+                    </div>
+                    {selectedWorkDay ? (
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        {fmtTime(selectedWorkDay.first_start)} – {fmtTime(selectedWorkDay.last_end)}
+                        {selectedWorkDay.session_count > 1 && ` · ${selectedWorkDay.session_count} Sessions`}
+                      </div>
+                    ) : (
+                      <div className="text-[11px] text-muted-foreground mt-0.5">Keine Arbeitszeit erfasst</div>
+                    )}
+                  </div>
                   <Kpi icon={<Clock className="h-4 w-4" />} label="Ø pro aktivem Tag" value={work.activeDays30 > 0 ? fmtHM(Math.round(work.totalSec30 / work.activeDays30)) : "–"} sub="der letzten 30 Tage" />
                 </div>
                 {work.days.length === 0 ? (
