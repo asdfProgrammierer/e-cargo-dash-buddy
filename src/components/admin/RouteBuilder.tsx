@@ -231,7 +231,7 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick }: RouteBu
     const [r, s, d] = await Promise.all([
       supabase.from("routes").select("*").eq("id", routeId).single(),
       supabase.from("route_stops")
-        .select("id, route_id, order_id, position, leg_distance_m, leg_duration_s, eta, status, pinned, orders(id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, gewicht, lat, lng, status, notizen)")
+        .select("id, route_id, order_id, position, leg_distance_m, leg_duration_s, eta, status, pinned, delivered_at, updated_at, orders(id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, gewicht, lat, lng, status, notizen)")
         .eq("route_id", routeId)
         .order("position", { ascending: true }),
       supabase.from("depots").select("id, name, lat, lng, is_default").eq("active", true).order("name"),
