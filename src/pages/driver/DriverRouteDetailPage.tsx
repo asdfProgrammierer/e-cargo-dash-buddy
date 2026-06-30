@@ -399,6 +399,10 @@ const DriverRouteDetailPage = () => {
     }
     toast.success("Route gestartet · Pakete sind unterwegs");
     setRouteStatus("aktiv");
+    // Arbeitszeit-Erfassung starten (Stopp erfolgt automatisch bei Depot-Ankunft).
+    void supabase.rpc("driver_start_work_session", { _route_id: id }).then(({ error }) => {
+      if (error) console.warn("[work-session] start failed", error);
+    });
     load();
   };
 
