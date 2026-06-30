@@ -257,6 +257,34 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick }: RouteBu
   }, [routeId]);
   useEffect(() => { void load(); }, [load]);
 
+  // Realtime: keep stops + route fresh when the driver updates a stop status
+  // in the app or when the route geometry changes (e.g. after optimization
+  // triggered from another tab).
+  useEffect(() => {
+    let debounce: number | undefined;
+    const trigger = () => {
+      window.clearTimeout(debounce);
+      debounce = window.setTimeout(() => { void load(); }, 300);
+    };
+    const channel = supabase
+      .channel(`route-builder-${routeId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "route_stops", filter: `route_id=eq.${routeId}` },
+        trigger,
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "routes", filter: `id=eq.${routeId}` },
+        trigger,
+      )
+      .subscribe();
+    return () => {
+      window.clearTimeout(debounce);
+      supabase.removeChannel(channel);
+    };
+  }, [routeId, load]);
+
   const startDepot = useMemo(() => depots.find((x) => x.id === route?.start_depot_id) ?? depots.find((x) => x.is_default) ?? null, [depots, route]);
   const endDepot = useMemo(() => depots.find((x) => x.id === route?.end_depot_id) ?? startDepot, [depots, route, startDepot]);
   const profile: Profile = useMemo(() => profileFromVehicleType(vehicle?.typ), [vehicle]);
