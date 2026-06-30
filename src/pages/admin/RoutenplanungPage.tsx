@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Plus, MapPin, Pencil, Trash2, ExternalLink, Printer, Compass } from "lucide-react";
+import { Plus, MapPin, Pencil, Trash2, ExternalLink, Printer } from "lucide-react";
 import { RouteBuilder } from "@/components/admin/RouteBuilder";
 import { RoutesOverviewMap } from "@/components/admin/RoutesOverviewMap";
 import { NewOrdersTable, type NewOrderRow } from "@/components/admin/NewOrdersTable";
@@ -78,7 +78,7 @@ const RoutenplanungPage = () => {
   const [printOpen, setPrintOpen] = useState(false);
   const [printRouteId, setPrintRouteId] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
-  const [regeocoding, setRegeocoding] = useState(false);
+  const [pendingAssignIds, setPendingAssignIds] = useState<string[] | null>(null);
   // Order detail sheet (opened from new-orders table or route stop click)
   const [editOrderId, setEditOrderId] = useState<string | null>(null);
   const [editOrderOpen, setEditOrderOpen] = useState(false);
@@ -432,35 +432,6 @@ const RoutenplanungPage = () => {
           title={printableRoutes.length === 0 ? "Keine geplanten/aktiven Routen für dieses Datum" : "Route als PDF drucken"}
         >
           <Printer className="mr-1 h-4 w-4" />Drucken
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={regeocoding}
-          onClick={async () => {
-            setRegeocoding(true);
-            try {
-              const { data, error } = await supabase.functions.invoke("regeocode-pickup-orders");
-              if (error) throw error;
-              const updated = (data as any)?.updated ?? 0;
-              const failed = (data as any)?.failed ?? 0;
-              const total = (data as any)?.total ?? 0;
-              if (total === 0) {
-                toast.success("Alle Adressen sind bereits geocodiert");
-              } else {
-                toast.success(`${updated} von ${total} Adressen geocodiert${failed ? ` (${failed} fehlgeschlagen)` : ""}`);
-              }
-              bumpRefresh();
-            } catch (e: any) {
-              toast.error(`Geocoding fehlgeschlagen: ${e?.message ?? e}`);
-            } finally {
-              setRegeocoding(false);
-            }
-          }}
-          title="Fehlende Koordinaten für alle Aufträge nachtragen"
-        >
-          <Compass className="mr-1 h-4 w-4" />
-          {regeocoding ? "Geocodiere…" : "Adressen geocoden"}
         </Button>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm(buildEmptyForm(date)); setPendingAssignIds(null); } }}>
           <DialogTrigger asChild>
