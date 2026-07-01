@@ -14,7 +14,8 @@
     "check:android-permissions": "node scripts/check-android-permissions.mjs",
     "cap:dev": "CAP_ENV=dev npm run check:android-permissions && npx cap sync android",
     "cap:prod": "npm run build && npm run check:android-permissions && npx cap sync android",
-    "cap:open": "npx cap open android"
+    "cap:open": "npx cap open android",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@capacitor-community/background-geolocation": "^1.2.26",
