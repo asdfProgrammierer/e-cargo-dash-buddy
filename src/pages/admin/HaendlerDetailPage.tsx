@@ -654,6 +654,23 @@ const HaendlerDetailPage = () => {
                       } : prev)
                     }
                   />
+                  <div className="space-y-2">
+                    <Label className="text-xs">Notiz für Abhol-Aufträge</Label>
+                    <Textarea
+                      placeholder="z. B. Abholung, Hinweis: Türcode 123456"
+                      value={pickupNote}
+                      onChange={(e) => setPickupNote(e.target.value)}
+                      rows={2}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Dieser Text wird als Notiz in jeden automatisch erstellten Abhol-Auftrag übernommen.
+                    </p>
+                    <div className="flex justify-end">
+                      <Button size="sm" onClick={savePickupNote} disabled={savingPickupNote}>
+                        {savingPickupNote ? "Speichern…" : "Notiz speichern"}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between rounded-lg border border-border p-4">
