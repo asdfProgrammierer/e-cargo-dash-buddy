@@ -41,6 +41,7 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
   const [stadt, setStadt] = useState("");
   const [telefon, setTelefon] = useState("");
   const [paketpreis, setPaketpreis] = useState("");
+  const [pickupNote, setPickupNote] = useState("");
 
   useEffect(() => {
     setFirmaName(profile.firma_name ?? "");
