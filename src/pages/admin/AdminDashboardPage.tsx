@@ -53,6 +53,7 @@ type RecentOrder = {
   status: OrderStatus;
   notizen: string | null;
   created_at: string;
+  delivered_at: string | null;
   dhl_tracking_number: string | null;
   dhl_label_url: string | null;
 };
