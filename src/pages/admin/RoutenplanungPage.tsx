@@ -58,6 +58,7 @@ const RoutenplanungPage = () => {
   const [form, setForm] = useState(emptyForm);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [refreshKey, setRefreshKey] = useState(0);
+  const [routeProgress, setRouteProgress] = useState<Record<string, { total: number; done: number }>>({});
 
   // Lifted "new orders" state shared between map + table
   const [newOrders, setNewOrders] = useState<NewOrderRow[]>([]);
