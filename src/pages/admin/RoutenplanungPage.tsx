@@ -620,12 +620,36 @@ const RoutenplanungPage = () => {
                 ) : routesForDate.map((r) => {
                   const active = r.id === selectedId;
                   const isHidden = hiddenRoutes.has(r.id);
+                  const prog = routeProgress[r.id];
+                  const total = prog?.total ?? 0;
+                  const done = prog?.done ?? 0;
+                  const pct = total > 0 ? (done / total) * 100 : 0;
+                  const segStep = total > 0 ? 100 / total : 0;
                   return (
                     <div
                       key={r.id}
-                      className={`w-full px-3 py-2 border-b border-border/50 transition-colors duration-fast ease-fast-out hover:bg-surface-muted ${active ? "bg-active-surface" : ""} ${isHidden ? "opacity-60" : ""}`}
+                      className={`relative overflow-hidden w-full px-3 py-2 border-b border-border/50 transition-colors duration-fast ease-fast-out hover:bg-surface-muted ${active ? "bg-active-surface" : ""} ${isHidden ? "opacity-60" : ""}`}
                     >
-                      <div className="flex items-start justify-between gap-2">
+                      {total > 0 && (
+                        <>
+                          <div
+                            aria-hidden
+                            className="absolute inset-y-0 left-0 pointer-events-none"
+                            style={{
+                              width: `${pct}%`,
+                              background: "hsl(142 70% 28% / 0.22)",
+                            }}
+                          />
+                          <div
+                            aria-hidden
+                            className="absolute inset-0 pointer-events-none"
+                            style={{
+                              background: `repeating-linear-gradient(to right, transparent 0, transparent calc(${segStep}% - 1px), hsl(var(--border) / 0.35) calc(${segStep}% - 1px), hsl(var(--border) / 0.35) ${segStep}%)`,
+                            }}
+                          />
+                        </>
+                      )}
+                      <div className="relative z-10 flex items-start justify-between gap-2">
                         <button
                           onClick={() => selectRoute(r.id)}
                           className="min-w-0 flex-1 text-left"
