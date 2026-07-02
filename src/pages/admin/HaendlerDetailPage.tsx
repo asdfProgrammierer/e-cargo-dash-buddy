@@ -218,6 +218,25 @@ const HaendlerDetailPage = () => {
     toast.success("Händlercode gespeichert und Aufträge neu nummeriert");
   };
 
+  const savePickupNote = async () => {
+    if (!profile) return;
+    setSavingPickupNote(true);
+    const note = pickupNote.trim();
+    const { error } = await supabase
+      .from("profiles")
+      .update({ pickup_note: note || null })
+      .eq("id", profile.id);
+    setSavingPickupNote(false);
+
+    if (error) {
+      toast.error("Abhol-Notiz konnte nicht gespeichert werden");
+      return;
+    }
+
+    setProfile({ ...profile, pickup_note: note || null });
+    toast.success("Abhol-Notiz gespeichert");
+  };
+
   const saveShopConnection = async () => {
     if (!profile) return;
     if (!platform) {
