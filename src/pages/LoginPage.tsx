@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getPublicSiteUrl } from "@/lib/siteUrl";
 import logoAsset from "@/assets/logo.png.asset.json";
+import { PageHead } from "@/components/PageHead";
 
 const LoginPage = () => {
   const [loading, setLoading] = useState(false);
@@ -47,6 +48,8 @@ const LoginPage = () => {
   };
 
   return (
+    <>
+    <PageHead title="Login – e-cargo Händler-Dashboard" description="Melden Sie sich im e-cargo Händler-Dashboard an oder registrieren Sie sich als Händler für nachhaltige Kurierlogistik im Ruhrgebiet." path="/login" />
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
@@ -137,6 +140,7 @@ const LoginPage = () => {
         </Card>
       </div>
     </div>
+    </>
   );
 };
 

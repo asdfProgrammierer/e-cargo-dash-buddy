@@ -1,8 +1,12 @@
 import { Shield, Lock, Database, Mail, Trash2, Users, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+import { PageHead } from "@/components/PageHead";
+
 const TrustPage = () => {
   return (
+    <>
+    <PageHead title="Sicherheit & Datenschutz – e-cargo" description="Informationen zu Sicherheit, Datenschutz und DSGVO-Konformität der e-cargo Kurierlogistik-Plattform im Ruhrgebiet." path="/sicherheit" />
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-4xl px-6 py-12">
         <div className="mb-10 space-y-3">
