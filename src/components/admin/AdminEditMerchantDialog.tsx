@@ -51,6 +51,7 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
     setStadt(profile.stadt ?? "");
     setTelefon(profile.telefon ?? "");
     setPaketpreis(profile.paketpreis != null ? String(profile.paketpreis) : "");
+    setPickupNote(profile.pickup_note ?? "");
   }, [profile, open]);
 
   const submit = async (e: React.FormEvent) => {
