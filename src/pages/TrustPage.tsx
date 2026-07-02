@@ -107,6 +107,7 @@ const TrustPage = () => {
         </p>
       </div>
     </div>
+    </>
   );
 };
 
