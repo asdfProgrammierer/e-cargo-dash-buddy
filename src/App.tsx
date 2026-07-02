@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
@@ -6,42 +7,49 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { OrderProvider } from "@/context/OrderContext";
-import DashboardPage from "./pages/DashboardPage";
-import AuftraegePage from "./pages/AuftraegePage";
-import AdressbuchPage from "./pages/AdressbuchPage";
-import ImportPage from "./pages/ImportPage";
-import OnlineShopPage from "./pages/OnlineShopPage";
-import ProfilPage from "./pages/ProfilPage";
-import LoginPage from "./pages/LoginPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
-import PendingApprovalPage from "./pages/PendingApprovalPage";
-import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
-import HaendlerVerwaltungPage from "./pages/admin/HaendlerVerwaltungPage";
-import HaendlerDetailPage from "./pages/admin/HaendlerDetailPage";
-import FahrerPage from "./pages/admin/FahrerPage";
-import FahrzeugePage from "./pages/admin/FahrzeugePage";
-import FahrzeugDetailPage from "./pages/admin/FahrzeugDetailPage";
-import RoutenplanungPage from "./pages/admin/RoutenplanungPage";
-import RouteDetailPage from "./pages/admin/RouteDetailPage";
-import RouteDruckPage from "./pages/admin/RouteDruckPage";
-import DeliveryZonesPage from "./pages/admin/DeliveryZonesPage";
-import DepotsPage from "./pages/admin/DepotsPage";
-import RouteSettingsPage from "./pages/admin/RouteSettingsPage";
-import DeliveryModesPage from "./pages/admin/DeliveryModesPage";
-import EmailTemplatesPage from "./pages/admin/EmailTemplatesPage";
-import DhlSettingsPage from "./pages/admin/DhlSettingsPage";
-import AccountSettingsPage from "./pages/admin/AccountSettingsPage";
-import NotificationsPage from "./pages/admin/NotificationsPage";
-import NotFound from "./pages/NotFound";
-import UnsubscribePage from "./pages/UnsubscribePage";
-import TrackingPage from "./pages/TrackingPage";
-import TrustPage from "./pages/TrustPage";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { useDriverCheck } from "@/hooks/useDriverCheck";
-import DriverLoginPage from "./pages/driver/DriverLoginPage";
-import DriverHomePage from "./pages/driver/DriverHomePage";
-import DriverRouteDetailPage from "./pages/driver/DriverRouteDetailPage";
-import DriverProfilePage from "./pages/driver/DriverProfilePage";
+
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const AuftraegePage = lazy(() => import("./pages/AuftraegePage"));
+const AdressbuchPage = lazy(() => import("./pages/AdressbuchPage"));
+const ImportPage = lazy(() => import("./pages/ImportPage"));
+const OnlineShopPage = lazy(() => import("./pages/OnlineShopPage"));
+const ProfilPage = lazy(() => import("./pages/ProfilPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const PendingApprovalPage = lazy(() => import("./pages/PendingApprovalPage"));
+const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage"));
+const HaendlerVerwaltungPage = lazy(() => import("./pages/admin/HaendlerVerwaltungPage"));
+const HaendlerDetailPage = lazy(() => import("./pages/admin/HaendlerDetailPage"));
+const FahrerPage = lazy(() => import("./pages/admin/FahrerPage"));
+const FahrzeugePage = lazy(() => import("./pages/admin/FahrzeugePage"));
+const FahrzeugDetailPage = lazy(() => import("./pages/admin/FahrzeugDetailPage"));
+const RoutenplanungPage = lazy(() => import("./pages/admin/RoutenplanungPage"));
+const RouteDetailPage = lazy(() => import("./pages/admin/RouteDetailPage"));
+const RouteDruckPage = lazy(() => import("./pages/admin/RouteDruckPage"));
+const DeliveryZonesPage = lazy(() => import("./pages/admin/DeliveryZonesPage"));
+const DepotsPage = lazy(() => import("./pages/admin/DepotsPage"));
+const RouteSettingsPage = lazy(() => import("./pages/admin/RouteSettingsPage"));
+const DeliveryModesPage = lazy(() => import("./pages/admin/DeliveryModesPage"));
+const EmailTemplatesPage = lazy(() => import("./pages/admin/EmailTemplatesPage"));
+const DhlSettingsPage = lazy(() => import("./pages/admin/DhlSettingsPage"));
+const AccountSettingsPage = lazy(() => import("./pages/admin/AccountSettingsPage"));
+const NotificationsPage = lazy(() => import("./pages/admin/NotificationsPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const UnsubscribePage = lazy(() => import("./pages/UnsubscribePage"));
+const TrackingPage = lazy(() => import("./pages/TrackingPage"));
+const TrustPage = lazy(() => import("./pages/TrustPage"));
+const DriverLoginPage = lazy(() => import("./pages/driver/DriverLoginPage"));
+const DriverHomePage = lazy(() => import("./pages/driver/DriverHomePage"));
+const DriverRouteDetailPage = lazy(() => import("./pages/driver/DriverRouteDetailPage"));
+const DriverProfilePage = lazy(() => import("./pages/driver/DriverProfilePage"));
+
+const RouteFallback = () => (
+  <div className="flex min-h-screen items-center justify-center bg-background">
+    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+  </div>
+);
 
 const queryClient = new QueryClient();
 
@@ -112,6 +120,7 @@ function DriverRoute({ children }: { children: React.ReactNode }) {
 }
 
 const AppRoutes = () => (
+  <Suspense fallback={<RouteFallback />}>
   <Routes>
     <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
     <Route path="/pending" element={<PendingRoute><PendingApprovalPage /></PendingRoute>} />
@@ -150,6 +159,7 @@ const AppRoutes = () => (
     <Route path="/fahrer/profil" element={<DriverRoute><DriverProfilePage /></DriverRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
+  </Suspense>
 );
 
 const App = () => (
