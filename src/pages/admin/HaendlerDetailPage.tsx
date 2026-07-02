@@ -129,6 +129,7 @@ const HaendlerDetailPage = () => {
         }
         setPackagePrice(profileRes.data.paketpreis != null ? String(profileRes.data.paketpreis) : "");
         setMerchantCode(profileRes.data.merchant_code ?? "");
+        setPickupNote((profileRes.data as any).pickup_note ?? "");
         setOrderCount(ordersRes2.count ?? 0);
       } else {
         toast.error("Händler nicht gefunden");
