@@ -58,6 +58,7 @@ const RoutenplanungPage = () => {
   const [form, setForm] = useState(emptyForm);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [refreshKey, setRefreshKey] = useState(0);
+  const [routeProgress, setRouteProgress] = useState<Record<string, { total: number; done: number }>>({});
 
   // Lifted "new orders" state shared between map + table
   const [newOrders, setNewOrders] = useState<NewOrderRow[]>([]);
@@ -267,6 +268,30 @@ const RoutenplanungPage = () => {
 
   const routesForDate = routes.filter((r) => r.datum === date);
   const printableRoutes = routesForDate.filter((r) => r.status === "geplant" || r.status === "aktiv");
+
+  const routeIdsKey = routesForDate.map((r) => r.id).sort().join(",");
+  useEffect(() => {
+    const ids = routeIdsKey ? routeIdsKey.split(",") : [];
+    if (ids.length === 0) { setRouteProgress({}); return; }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("route_stops")
+        .select("route_id, orders(status)")
+        .in("route_id", ids);
+      if (cancelled || error || !data) return;
+      const agg: Record<string, { total: number; done: number }> = {};
+      for (const row of data as any[]) {
+        const rid = row.route_id as string;
+        if (!agg[rid]) agg[rid] = { total: 0, done: 0 };
+        agg[rid].total += 1;
+        const st = row.orders?.status;
+        if (st === "zugestellt" || st === "nicht_zugestellt") agg[rid].done += 1;
+      }
+      setRouteProgress(agg);
+    })();
+    return () => { cancelled = true; };
+  }, [routeIdsKey, refreshKey]);
 
   const generateRoutePdf = async (routeId: string) => {
     setPrinting(true);
@@ -595,12 +620,36 @@ const RoutenplanungPage = () => {
                 ) : routesForDate.map((r) => {
                   const active = r.id === selectedId;
                   const isHidden = hiddenRoutes.has(r.id);
+                  const prog = routeProgress[r.id];
+                  const total = prog?.total ?? 0;
+                  const done = prog?.done ?? 0;
+                  const pct = total > 0 ? (done / total) * 100 : 0;
+                  const segStep = total > 0 ? 100 / total : 0;
                   return (
                     <div
                       key={r.id}
-                      className={`w-full px-3 py-2 border-b border-border/50 transition-colors duration-fast ease-fast-out hover:bg-surface-muted ${active ? "bg-active-surface" : ""} ${isHidden ? "opacity-60" : ""}`}
+                      className={`relative overflow-hidden w-full px-3 py-2 border-b border-border/50 transition-colors duration-fast ease-fast-out hover:bg-surface-muted ${active ? "bg-active-surface" : ""} ${isHidden ? "opacity-60" : ""}`}
                     >
-                      <div className="flex items-start justify-between gap-2">
+                      {total > 0 && (
+                        <>
+                          <div
+                            aria-hidden
+                            className="absolute inset-y-0 left-0 pointer-events-none"
+                            style={{
+                              width: `${pct}%`,
+                              background: "hsl(142 70% 28% / 0.22)",
+                            }}
+                          />
+                          <div
+                            aria-hidden
+                            className="absolute inset-0 pointer-events-none"
+                            style={{
+                              background: `repeating-linear-gradient(to right, transparent 0, transparent calc(${segStep}% - 1px), hsl(var(--border) / 0.35) calc(${segStep}% - 1px), hsl(var(--border) / 0.35) ${segStep}%)`,
+                            }}
+                          />
+                        </>
+                      )}
+                      <div className="relative z-10 flex items-start justify-between gap-2">
                         <button
                           onClick={() => selectRoute(r.id)}
                           className="min-w-0 flex-1 text-left"
@@ -624,7 +673,7 @@ const RoutenplanungPage = () => {
                         </div>
                       </div>
                       {active && (
-                        <div className="mt-1.5 flex gap-1" onClick={(e) => e.stopPropagation()}>
+                        <div className="relative z-10 mt-1.5 flex gap-1" onClick={(e) => e.stopPropagation()}>
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(r)} title="Bearbeiten">
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
