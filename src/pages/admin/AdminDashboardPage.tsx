@@ -425,7 +425,7 @@ const AdminDashboardPage = () => {
           }}
         />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {cards.map((c) => (
           <Card key={c.label}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
