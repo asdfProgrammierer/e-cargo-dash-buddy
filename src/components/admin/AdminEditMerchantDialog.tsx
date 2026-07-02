@@ -100,6 +100,7 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
       stadt: stadt.trim() || null,
       telefon: telefon.trim() || null,
       paketpreis: numericPrice,
+      pickup_note: pickupNote.trim() || null,
     });
     setOpen(false);
   };
