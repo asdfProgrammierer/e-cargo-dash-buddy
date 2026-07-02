@@ -243,7 +243,7 @@ interface RouteBuilderProps {
   onOptimized?: () => void;
 }
 
-export function RouteBuilder({ routeId, compact = false, onOrderClick }: RouteBuilderProps) {
+export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimized }: RouteBuilderProps) {
   const [route, setRoute] = useState<RouteRow | null>(null);
   const [stops, setStops] = useState<StopRow[]>([]);
   const [depots, setDepots] = useState<Depot[]>([]);
