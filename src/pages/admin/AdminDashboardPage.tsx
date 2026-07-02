@@ -363,7 +363,7 @@ const AdminDashboardPage = () => {
           : `${(avgHours / 24).toFixed(1)} Tage`;
 
     return [
-      { label: "Aufträge \"neu\"", value: newOrders, icon: Package, color: "text-warning" },
+      { label: "Neue Aufträge", value: newOrders, icon: Package, color: "text-warning" },
       { label: "Zustellquote", value: `${deliveryRate}%`, icon: TrendingUp, color: "text-success" },
       { label: "Geschwindigkeit", value: speedLabel, icon: Gauge, color: "text-primary" },
       { label: "Aufträge gesamt", value: stats.orders, icon: Package, color: "text-primary" },
