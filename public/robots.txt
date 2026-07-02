@@ -12,3 +12,5 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://ecargo-connect.ecargo-logistik.de/sitemap.xml

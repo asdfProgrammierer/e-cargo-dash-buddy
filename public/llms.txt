@@ -1,0 +1,14 @@
+# e-cargo Händler-Dashboard
+
+> e-cargo ist ein nachhaltiger, lokaler Kurier- und Logistikdienst im Ruhrgebiet. Diese Anwendung ist das Händler- und Fahrer-Dashboard zur Auftragsverwaltung, Sendungsverfolgung und Routenplanung.
+
+Die Anwendung ist überwiegend zugangsbeschränkt (Login für Händler, Fahrer und Administratoren). Öffentliche Inhalte sind auf die folgenden Seiten beschränkt.
+
+## Pages
+
+- [Login](/login): Anmeldung und Registrierung für Händler des e-cargo Netzwerks.
+- [Sicherheit & Datenschutz](/sicherheit): Informationen zu Sicherheit, Datenschutz und DSGVO-Konformität der Plattform.
+
+## Optional
+
+- [Sendungsverfolgung](/track/): Öffentliches Tracking einzelner Sendungen über einen personalisierten Link (Token erforderlich).
