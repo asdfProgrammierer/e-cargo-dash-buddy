@@ -646,7 +646,7 @@ const RoutenplanungPage = () => {
           {/* Stops of selected route (bottom) */}
           <div className="flex-1 min-h-0 overflow-hidden">
             {selectedId ? (
-              <RouteBuilder key={selectedId + ":" + refreshKey} routeId={selectedId} compact onOrderClick={openOrderSheet} />
+              <RouteBuilder key={selectedId + ":" + refreshKey} routeId={selectedId} compact onOrderClick={openOrderSheet} onOptimized={bumpRefresh} />
             ) : (
               <Card>
                 <CardContent className="py-10 text-center text-caption text-muted-foreground">
