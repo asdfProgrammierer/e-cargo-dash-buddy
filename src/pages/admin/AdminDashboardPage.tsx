@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, UserCheck, UserX, Package, FileDown, Loader2 } from "lucide-react";
+import { Users, Package, FileDown, Loader2, TrendingUp, Gauge } from "lucide-react";
 import { STATUS_COLORS, STATUS_LABELS, type OrderStatus } from "@/types/order";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -53,6 +53,7 @@ type RecentOrder = {
   status: OrderStatus;
   notizen: string | null;
   created_at: string;
+  delivered_at: string | null;
   dhl_tracking_number: string | null;
   dhl_label_url: string | null;
 };
@@ -90,7 +91,7 @@ const AdminDashboardPage = () => {
         supabase.from("orders").select("*", { count: "exact", head: true }),
         supabase
           .from("orders")
-          .select("id, user_id, auftrags_nr, absender_name, absender_adresse, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_email, empfaenger_telefon, pakete, gewicht, package_length_cm, package_width_cm, package_height_cm, status, notizen, created_at, dhl_tracking_number, dhl_label_url")
+          .select("id, user_id, auftrags_nr, absender_name, absender_adresse, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_email, empfaenger_telefon, pakete, gewicht, package_length_cm, package_width_cm, package_height_cm, status, notizen, created_at, delivered_at, dhl_tracking_number, dhl_label_url")
           .order("created_at", { ascending: false }),
       ]);
 
@@ -234,8 +235,14 @@ const AdminDashboardPage = () => {
     }
 
     if (data?.id === id) {
-      const updatedOrder = data as { status: OrderStatus };
-      setOrders((prev) => prev.map((order) => (order.id === id ? { ...order, status: updatedOrder.status } : order)));
+      const updatedOrder = data as RecentOrder;
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === id
+            ? { ...order, status: updatedOrder.status, delivered_at: updatedOrder.delivered_at }
+            : order,
+        ),
+      );
     }
 
     const o = orders.find((x) => x.id === id);
@@ -331,12 +338,38 @@ const AdminDashboardPage = () => {
     )));
   };
 
-  const cards = [
-    { label: "Händler gesamt", value: stats.total, icon: Users, color: "text-primary" },
-    { label: "Freigeschaltet", value: stats.approved, icon: UserCheck, color: "text-green-500" },
-    { label: "Ausstehend", value: stats.pending, icon: UserX, color: "text-amber-500" },
-    { label: "Aufträge gesamt", value: stats.orders, icon: Package, color: "text-blue-500" },
-  ];
+  const cards = useMemo(() => {
+    const newOrders = orders.filter((o) => o.status === "neu").length;
+    const delivered = orders.filter((o) => o.status === "zugestellt").length;
+    const notDelivered = orders.filter((o) => o.status === "nicht_zugestellt").length;
+    const completed = delivered + notDelivered;
+    const deliveryRate = completed > 0 ? Math.round((delivered / completed) * 100) : 0;
+
+    const deliveredOrders = orders.filter((o) => o.status === "zugestellt" && o.delivered_at);
+    const avgHours =
+      deliveredOrders.length > 0
+        ? deliveredOrders.reduce((acc, o) => {
+            const created = new Date(o.created_at).getTime();
+            const delivered = new Date(o.delivered_at!).getTime();
+            return acc + (delivered - created) / 1000 / 60 / 60;
+          }, 0) / deliveredOrders.length
+        : null;
+
+    const speedLabel =
+      avgHours === null
+        ? "–"
+        : avgHours < 24
+          ? `${avgHours.toFixed(1)} h`
+          : `${(avgHours / 24).toFixed(1)} Tage`;
+
+    return [
+      { label: "Aufträge \"neu\"", value: newOrders, icon: Package, color: "text-warning" },
+      { label: "Zustellquote", value: `${deliveryRate}%`, icon: TrendingUp, color: "text-success" },
+      { label: "Geschwindigkeit", value: speedLabel, icon: Gauge, color: "text-primary" },
+      { label: "Aufträge gesamt", value: stats.orders, icon: Package, color: "text-primary" },
+      { label: "Händler gesamt", value: stats.total, icon: Users, color: "text-primary" },
+    ];
+  }, [orders, stats.orders, stats.total]);
 
   const merchantOptions = useMemo(
     () =>
@@ -390,7 +423,7 @@ const AdminDashboardPage = () => {
             (async () => {
               const { data } = await supabase
                 .from("orders")
-                .select("id, user_id, auftrags_nr, absender_name, absender_adresse, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_email, empfaenger_telefon, pakete, gewicht, package_length_cm, package_width_cm, package_height_cm, status, notizen, created_at, dhl_tracking_number, dhl_label_url")
+                .select("id, user_id, auftrags_nr, absender_name, absender_adresse, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_email, empfaenger_telefon, pakete, gewicht, package_length_cm, package_width_cm, package_height_cm, status, notizen, created_at, delivered_at, dhl_tracking_number, dhl_label_url")
                 .order("created_at", { ascending: false });
               setOrders((data as RecentOrder[] | null) ?? []);
               setStats((s) => ({ ...s, orders: s.orders + 1 }));
@@ -398,7 +431,7 @@ const AdminDashboardPage = () => {
           }}
         />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {cards.map((c) => (
           <Card key={c.label}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
