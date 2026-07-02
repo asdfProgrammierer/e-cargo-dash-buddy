@@ -111,6 +111,7 @@ const OnlineShopPage = () => {
 
   return (
     <DashboardLayout title="Online-Shop">
+      <PageHead title="Online-Shop Anbindung – e-cargo" description="Verbinden Sie Ihren Shopify- oder WooCommerce-Shop mit e-cargo und synchronisieren Sie Bestellungen automatisch mit dem Händler-Dashboard." path="/online-shop" />
       <div className="space-y-6 max-w-5xl">
         {loading ? (
           <Card><CardContent className="py-6 text-sm text-muted-foreground">Verbindung wird geprüft…</CardContent></Card>

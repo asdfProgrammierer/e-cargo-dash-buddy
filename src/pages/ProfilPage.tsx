@@ -140,6 +140,7 @@ const ProfilPage = () => {
 
   return (
     <DashboardLayout title="Mein Profil">
+      <PageHead title="Mein Profil – e-cargo Händler-Dashboard" description="Verwalten Sie Ihre e-cargo Händlerdaten, Firmenlogo, Ansprechpartner, Öffnungszeiten und Sub-Accounts an einer Stelle." path="/profil" />
       <div className="max-w-2xl space-y-6">
         {isSubAccount && (
           <Card>

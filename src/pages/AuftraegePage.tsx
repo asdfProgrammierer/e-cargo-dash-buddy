@@ -104,6 +104,7 @@ const AuftraegePage = () => {
 
   return (
     <DashboardLayout title="Aufträge">
+      <PageHead title="Aufträge – e-cargo Händler-Dashboard" description="Alle e-cargo Kurieraufträge auf einen Blick: Status, Suche, Filter und Detailansicht Ihrer Sendungen im Ruhrgebiet." path="/auftraege" />
       <div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

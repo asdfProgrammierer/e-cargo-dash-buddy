@@ -159,6 +159,7 @@ const AdressbuchPage = () => {
 
   return (
     <DashboardLayout title="Adressbuch">
+      <PageHead title="Adressbuch – e-cargo Händler-Dashboard" description="Zentrales Adressbuch für wiederkehrende Empfänger: Kontakte anlegen, favorisieren und in wenigen Klicks in neue e-cargo Aufträge übernehmen." path="/adressbuch" />
       <div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap gap-2 items-center">

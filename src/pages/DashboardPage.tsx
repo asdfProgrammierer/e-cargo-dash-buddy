@@ -30,6 +30,7 @@ const DashboardPage = () => {
 
   return (
     <DashboardLayout title="Dashboard">
+      <PageHead title="Dashboard – e-cargo Händler" description="Ihr e-cargo Händler-Dashboard: aktuelle Aufträge, Sendungsstatus, Analytics und CO₂-Einsparungen der nachhaltigen Kurierlogistik im Ruhrgebiet." path="/" />
       <div className="space-y-6">
         <DashboardStats orders={orders} range={range} onRangeChange={setRange} />
         <MerchantAnalytics />
