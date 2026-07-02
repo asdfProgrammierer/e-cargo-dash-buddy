@@ -332,12 +332,38 @@ const AdminDashboardPage = () => {
     )));
   };
 
-  const cards = [
-    { label: "Händler gesamt", value: stats.total, icon: Users, color: "text-primary" },
-    { label: "Freigeschaltet", value: stats.approved, icon: UserCheck, color: "text-green-500" },
-    { label: "Ausstehend", value: stats.pending, icon: UserX, color: "text-amber-500" },
-    { label: "Aufträge gesamt", value: stats.orders, icon: Package, color: "text-blue-500" },
-  ];
+  const cards = useMemo(() => {
+    const newOrders = orders.filter((o) => o.status === "neu").length;
+    const delivered = orders.filter((o) => o.status === "zugestellt").length;
+    const notDelivered = orders.filter((o) => o.status === "nicht_zugestellt").length;
+    const completed = delivered + notDelivered;
+    const deliveryRate = completed > 0 ? Math.round((delivered / completed) * 100) : 0;
+
+    const deliveredOrders = orders.filter((o) => o.status === "zugestellt" && o.delivered_at);
+    const avgHours =
+      deliveredOrders.length > 0
+        ? deliveredOrders.reduce((acc, o) => {
+            const created = new Date(o.created_at).getTime();
+            const delivered = new Date(o.delivered_at!).getTime();
+            return acc + (delivered - created) / 1000 / 60 / 60;
+          }, 0) / deliveredOrders.length
+        : null;
+
+    const speedLabel =
+      avgHours === null
+        ? "–"
+        : avgHours < 24
+          ? `${avgHours.toFixed(1)} h`
+          : `${(avgHours / 24).toFixed(1)} Tage`;
+
+    return [
+      { label: "Aufträge \"neu\"", value: newOrders, icon: Package, color: "text-warning" },
+      { label: "Zustellquote", value: `${deliveryRate}%`, icon: TrendingUp, color: "text-success" },
+      { label: "Geschwindigkeit", value: speedLabel, icon: Gauge, color: "text-primary" },
+      { label: "Aufträge gesamt", value: stats.orders, icon: Package, color: "text-primary" },
+      { label: "Händler gesamt", value: stats.total, icon: Users, color: "text-primary" },
+    ];
+  }, [orders, stats.orders, stats.total]);
 
   const merchantOptions = useMemo(
     () =>
