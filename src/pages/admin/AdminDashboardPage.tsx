@@ -235,8 +235,14 @@ const AdminDashboardPage = () => {
     }
 
     if (data?.id === id) {
-      const updatedOrder = data as { status: OrderStatus };
-      setOrders((prev) => prev.map((order) => (order.id === id ? { ...order, status: updatedOrder.status } : order)));
+      const updatedOrder = data as RecentOrder;
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === id
+            ? { ...order, status: updatedOrder.status, delivered_at: updatedOrder.delivered_at }
+            : order,
+        ),
+      );
     }
 
     const o = orders.find((x) => x.id === id);
