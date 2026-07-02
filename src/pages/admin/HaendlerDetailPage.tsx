@@ -42,6 +42,7 @@ interface MerchantProfile {
   approved: boolean;
   pickup_enabled: boolean;
   pickup_weekdays: number[];
+  pickup_note: string | null;
   dhl_enabled: boolean;
   is_virtual: boolean;
   created_at: string;
