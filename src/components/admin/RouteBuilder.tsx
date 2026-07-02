@@ -540,6 +540,7 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
     }
     toast.success(`Route optimiert: ${formatDistance((data as { total_distance_m: number }).total_distance_m)} · ${formatDuration((data as { total_duration_s: number }).total_duration_s)}`);
     await load();
+    onOptimized?.();
     // Validierung: gepinnte Stopps müssen ihre Position behalten
     if (pinnedSnapshot.length > 0) {
       const { data: fresh } = await supabase
