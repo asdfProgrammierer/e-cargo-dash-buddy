@@ -106,6 +106,7 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
       const { data } = await supabase
         .from("address_book")
         .select("id, firma_name, ansprechpartner, email, telefon, strasse, plz, stadt")
+        .eq("user_id", merchantId)
         .order("is_favorite", { ascending: false })
         .order("ansprechpartner", { ascending: true });
       if (data) setContacts(data);
@@ -178,6 +179,7 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
         const { data } = await supabase
           .from("address_book")
           .select("id, firma_name, ansprechpartner, email, telefon, strasse, plz, stadt")
+          .eq("user_id", merchantId)
           .order("is_favorite", { ascending: false })
           .order("ansprechpartner", { ascending: true });
         if (data) setContacts(data);

@@ -56,9 +56,11 @@ const AdressbuchPage = () => {
 
   const fetchContacts = async () => {
     if (!user) return;
+    if (!merchantId) return;
     const { data, error } = await supabase
       .from("address_book")
       .select("*")
+      .eq("user_id", merchantId)
       .order("is_favorite", { ascending: false })
       .order("ansprechpartner", { ascending: true });
     if (error) {
