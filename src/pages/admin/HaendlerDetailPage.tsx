@@ -88,6 +88,8 @@ const HaendlerDetailPage = () => {
   const [merchantCode, setMerchantCode] = useState("");
   const [savingPrice, setSavingPrice] = useState(false);
   const [savingMerchantCode, setSavingMerchantCode] = useState(false);
+  const [pickupNote, setPickupNote] = useState("");
+  const [savingPickupNote, setSavingPickupNote] = useState(false);
   const [testingShop, setTestingShop] = useState(false);
 
   useEffect(() => {
