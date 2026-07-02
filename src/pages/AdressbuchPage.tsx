@@ -291,13 +291,13 @@ const AdressbuchPage = () => {
                     </div>
                   )}
                   <div className="flex gap-1 pt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggleFavorite(c)} aria-label={c.is_favorite ? `Favorit entfernen: ${c.name}` : `Als Favorit markieren: ${c.name}`}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggleFavorite(c)} aria-label={c.is_favorite ? `Favorit entfernen: ${c.firma_name ?? "Kontakt"}` : `Als Favorit markieren: ${c.firma_name ?? "Kontakt"}`}>
                       <Star className={`h-3.5 w-3.5 ${c.is_favorite ? "fill-warning text-warning" : ""}`} />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)} aria-label={`Kontakt bearbeiten: ${c.name}`}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)} aria-label={`Kontakt bearbeiten: ${c.firma_name ?? ""}`}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(c.id)} aria-label={`Kontakt löschen: ${c.name}`}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(c.id)} aria-label={`Kontakt löschen: ${c.firma_name ?? ""}`}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
