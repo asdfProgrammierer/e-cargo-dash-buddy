@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, UserCheck, UserX, Package, FileDown, Loader2 } from "lucide-react";
+import { Users, UserCheck, UserX, Package, FileDown, Loader2, TrendingUp, Gauge } from "lucide-react";
 import { STATUS_COLORS, STATUS_LABELS, type OrderStatus } from "@/types/order";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
