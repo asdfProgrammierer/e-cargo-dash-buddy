@@ -144,7 +144,7 @@ export function SubAccountsCard() {
               </div>
               <div className="space-y-2">
                 <Label>Passwort (min. 8 Zeichen)</Label>
-                <Input type="text" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} />
+                <Input type="password" autoComplete="new-password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} />
               </div>
             </div>
             <DialogFooter>
