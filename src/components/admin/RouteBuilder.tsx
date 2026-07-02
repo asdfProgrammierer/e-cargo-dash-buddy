@@ -239,6 +239,8 @@ interface RouteBuilderProps {
   compact?: boolean;
   /** Optional: open detail/edit sheet for an order when its stop entry is clicked. */
   onOrderClick?: (orderId: string) => void;
+  /** Called after a successful route optimization so the parent can refresh maps/lists. */
+  onOptimized?: () => void;
 }
 
 export function RouteBuilder({ routeId, compact = false, onOrderClick }: RouteBuilderProps) {
