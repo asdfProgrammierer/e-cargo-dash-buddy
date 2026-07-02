@@ -634,7 +634,7 @@ const RoutenplanungPage = () => {
                         <>
                           <div
                             aria-hidden
-                            className="absolute inset-y-0 left-0 pointer-events-none"
+                            className="absolute inset-y-0 left-0 pointer-events-none transition-[width] duration-700 ease-out will-change-[width]"
                             style={{
                               width: `${pct}%`,
                               background: "hsl(142 70% 28% / 0.22)",
