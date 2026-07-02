@@ -1,0 +1,1 @@
+ALTER FUNCTION public.haversine_m(double precision, double precision, double precision, double precision) SET search_path = public;
