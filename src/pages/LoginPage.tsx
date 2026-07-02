@@ -54,7 +54,15 @@ const LoginPage = () => {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center gap-3">
-          <img src={logoAsset.url} alt="e-cargo" className="h-14 w-14 object-contain" />
+            <img
+              src={logoAsset.url}
+              alt="e-cargo"
+              width={56}
+              height={56}
+              fetchPriority="high"
+              decoding="async"
+              className="h-14 w-14 object-contain"
+            />
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground">e-cargo</h1>
             <p className="text-sm text-muted-foreground">Nachhaltige Logistik · Ruhrgebiet</p>
