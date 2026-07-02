@@ -131,13 +131,6 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [date, refreshKey]);
 
-  // Auto-refresh routes/stops every 30s so the map stays current without manual reload.
-  useEffect(() => {
-    const id = window.setInterval(() => { void load(); }, 30_000);
-    return () => window.clearInterval(id);
-    /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [date]);
-
   // Realtime: reload immediately when route geometry/stops/status changes
   // (e.g. after admin optimizes a route, or a driver marks a stop in the app).
   useEffect(() => {
