@@ -161,6 +161,19 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
               />
             </div>
           </div>
+          <div className="space-y-1.5 col-span-2">
+            <Label className="text-xs">Notiz für Abhol-Aufträge</Label>
+            <textarea
+              value={pickupNote}
+              onChange={(e) => setPickupNote(e.target.value)}
+              placeholder="z. B. Abholung, Hinweis: Türcode 123456"
+              rows={3}
+              className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            />
+            <p className="text-xs text-muted-foreground">
+              Wird als Notiz in automatisch erstellte Abhol-Aufträge übernommen.
+            </p>
+          </div>
           <Button type="submit" disabled={saving} className="mt-2">
             {saving ? "Speichern…" : "Speichern"}
           </Button>
