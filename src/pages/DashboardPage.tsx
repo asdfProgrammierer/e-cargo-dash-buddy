@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { PageHead } from "@/components/PageHead";
 import { DashboardStats, filterByRange, type TimeRange } from "@/components/dashboard/DashboardStats";
 import { OrderTable } from "@/components/dashboard/OrderTable";
 import { MerchantAnalytics } from "@/components/dashboard/MerchantAnalytics";

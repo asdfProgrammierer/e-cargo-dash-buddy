@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { PageHead } from "@/components/PageHead";
 import { OrderTable } from "@/components/dashboard/OrderTable";
 import { OrderDetailSheet } from "@/components/dashboard/OrderDetailSheet";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";

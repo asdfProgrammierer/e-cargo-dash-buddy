@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { PageHead } from "@/components/PageHead";
 import { ExcelImport } from "@/components/dashboard/ExcelImport";
 import { useOrders } from "@/context/OrderContext";
 
