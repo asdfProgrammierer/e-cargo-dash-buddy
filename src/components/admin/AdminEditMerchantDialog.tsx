@@ -25,6 +25,7 @@ interface Props {
     telefon: string | null;
     paketpreis: number | null;
     is_virtual: boolean;
+    pickup_note: string | null;
   };
   onUpdated: (updated: Partial<Props["profile"]>) => void;
 }
