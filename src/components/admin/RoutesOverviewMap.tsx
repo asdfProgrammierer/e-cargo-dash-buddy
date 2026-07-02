@@ -386,8 +386,8 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
         hasPoint = true;
       });
 
-      // Live driver positions – nur anzeigen wenn jünger als 300 Minuten.
-      const STALE_HIDE_MS = 300 * 60_000;
+      // Live driver positions – nur anzeigen wenn jünger als 60 Minuten.
+      const STALE_HIDE_MS = 60 * 60_000;
       const STALE_LABEL_MS = 5 * 60_000;
       driverLocs.forEach((dl) => {
         const ageMs = Date.now() - new Date(dl.updated_at).getTime();
