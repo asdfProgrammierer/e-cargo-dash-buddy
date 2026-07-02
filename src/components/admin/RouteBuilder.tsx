@@ -239,9 +239,11 @@ interface RouteBuilderProps {
   compact?: boolean;
   /** Optional: open detail/edit sheet for an order when its stop entry is clicked. */
   onOrderClick?: (orderId: string) => void;
+  /** Called after a successful route optimization so the parent can refresh maps/lists. */
+  onOptimized?: () => void;
 }
 
-export function RouteBuilder({ routeId, compact = false, onOrderClick }: RouteBuilderProps) {
+export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimized }: RouteBuilderProps) {
   const [route, setRoute] = useState<RouteRow | null>(null);
   const [stops, setStops] = useState<StopRow[]>([]);
   const [depots, setDepots] = useState<Depot[]>([]);
@@ -538,6 +540,7 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick }: RouteBu
     }
     toast.success(`Route optimiert: ${formatDistance((data as { total_distance_m: number }).total_distance_m)} · ${formatDuration((data as { total_duration_s: number }).total_duration_s)}`);
     await load();
+    onOptimized?.();
     // Validierung: gepinnte Stopps müssen ihre Position behalten
     if (pinnedSnapshot.length > 0) {
       const { data: fresh } = await supabase
