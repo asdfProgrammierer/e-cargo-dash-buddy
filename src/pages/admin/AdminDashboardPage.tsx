@@ -91,7 +91,7 @@ const AdminDashboardPage = () => {
         supabase.from("orders").select("*", { count: "exact", head: true }),
         supabase
           .from("orders")
-          .select("id, user_id, auftrags_nr, absender_name, absender_adresse, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_email, empfaenger_telefon, pakete, gewicht, package_length_cm, package_width_cm, package_height_cm, status, notizen, created_at, dhl_tracking_number, dhl_label_url")
+          .select("id, user_id, auftrags_nr, absender_name, absender_adresse, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_email, empfaenger_telefon, pakete, gewicht, package_length_cm, package_width_cm, package_height_cm, status, notizen, created_at, delivered_at, dhl_tracking_number, dhl_label_url")
           .order("created_at", { ascending: false }),
       ]);
 
