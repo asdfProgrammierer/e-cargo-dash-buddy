@@ -77,6 +77,7 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
       .from("orders")
       .select("id, auftrags_nr, empfaenger_name, pakete, delivered_at, status, updated_at")
       .eq("user_id", merchant.user_id)
+      .eq("is_pickup", false)
       .in("status", ["zugestellt", "nicht_zugestellt"])
       .or(
         `and(status.eq.zugestellt,delivered_at.gte.${startOfDayIso(startDate)},delivered_at.lte.${endOfDayIso(endDate)}),` +
