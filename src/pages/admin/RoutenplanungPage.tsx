@@ -269,6 +269,30 @@ const RoutenplanungPage = () => {
   const routesForDate = routes.filter((r) => r.datum === date);
   const printableRoutes = routesForDate.filter((r) => r.status === "geplant" || r.status === "aktiv");
 
+  const routeIdsKey = routesForDate.map((r) => r.id).sort().join(",");
+  useEffect(() => {
+    const ids = routeIdsKey ? routeIdsKey.split(",") : [];
+    if (ids.length === 0) { setRouteProgress({}); return; }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("route_stops")
+        .select("route_id, orders(status)")
+        .in("route_id", ids);
+      if (cancelled || error || !data) return;
+      const agg: Record<string, { total: number; done: number }> = {};
+      for (const row of data as any[]) {
+        const rid = row.route_id as string;
+        if (!agg[rid]) agg[rid] = { total: 0, done: 0 };
+        agg[rid].total += 1;
+        const st = row.orders?.status;
+        if (st === "zugestellt" || st === "nicht_zugestellt") agg[rid].done += 1;
+      }
+      setRouteProgress(agg);
+    })();
+    return () => { cancelled = true; };
+  }, [routeIdsKey, refreshKey]);
+
   const generateRoutePdf = async (routeId: string) => {
     setPrinting(true);
     try {
