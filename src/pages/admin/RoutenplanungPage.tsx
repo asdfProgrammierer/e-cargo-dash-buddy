@@ -673,7 +673,7 @@ const RoutenplanungPage = () => {
                         </div>
                       </div>
                       {active && (
-                        <div className="mt-1.5 flex gap-1" onClick={(e) => e.stopPropagation()}>
+                        <div className="relative z-10 mt-1.5 flex gap-1" onClick={(e) => e.stopPropagation()}>
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(r)} title="Bearbeiten">
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
