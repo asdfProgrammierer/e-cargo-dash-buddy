@@ -42,6 +42,7 @@ interface MerchantProfile {
   approved: boolean;
   pickup_enabled: boolean;
   pickup_weekdays: number[];
+  pickup_note: string | null;
   dhl_enabled: boolean;
   is_virtual: boolean;
   created_at: string;
@@ -87,6 +88,8 @@ const HaendlerDetailPage = () => {
   const [merchantCode, setMerchantCode] = useState("");
   const [savingPrice, setSavingPrice] = useState(false);
   const [savingMerchantCode, setSavingMerchantCode] = useState(false);
+  const [pickupNote, setPickupNote] = useState("");
+  const [savingPickupNote, setSavingPickupNote] = useState(false);
   const [testingShop, setTestingShop] = useState(false);
 
   useEffect(() => {
@@ -126,6 +129,7 @@ const HaendlerDetailPage = () => {
         }
         setPackagePrice(profileRes.data.paketpreis != null ? String(profileRes.data.paketpreis) : "");
         setMerchantCode(profileRes.data.merchant_code ?? "");
+        setPickupNote((profileRes.data as any).pickup_note ?? "");
         setOrderCount(ordersRes2.count ?? 0);
       } else {
         toast.error("Händler nicht gefunden");
@@ -212,6 +216,25 @@ const HaendlerDetailPage = () => {
     setMerchantCode(savedCode);
     setProfile({ ...profile, merchant_code: savedCode });
     toast.success("Händlercode gespeichert und Aufträge neu nummeriert");
+  };
+
+  const savePickupNote = async () => {
+    if (!profile) return;
+    setSavingPickupNote(true);
+    const note = pickupNote.trim();
+    const { error } = await supabase
+      .from("profiles")
+      .update({ pickup_note: note || null })
+      .eq("id", profile.id);
+    setSavingPickupNote(false);
+
+    if (error) {
+      toast.error("Abhol-Notiz konnte nicht gespeichert werden");
+      return;
+    }
+
+    setProfile({ ...profile, pickup_note: note || null });
+    toast.success("Abhol-Notiz gespeichert");
   };
 
   const saveShopConnection = async () => {
@@ -631,6 +654,23 @@ const HaendlerDetailPage = () => {
                       } : prev)
                     }
                   />
+                  <div className="space-y-2">
+                    <Label className="text-xs">Notiz für Abhol-Aufträge</Label>
+                    <Textarea
+                      placeholder="z. B. Abholung, Hinweis: Türcode 123456"
+                      value={pickupNote}
+                      onChange={(e) => setPickupNote(e.target.value)}
+                      rows={2}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Dieser Text wird als Notiz in jeden automatisch erstellten Abhol-Auftrag übernommen.
+                    </p>
+                    <div className="flex justify-end">
+                      <Button size="sm" onClick={savePickupNote} disabled={savingPickupNote}>
+                        {savingPickupNote ? "Speichern…" : "Notiz speichern"}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between rounded-lg border border-border p-4">

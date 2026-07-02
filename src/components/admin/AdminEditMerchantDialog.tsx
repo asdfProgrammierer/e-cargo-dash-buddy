@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,6 +26,7 @@ interface Props {
     telefon: string | null;
     paketpreis: number | null;
     is_virtual: boolean;
+    pickup_note: string | null;
   };
   onUpdated: (updated: Partial<Props["profile"]>) => void;
 }
@@ -40,6 +42,7 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
   const [stadt, setStadt] = useState("");
   const [telefon, setTelefon] = useState("");
   const [paketpreis, setPaketpreis] = useState("");
+  const [pickupNote, setPickupNote] = useState("");
 
   useEffect(() => {
     setFirmaName(profile.firma_name ?? "");
@@ -49,6 +52,7 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
     setStadt(profile.stadt ?? "");
     setTelefon(profile.telefon ?? "");
     setPaketpreis(profile.paketpreis != null ? String(profile.paketpreis) : "");
+    setPickupNote(profile.pickup_note ?? "");
   }, [profile, open]);
 
   const submit = async (e: React.FormEvent) => {
@@ -78,6 +82,7 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
         stadt: stadt.trim() || null,
         telefon: telefon.trim() || null,
         paketpreis: numericPrice,
+        pickup_note: pickupNote.trim() || null,
       })
       .eq("id", profile.id);
     setSaving(false);
@@ -96,6 +101,7 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
       stadt: stadt.trim() || null,
       telefon: telefon.trim() || null,
       paketpreis: numericPrice,
+      pickup_note: pickupNote.trim() || null,
     });
     setOpen(false);
   };
@@ -155,6 +161,18 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
                 onChange={(e) => setPaketpreis(e.target.value)}
               />
             </div>
+          </div>
+          <div className="space-y-1.5 col-span-2">
+            <Label className="text-xs">Notiz für Abhol-Aufträge</Label>
+            <Textarea
+              value={pickupNote}
+              onChange={(e) => setPickupNote(e.target.value)}
+              placeholder="z. B. Abholung, Hinweis: Türcode 123456"
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground">
+              Wird als Notiz in automatisch erstellte Abhol-Aufträge übernommen.
+            </p>
           </div>
           <Button type="submit" disabled={saving} className="mt-2">
             {saving ? "Speichern…" : "Speichern"}

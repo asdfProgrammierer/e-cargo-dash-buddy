@@ -884,6 +884,7 @@ export type Database = {
           paketpreis: number | null
           parent_user_id: string | null
           pickup_enabled: boolean
+          pickup_note: string | null
           pickup_time: string | null
           pickup_weekdays: number[]
           plz: string | null
@@ -911,6 +912,7 @@ export type Database = {
           paketpreis?: number | null
           parent_user_id?: string | null
           pickup_enabled?: boolean
+          pickup_note?: string | null
           pickup_time?: string | null
           pickup_weekdays?: number[]
           plz?: string | null
@@ -938,6 +940,7 @@ export type Database = {
           paketpreis?: number | null
           parent_user_id?: string | null
           pickup_enabled?: boolean
+          pickup_note?: string | null
           pickup_time?: string | null
           pickup_weekdays?: number[]
           plz?: string | null
