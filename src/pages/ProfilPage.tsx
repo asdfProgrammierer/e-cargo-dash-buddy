@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { PageHead } from "@/components/PageHead";
 import { SubAccountsCard } from "@/components/profile/SubAccountsCard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -140,6 +141,7 @@ const ProfilPage = () => {
 
   return (
     <DashboardLayout title="Mein Profil">
+      <PageHead title="Mein Profil – e-cargo Händler-Dashboard" description="Verwalten Sie Ihre e-cargo Händlerdaten, Firmenlogo, Ansprechpartner, Öffnungszeiten und Sub-Accounts an einer Stelle." path="/profil" />
       <div className="max-w-2xl space-y-6">
         {isSubAccount && (
           <Card>
@@ -171,7 +173,7 @@ const ProfilPage = () => {
             <div className="flex items-center gap-6">
               <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/50 overflow-hidden">
                 {logoUrl ? (
-                  <img src={logoUrl} alt="Firmenlogo" className="h-full w-full object-contain p-2" />
+                  <img src={logoUrl} alt={firmaName ? `Firmenlogo von ${firmaName}` : "Firmenlogo des Händlerkontos"} className="h-full w-full object-contain p-2" />
                 ) : (
                   <Building2 className="h-8 w-8 text-muted-foreground" />
                 )}

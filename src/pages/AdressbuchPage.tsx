@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { PageHead } from "@/components/PageHead";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -159,6 +160,7 @@ const AdressbuchPage = () => {
 
   return (
     <DashboardLayout title="Adressbuch">
+      <PageHead title="Adressbuch – e-cargo Händler-Dashboard" description="Zentrales Adressbuch für wiederkehrende Empfänger: Kontakte anlegen, favorisieren und in wenigen Klicks in neue e-cargo Aufträge übernehmen." path="/adressbuch" />
       <div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap gap-2 items-center">
@@ -291,13 +293,13 @@ const AdressbuchPage = () => {
                     </div>
                   )}
                   <div className="flex gap-1 pt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggleFavorite(c)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggleFavorite(c)} aria-label={c.is_favorite ? `Favorit entfernen: ${c.firma_name ?? "Kontakt"}` : `Als Favorit markieren: ${c.firma_name ?? "Kontakt"}`}>
                       <Star className={`h-3.5 w-3.5 ${c.is_favorite ? "fill-warning text-warning" : ""}`} />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)} aria-label={`Kontakt bearbeiten: ${c.firma_name ?? ""}`}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(c.id)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(c.id)} aria-label={`Kontakt löschen: ${c.firma_name ?? ""}`}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>

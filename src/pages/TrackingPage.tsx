@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Package, MapPin, CheckCircle2, Clock, AlertCircle, Lock, Truck } from "lucide-react";
+import { PageHead } from "@/components/PageHead";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -351,6 +352,7 @@ export default function TrackingPage() {
 
   return (
     <div className="min-h-screen bg-background py-8 px-4">
+      <PageHead title="Sendungsverfolgung – e-cargo" description="Verfolgen Sie Ihre e-cargo Sendung in Echtzeit im Ruhrgebiet – Status, Zustellzeitpunkt und Zustelldetails Ihres nachhaltig gelieferten Pakets." path="/track" />
       <div className="mx-auto max-w-2xl space-y-6">
         <header className="text-center space-y-2">
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">

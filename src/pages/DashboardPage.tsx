@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { PageHead } from "@/components/PageHead";
 import { DashboardStats, filterByRange, type TimeRange } from "@/components/dashboard/DashboardStats";
 import { OrderTable } from "@/components/dashboard/OrderTable";
 import { MerchantAnalytics } from "@/components/dashboard/MerchantAnalytics";
@@ -30,6 +31,7 @@ const DashboardPage = () => {
 
   return (
     <DashboardLayout title="Dashboard">
+      <PageHead title="Dashboard – e-cargo Händler" description="Ihr e-cargo Händler-Dashboard: aktuelle Aufträge, Sendungsstatus, Analytics und CO₂-Einsparungen der nachhaltigen Kurierlogistik im Ruhrgebiet." path="/" />
       <div className="space-y-6">
         <DashboardStats orders={orders} range={range} onRangeChange={setRange} />
         <MerchantAnalytics />
