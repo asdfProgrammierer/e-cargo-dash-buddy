@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { DriverLayout } from "@/components/driver/DriverLayout";
 import { useDriverCheck } from "@/hooks/useDriverCheck";
 import { Calendar, Package, ChevronRight, Loader2 } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { PushToggle } from "@/components/PushToggle";
 
@@ -16,6 +15,7 @@ interface RouteRow {
   status: string;
   total_stops: number;
   done_stops: number;
+  skipped_stops: number;
 }
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -27,7 +27,9 @@ const DriverHomePage = () => {
 
   useEffect(() => {
     if (!driverId) return;
-    (async () => {
+    let cancelled = false;
+
+    const load = async () => {
       const { data } = await supabase
         .from("routes")
         .select("id, name, datum, start_time, status, route_stops(id, status)")
@@ -43,13 +45,37 @@ const DriverHomePage = () => {
         start_time: r.start_time,
         status: r.status,
         total_stops: r.route_stops?.length ?? 0,
-        done_stops: r.route_stops?.filter((s: any) => s.status === "erledigt" || s.status === "uebersprungen").length ?? 0,
+        done_stops: r.route_stops?.filter((s: any) => s.status === "erledigt").length ?? 0,
+        skipped_stops: r.route_stops?.filter((s: any) => s.status === "uebersprungen").length ?? 0,
       }));
       const order = { aktiv: 0, geplant: 1, abgeschlossen: 2 } as Record<string, number>;
       rows.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
-      setRoutes(rows);
-      setLoading(false);
-    })();
+      if (!cancelled) {
+        setRoutes(rows);
+        setLoading(false);
+      }
+    };
+
+    load();
+
+    const channel = supabase
+      .channel(`driver-home-${driverId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "route_stops" },
+        () => load(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "routes", filter: `driver_id=eq.${driverId}` },
+        () => load(),
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
   }, [driverId]);
 
   const fmtDate = (d: string) => new Date(d).toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" });
@@ -74,7 +100,8 @@ const DriverHomePage = () => {
           </div>
         ) : (
           routes.map((r) => {
-            const pct = r.total_stops > 0 ? (r.done_stops / r.total_stops) * 100 : 0;
+            const donePct = r.total_stops > 0 ? (r.done_stops / r.total_stops) * 100 : 0;
+            const skipPct = r.total_stops > 0 ? (r.skipped_stops / r.total_stops) * 100 : 0;
             return (
               <Link
                 key={r.id}
@@ -99,11 +126,23 @@ const DriverHomePage = () => {
                     </div>
                     <p className="text-sm text-muted-foreground mt-0.5">
                       {r.done_stops} / {r.total_stops} Stopps erledigt
+                      {r.skipped_stops > 0 && (
+                        <span className="text-orange-500 font-medium"> · {r.skipped_stops} nicht zugestellt</span>
+                      )}
                     </p>
                   </div>
                   <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-1" />
                 </div>
-                <Progress value={pct} className="mt-3 h-1.5" />
+                <div className="mt-3 h-1.5 w-full rounded-full bg-secondary overflow-hidden flex">
+                  <div
+                    className="h-full bg-primary transition-all"
+                    style={{ width: `${donePct}%` }}
+                  />
+                  <div
+                    className="h-full bg-orange-500 transition-all"
+                    style={{ width: `${skipPct}%` }}
+                  />
+                </div>
               </Link>
             );
           })
