@@ -90,7 +90,7 @@ function MerchantMultiSelect({
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[320px] p-0" align="start">
+      <PopoverContent className="z-[999] w-[320px] p-0" align="start">
         <div className="border-b p-2">
           <Input
             value={q}
