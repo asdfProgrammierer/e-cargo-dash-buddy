@@ -211,20 +211,21 @@ export default function StatistikenPage() {
   const statsQuery = useQuery({
     queryKey: [
       "admin-delivery-stats",
-      range.from.toISOString(),
-      range.to.toISOString(),
+      range.from?.toISOString() ?? "all",
+      range.to?.toISOString() ?? "all",
       selectedMerchants.slice().sort().join(","),
     ],
     queryFn: async (): Promise<StatsResponse> => {
       const { data, error } = await supabase.rpc("admin_delivery_stats", {
-        p_from: range.from.toISOString(),
-        p_to: range.to.toISOString(),
+        p_from: range.from ? range.from.toISOString() : null,
+        p_to: range.to ? range.to.toISOString() : null,
         p_merchant_ids: selectedMerchants.length > 0 ? selectedMerchants : null,
       });
       if (error) throw error;
       return data as unknown as StatsResponse;
     },
   });
+
 
   const kpis = statsQuery.data?.kpis;
   const heatmap = statsQuery.data?.heatmap ?? [];
