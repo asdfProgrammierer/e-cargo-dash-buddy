@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.heat";
-import { format, startOfDay, endOfDay, subDays, startOfMonth, startOfQuarter } from "date-fns";
+import { format, startOfDay, endOfDay, subDays } from "date-fns";
 import { de } from "date-fns/locale";
 import { CalendarIcon, ChevronDown, Loader2, MapPin, Percent, Timer, Target } from "lucide-react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
