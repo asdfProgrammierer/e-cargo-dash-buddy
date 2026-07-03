@@ -242,7 +242,7 @@ export default function StatistikenPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Filter</CardTitle>
             <CardDescription>
-              Zeitraum bezieht sich auf das Zustelldatum. Zustellquote-Basis: alle außer stornierte Aufträge.
+              {"\n"}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap items-center gap-2">
