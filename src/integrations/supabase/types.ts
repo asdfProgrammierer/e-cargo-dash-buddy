@@ -1450,7 +1450,7 @@ export type Database = {
         Returns: undefined
       }
       admin_delivery_stats: {
-        Args: { p_from: string; p_merchant_ids?: string[]; p_to: string }
+        Args: { p_from?: string; p_merchant_ids?: string[]; p_to?: string }
         Returns: Json
       }
       admin_driver_time_stats: {
