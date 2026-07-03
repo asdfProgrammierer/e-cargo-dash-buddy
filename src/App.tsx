@@ -36,6 +36,7 @@ const EmailTemplatesPage = lazy(() => import("./pages/admin/EmailTemplatesPage")
 const DhlSettingsPage = lazy(() => import("./pages/admin/DhlSettingsPage"));
 const AccountSettingsPage = lazy(() => import("./pages/admin/AccountSettingsPage"));
 const NotificationsPage = lazy(() => import("./pages/admin/NotificationsPage"));
+const StatistikenPage = lazy(() => import("./pages/admin/StatistikenPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const UnsubscribePage = lazy(() => import("./pages/UnsubscribePage"));
 const TrackingPage = lazy(() => import("./pages/TrackingPage"));
@@ -152,6 +153,7 @@ const AppRoutes = () => (
     <Route path="/admin/einstellungen/dhl" element={<AdminRoute><DhlSettingsPage /></AdminRoute>} />
     <Route path="/admin/einstellungen/konto" element={<AdminRoute><AccountSettingsPage /></AdminRoute>} />
     <Route path="/admin/benachrichtigungen" element={<AdminRoute><NotificationsPage /></AdminRoute>} />
+    <Route path="/admin/statistiken" element={<AdminRoute><StatistikenPage /></AdminRoute>} />
     <Route path="/admin/liefergebiet" element={<Navigate to="/admin/einstellungen/liefergebiet" replace />} />
     <Route path="/fahrer/login" element={<DriverLoginPage />} />
     <Route path="/fahrer" element={<DriverRoute><DriverHomePage /></DriverRoute>} />
