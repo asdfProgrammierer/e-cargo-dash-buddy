@@ -248,10 +248,9 @@ export default function StatistikenPage() {
           <CardContent className="flex flex-wrap items-center gap-2">
             {(
               [
+                { key: "all", label: "Alle" },
                 { key: "7", label: "7 Tage" },
                 { key: "30", label: "30 Tage" },
-                { key: "month", label: "Aktueller Monat" },
-                { key: "quarter", label: "Aktuelles Quartal" },
               ] as { key: Preset; label: string }[]
             ).map((p) => (
               <Button
@@ -263,6 +262,7 @@ export default function StatistikenPage() {
                 {p.label}
               </Button>
             ))}
+
             <Popover>
               <PopoverTrigger asChild>
                 <Button
