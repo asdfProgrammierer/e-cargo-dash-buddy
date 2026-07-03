@@ -30,22 +30,22 @@ type StatsResponse = {
   heatmap: Array<{ plz: string; stadt: string; pakete: number; auftraege: number; lat: number; lng: number }>;
 };
 
-type Preset = "7" | "30" | "month" | "quarter" | "custom";
+type Preset = "all" | "7" | "30" | "custom";
 
-function presetRange(preset: Preset, custom: { from?: Date; to?: Date }): { from: Date; to: Date } {
+function presetRange(preset: Preset, custom: { from?: Date; to?: Date }): { from: Date | null; to: Date | null } {
   const now = new Date();
   switch (preset) {
+    case "all": return { from: null, to: null };
     case "7": return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) };
     case "30": return { from: startOfDay(subDays(now, 29)), to: endOfDay(now) };
-    case "month": return { from: startOfMonth(now), to: endOfDay(now) };
-    case "quarter": return { from: startOfQuarter(now), to: endOfDay(now) };
     case "custom":
       return {
-        from: custom.from ? startOfDay(custom.from) : startOfDay(subDays(now, 29)),
-        to: custom.to ? endOfDay(custom.to) : endOfDay(now),
+        from: custom.from ? startOfDay(custom.from) : null,
+        to: custom.to ? endOfDay(custom.to) : null,
       };
   }
 }
+
 
 function formatHours(h: number | null | undefined): string {
   if (h == null || !isFinite(h)) return "–";
