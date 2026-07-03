@@ -1449,6 +1449,10 @@ export type Database = {
         Args: { _connection_id: string }
         Returns: undefined
       }
+      admin_delivery_stats: {
+        Args: { p_from: string; p_merchant_ids?: string[]; p_to: string }
+        Returns: Json
+      }
       admin_driver_time_stats: {
         Args: { _driver_id: string }
         Returns: {
