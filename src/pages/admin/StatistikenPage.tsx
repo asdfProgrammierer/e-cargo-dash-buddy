@@ -365,7 +365,7 @@ export default function StatistikenPage() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Top-Zustellgebiete</CardTitle>
-              <CardDescription>Sortiert nach Anzahl zugestellter Pakete.</CardDescription>
+              <CardDescription>{"\n"}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
