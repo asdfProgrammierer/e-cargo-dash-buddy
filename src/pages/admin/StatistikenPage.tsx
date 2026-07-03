@@ -342,7 +342,7 @@ export default function StatistikenPage() {
               <div>
                 <CardTitle className="text-base">Zustellungs-Heatmap</CardTitle>
                 <CardDescription>
-                  Aggregation der zugestellten Pakete je PLZ (Zentroid aus Geokoordinaten).
+                  {"\n"}
                 </CardDescription>
               </div>
               {statsQuery.isFetching && (
