@@ -12,10 +12,13 @@ const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 const USERNAME_RE = /^[a-z0-9._-]{3,32}$/;
 
-function generatePin(length = 6): string {
-  const digits = new Uint8Array(length);
-  crypto.getRandomValues(digits);
-  return Array.from(digits, (b) => (b % 10).toString()).join("");
+// Stronger PIN: 10 chars from an unambiguous alphabet (no 0/O/1/l/I) → ~53^10 ≈ 1.7e17 combinations.
+// Still typeable on a phone keyboard. Supabase Auth additionally rate-limits sign-in attempts.
+const PIN_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
+function generatePin(length = 10): string {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => PIN_ALPHABET[b % PIN_ALPHABET.length]).join("");
 }
 
 Deno.serve(async (req) => {
@@ -86,7 +89,7 @@ Deno.serve(async (req) => {
     }
 
     const email = `${username}@drivers.e-cargo.local`;
-    const pin = generatePin(6);
+    const pin = generatePin(10);
 
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
