@@ -10,10 +10,12 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-function generatePin(length = 6): string {
-  const digits = new Uint8Array(length);
-  crypto.getRandomValues(digits);
-  return Array.from(digits, (b) => (b % 10).toString()).join("");
+// Stronger PIN: 10 chars from an unambiguous alphabet (no 0/O/1/l/I).
+const PIN_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
+function generatePin(length = 10): string {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => PIN_ALPHABET[b % PIN_ALPHABET.length]).join("");
 }
 
 Deno.serve(async (req) => {
@@ -75,7 +77,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const pin = generatePin(6);
+    const pin = generatePin(10);
     // Verify auth user actually exists; if orphaned, clear driver row so admin
     // can re-activate the login fresh.
     const { data: existing, error: getErr } = await admin.auth.admin.getUserById(driver.auth_user_id);

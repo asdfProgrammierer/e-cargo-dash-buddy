@@ -18,7 +18,7 @@ const DriverLoginPage = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanUser = username.trim().toLowerCase();
-    if (!cleanUser || pin.length < 4) {
+    if (!cleanUser || pin.length < 6) {
       toast.error("Bitte Username und PIN eingeben");
       return;
     }
@@ -60,11 +60,13 @@ const DriverLoginPage = () => {
             <Input
               id="pin"
               type="password"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={6}
+              inputMode="text"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              maxLength={16}
               value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+              onChange={(e) => setPin(e.target.value.trim())}
               placeholder="••••••"
               className="mt-1 text-center text-2xl tracking-widest"
             />

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { MerchantInvoiceDialog } from "@/components/admin/MerchantInvoiceDialog";
 import { AdminVirtualMerchantDialog } from "@/components/admin/AdminVirtualMerchantDialog";
 import { toast } from "sonner";
-import { Search, Building2, ChevronRight, Trash2 } from "lucide-react";
+import { Search, Building2, ChevronRight, Trash2, Download } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +45,29 @@ const HaendlerVerwaltungPage = () => {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [exportingId, setExportingId] = useState<string | null>(null);
+
+  const exportMerchant = async (profile: MerchantProfile) => {
+    setExportingId(profile.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("gdpr-export-merchant", {
+        body: { profile_id: profile.id },
+      });
+      if (error || !data) throw new Error(error?.message ?? "Export fehlgeschlagen");
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `gdpr-export-${profile.firma_name || profile.id}-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("DSGVO-Export heruntergeladen");
+    } catch (e: any) {
+      toast.error(e.message ?? "Export fehlgeschlagen");
+    } finally {
+      setExportingId(null);
+    }
+  };
 
   const fetchMerchants = async () => {
     const { data, error } = await supabase
@@ -212,6 +235,7 @@ const HaendlerVerwaltungPage = () => {
                             <AlertDialogDescription>
                               {m.firma_name || m.ansprechpartner || "Dieser Händler"} und alle zugehörigen Daten
                               (Aufträge, Adressbuch, Sub-Accounts, Shop-Verbindungen) werden unwiderruflich gelöscht.
+                              Für die DSGVO-Auskunft bitte vorher „DSGVO-Export“ herunterladen.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -225,6 +249,16 @@ const HaendlerVerwaltungPage = () => {
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        disabled={exportingId === m.id}
+                        onClick={() => exportMerchant(m)}
+                        title="DSGVO-Export (JSON)"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                     <TableCell className="w-8">
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
