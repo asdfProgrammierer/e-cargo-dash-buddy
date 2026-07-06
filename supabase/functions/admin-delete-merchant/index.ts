@@ -67,6 +67,34 @@ Deno.serve(async (req) => {
     .select("user_id")
     .eq("parent_user_id", ownerId);
   const subUserIds = (subs ?? []).map((s: any) => s.user_id);
+  const allUserIds = [ownerId, ...subUserIds];
+
+  // Collect order IDs so we can clear child rows that FK to orders (route_stops, etc.)
+  const { data: ownerOrders } = await admin
+    .from("orders")
+    .select("id, tracking_token, dhl_label_url")
+    .eq("user_id", ownerId);
+  const orderIds = (ownerOrders ?? []).map((o: any) => o.id);
+
+  // Storage cleanup: delivery-signatures / delivery-notes / delivery-photos are keyed by order id
+  const buckets = ["delivery-signatures", "delivery-notes", "delivery-photos"];
+  for (const bucket of buckets) {
+    for (const orderId of orderIds) {
+      const { data: files } = await admin.storage.from(bucket).list(orderId, { limit: 1000 });
+      if (files && files.length > 0) {
+        await admin.storage.from(bucket).remove(files.map((f) => `${orderId}/${f.name}`));
+      }
+    }
+  }
+
+  // Push subscriptions and notification reads for owner + sub-accounts
+  await admin.from("push_subscriptions").delete().in("user_id", allUserIds);
+  await admin.from("email_unsubscribe_tokens").delete().in("user_id", allUserIds).catch(() => {});
+
+  // Route stops that reference this merchant's orders
+  if (orderIds.length > 0) {
+    await admin.from("route_stops").delete().in("order_id", orderIds);
+  }
 
   // Delete dependent data owned by merchant
   await admin.from("address_book").delete().eq("user_id", ownerId);
@@ -74,8 +102,8 @@ Deno.serve(async (req) => {
   await admin.from("order_status_history").delete().eq("user_id", ownerId);
   await admin.from("orders").delete().eq("user_id", ownerId);
   await admin.from("notifications").delete().eq("target_user_id", ownerId);
-  await admin.from("notification_reads").delete().in("user_id", [ownerId, ...subUserIds]);
-  await admin.from("user_roles").delete().in("user_id", [ownerId, ...subUserIds]);
+  await admin.from("notification_reads").delete().in("user_id", allUserIds);
+  await admin.from("user_roles").delete().in("user_id", allUserIds);
 
   // Delete sub-account profiles + auth users
   for (const subId of subUserIds) {
