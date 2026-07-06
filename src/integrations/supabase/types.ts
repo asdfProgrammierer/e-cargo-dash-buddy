@@ -62,6 +62,45 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_audit_log: {
+        Row: {
+          action: string
+          actor_role: string | null
+          actor_user_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          metadata: Json | null
+          new_value: Json | null
+          old_value: Json | null
+        }
+        Insert: {
+          action: string
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          metadata?: Json | null
+          new_value?: Json | null
+          old_value?: Json | null
+        }
+        Update: {
+          action?: string
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          metadata?: Json | null
+          new_value?: Json | null
+          old_value?: Json | null
+        }
+        Relationships: []
+      }
       delivery_instructions: {
         Row: {
           created_at: string
@@ -1462,6 +1501,10 @@ export type Database = {
           session_count: number
           total_seconds: number
         }[]
+      }
+      admin_export_merchant_data: {
+        Args: { _profile_id: string }
+        Returns: Json
       }
       admin_get_shop_connection: {
         Args: { _user_id: string }
