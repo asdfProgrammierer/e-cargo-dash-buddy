@@ -235,6 +235,7 @@ const HaendlerVerwaltungPage = () => {
                             <AlertDialogDescription>
                               {m.firma_name || m.ansprechpartner || "Dieser Händler"} und alle zugehörigen Daten
                               (Aufträge, Adressbuch, Sub-Accounts, Shop-Verbindungen) werden unwiderruflich gelöscht.
+                              Für die DSGVO-Auskunft bitte vorher „DSGVO-Export“ herunterladen.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -248,6 +249,16 @@ const HaendlerVerwaltungPage = () => {
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        disabled={exportingId === m.id}
+                        onClick={() => exportMerchant(m)}
+                        title="DSGVO-Export (JSON)"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                     <TableCell className="w-8">
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
