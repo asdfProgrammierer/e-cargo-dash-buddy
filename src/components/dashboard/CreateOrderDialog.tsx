@@ -35,7 +35,9 @@ import { Info } from "lucide-react";
 import { fetchCoveredPostcodes, isCheckablePostcode, isCoveredPostcode } from "@/lib/deliveryCoverage";
 
 interface CreateOrderDialogProps {
-  onSubmit: (order: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">) => void;
+  onSubmit: (
+    order: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">
+  ) => void | Promise<unknown>;
 }
 
 interface Contact {
@@ -72,6 +74,7 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
   const merchantId = ownerUserId ?? user?.id ?? null;
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [submitting, setSubmitting] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [senderDefaults, setSenderDefaults] = useState({ absenderName: "", absenderAdresse: "" });
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -187,10 +190,19 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
     }
 
     const { saveToAddressBook, ...orderData } = form;
-    onSubmit(orderData);
-    setForm(emptyForm);
-    setOpen(false);
-    toast.success("Auftrag erfolgreich angelegt");
+    setSubmitting(true);
+    try {
+      const result = await onSubmit(orderData);
+      if (result === null) {
+        // addOrder signaled failure; keep the dialog open with the form intact.
+        return;
+      }
+      setForm(emptyForm);
+      setOpen(false);
+      toast.success("Auftrag erfolgreich angelegt");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const update = (field: string, value: string | number | boolean) =>
@@ -343,8 +355,8 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
             <Label>Notizen</Label>
             <Textarea value={form.notizen} onChange={(e) => update("notizen", e.target.value)} rows={2} />
           </div>
-          <Button type="submit" className="mt-2">
-            Auftrag anlegen
+          <Button type="submit" className="mt-2" disabled={submitting}>
+            {submitting ? "Speichere…" : "Auftrag anlegen"}
           </Button>
         </form>
       </DialogContent>
