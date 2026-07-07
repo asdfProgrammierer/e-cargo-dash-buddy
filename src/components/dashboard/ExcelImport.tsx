@@ -467,9 +467,9 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride }: Ex
                 <X className="mr-1 h-3 w-3" />
                 Abbrechen
               </Button>
-              <Button size="sm" onClick={handleImport}>
+              <Button size="sm" onClick={handleImport} disabled={importing}>
                 <CheckCircle2 className="mr-1 h-3 w-3" />
-                Importieren
+                {importing ? "Importiere…" : "Importieren"}
               </Button>
             </div>
           </CardHeader>
