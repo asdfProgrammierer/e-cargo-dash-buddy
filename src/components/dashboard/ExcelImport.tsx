@@ -33,7 +33,9 @@ function detectTemplate(headers: string[]): "standard" | "grosskunde" {
 }
 
 interface ExcelImportProps {
-  onImport: (orders: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">[]) => void;
+  onImport: (
+    orders: Omit<Order, "id" | "auftragsNr" | "erstelltAm" | "status">[]
+  ) => void | Promise<unknown>;
   /** Override merchant context (admin import for a specific merchant). When set, profile lookup is skipped. */
   merchantIdOverride?: string | null;
   /** Override sender defaults (admin import). When provided, profile fetch is skipped. */
@@ -320,17 +322,28 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride }: Ex
     setPreview((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleImport = () => {
+  const [importing, setImporting] = useState(false);
+
+  const handleImport = async () => {
     const valid = preview.filter((r) => r.empfaengerName && r.empfaengerStadt);
     if (valid.length === 0) {
       toast.error("Keine gültigen Zeilen gefunden (Empfänger Name und Stadt sind Pflicht)");
       return;
     }
-    onImport(valid);
-    toast.success(`${valid.length} Aufträge importiert`);
-    setPreview([]);
-    setFileName("");
-    setEditingRow(null);
+    setImporting(true);
+    try {
+      const result = await onImport(valid);
+      // If the callback returns an array, treat empty as failure signal.
+      if (Array.isArray(result) && result.length === 0) {
+        return;
+      }
+      toast.success(`${valid.length} Aufträge importiert`);
+      setPreview([]);
+      setFileName("");
+      setEditingRow(null);
+    } finally {
+      setImporting(false);
+    }
   };
 
   const clearPreview = () => {
