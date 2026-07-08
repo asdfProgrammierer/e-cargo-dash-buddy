@@ -784,6 +784,7 @@ export type Database = {
         Row: {
           absender_adresse: string | null
           absender_name: string
+          anonymized_at: string | null
           auftrags_nr: string
           created_at: string
           delivered_at: string | null
@@ -825,6 +826,7 @@ export type Database = {
         Insert: {
           absender_adresse?: string | null
           absender_name: string
+          anonymized_at?: string | null
           auftrags_nr: string
           created_at?: string
           delivered_at?: string | null
@@ -866,6 +868,7 @@ export type Database = {
         Update: {
           absender_adresse?: string | null
           absender_name?: string
+          anonymized_at?: string | null
           auftrags_nr?: string
           created_at?: string
           delivered_at?: string | null
@@ -1538,6 +1541,7 @@ export type Database = {
         Returns: {
           absender_adresse: string | null
           absender_name: string
+          anonymized_at: string | null
           auftrags_nr: string
           created_at: string
           delivered_at: string | null
@@ -1592,6 +1596,7 @@ export type Database = {
         Returns: {
           absender_adresse: string | null
           absender_name: string
+          anonymized_at: string | null
           auftrags_nr: string
           created_at: string
           delivered_at: string | null
