@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Package, MapPin, CheckCircle2, Clock, AlertCircle, Lock, Truck } from "lucide-react";
 import { PageHead } from "@/components/PageHead";
+import { GdprPanel } from "@/components/tracking/GdprPanel";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -536,6 +537,8 @@ export default function TrackingPage() {
         <p className="text-center text-xs text-muted-foreground">
           Wir liefern 100% elektrisch · e-cargo
         </p>
+
+        <GdprPanel session={session} auftragsNr={order.auftragsNr} />
       </div>
     </div>
   );
