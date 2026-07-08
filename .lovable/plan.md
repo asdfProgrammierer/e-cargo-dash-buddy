@@ -1,50 +1,70 @@
 ## Ziel
 
-Aufträge nach 2 Monaten DSGVO-konform anonymisieren, ohne Statistiken (Volumen, CO₂, Heatmap nach PLZ) zu verlieren.
+Endkunden (Zustellempfänger ohne Login) sollen ihre DSGVO-Rechte selbst wahrnehmen können:
+- **Art. 15** — Auskunft: eigene Daten als JSON/PDF-Download.
+- **Art. 17** — Löschung: sofortige Anonymisierung ihres Auftrags (statt der 2-Monats-Automatik).
 
-## Kurz zur PLZ-Frage
+Basis ist der bereits existierende Tracking-Flow (`tracking_token` + PLZ → signierte Session). Der Session-Nachweis reicht aber allein nicht für Löschung — bei irreversiblen Aktionen setzen wir zusätzlich einen **E-Mail-Bestätigungslink** ein (Double-Opt-In). Damit ist der Empfänger als Berechtigter verifiziert (Art. 12 Abs. 6 DSGVO — angemessene Identitätsprüfung).
 
-Die 5-stellige deutsche PLZ allein gilt in der Regel **nicht als personenbezogen**, solange sie nicht mit Name, Straße, E-Mail, Telefon oder einer Kunden-ID verknüpft ist. In einem urbanen PLZ-Gebiet leben tausende Menschen — Rückschluss auf eine Einzelperson ist ausgeschlossen. Nach Anonymisierung der übrigen Felder ist die PLZ also für Statistikzwecke unproblematisch.
+## Ablauf für den Endkunden
 
-Vorsicht wäre nur geboten bei sehr kleinen ländlichen PLZ + zusätzlichen quasi-identifizierenden Merkmalen (z. B. exaktes Zustelldatum + Gewicht + Paketanzahl kombiniert). Das Restrisiko ist bei uns gering, sollte aber vom DSB final abgesegnet werden.
+### Einstiegspunkt
+Auf der bestehenden Tracking-Seite (`/tracking?token=…`) erscheint nach erfolgreichem PLZ-Login unten ein Bereich **„Datenschutz / Meine Daten"** mit zwei Buttons:
+- „Meine Daten herunterladen" (Art. 15)
+- „Meine Daten löschen" (Art. 17)
 
-## Was passiert nach 2 Monaten
+### Art. 15 — Auskunft (in einem Schritt)
+1. Klick → Edge Function `gdpr-customer-export` prüft die Tracking-Session.
+2. Antwort ist ein JSON-Download mit allen Feldern zu diesem einen Auftrag: Auftragsnummer, Status/-verlauf, Adresse/Kontaktdaten, Paketdaten, Zustellversuche, Zustelldatum, Nachweise (Unterschrift/Foto/Lieferschein als signierte, zeitlich begrenzte Download-Links).
+3. Ein Audit-Log-Eintrag `gdpr_customer_export` wird geschrieben (Order-ID, Zeitstempel, IP-Hash).
 
-Trigger: Auftrag ist älter als 2 Monate (Referenzdatum = `delivered_at` falls vorhanden, sonst `created_at`) **und** Status ist `zugestellt`, `nicht_zugestellt` oder `storniert` (offene Aufträge werden nie anonymisiert).
+Keine E-Mail-Bestätigung nötig, da nur Daten zum aktuell schon durch Token+PLZ freigeschalteten Auftrag ausgeliefert werden — das gleiche Vertrauensniveau, das der Kunde bereits hat, um Sendungsstatus/Adresse/Nachweise zu sehen.
 
-**Felder, die auf NULL / Platzhalter gesetzt werden:**
-- `empfaenger_name` → `'anonymisiert'`
-- `empfaenger_adresse` → `NULL` (Straße + Hausnr.)
-- `empfaenger_stadt` → `NULL`
-- `empfaenger_email` → `NULL`
-- `empfaenger_telefon` → `NULL`
-- `absender_name`, `absender_adresse` → `NULL` (nur bei Nicht-Abholungen; bei Abhol-Aufträgen ist das der Händler selbst = keine Kundendaten)
-- `notizen` → `NULL`
-- `lat`, `lng` → `NULL` (Punktkoordinate ist re-identifizierend)
-- `dhl_label_url`, `tracking_token` → `NULL`
-- Storage-Objekte in `delivery-signatures`, `delivery-notes`, `delivery-photos` für diese Auftrags-IDs löschen (läuft heute schon)
+### Art. 17 — Löschung (Double-Opt-In per E-Mail)
+1. Klick auf „Meine Daten löschen" öffnet ein Modal mit Warnhinweis (unwiderruflich, betrifft nur diesen einen Auftrag, Rechnungs-/Steuerpflichten des Händlers bleiben davon unberührt).
+2. Feld: E-Mail-Adresse eingeben (muss mit `orders.empfaenger_email` übereinstimmen). Falls im Auftrag keine E-Mail hinterlegt ist, Fallback-Hinweis: „Bitte wenden Sie sich an support@ecargo-logistik.de" — dann geht's per Ticket, nicht self-service.
+3. Edge Function `gdpr-customer-delete-request` (verify_jwt=false, prüft Tracking-Session + Case-insensitive E-Mail-Match) erzeugt einen Einmal-Token (32 Byte hex, 24 h gültig, single-use) in neuer Tabelle `gdpr_deletion_tokens (id, order_id, token_hash, requested_email, expires_at, used_at, created_at)` und schickt eine Bestätigungsmail an genau die im Auftrag hinterlegte Adresse.
+4. Bestätigungsmail: „Klicken Sie hier, um die Löschung Ihrer Daten zu Auftrag `EC-XXX-…` zu bestätigen." Link → `/gdpr/confirm-delete?token=…`.
+5. Diese Seite ruft `gdpr-customer-delete-confirm` auf. Der Token wird per Hash verglichen, als `used_at` markiert und die Order sofort mit derselben Anonymisierungslogik wie der 2-Monats-Job behandelt (Felder auf NULL / `'anonymisiert'`, `anonymized_at = now()`, Storage-Objekte gelöscht, Status-Historie zu diesem Auftrag entfernt). Audit-Eintrag `gdpr_customer_deleted`.
+6. Erfolgsseite: „Ihre Daten wurden anonymisiert." Der Tracking-Token wird ebenfalls geleert, weiterer Zugriff ist nicht mehr möglich.
 
-**Felder, die erhalten bleiben (für Statistik/Buchhaltung):**
-- `id`, `user_id` (Händler), `auftrags_nr`
-- `empfaenger_plz` ← bleibt für Heatmap
-- `status`, `is_pickup`, `pakete`, `gewicht`, `delivery_attempts`
-- `created_at`, `updated_at`, `delivered_at`
-- Ein neues Flag `anonymized_at` (Zeitstempel), damit klar ist welche Zeilen bereits bereinigt sind und der Job sie nicht doppelt anfasst
+## Was NICHT gelöscht wird (Rechtfertigung Art. 17 Abs. 3 lit. b/e DSGVO)
 
-## Umsetzung
+- Auftragsnummer, Händler-Zuordnung, PLZ, Status, Paketanzahl, Gewicht, Zustellversuche, Zeitstempel (Nachweispflicht des Händlers gegenüber seinem Auftraggeber; berechtigtes Interesse an Betriebs-/Abrechnungsstatistiken; PLZ ist ohne weitere Merkmale nicht personenbeziehbar).
+- `admin_audit_log`-Einträge (Nachweis der Rechtmäßigkeit der Verarbeitung, 12 Monate Retention greift separat).
 
-1. **Migration:** Spalte `orders.anonymized_at timestamptz` hinzufügen (nullable).
-2. **Migration:** Bestehende Funktion `gdpr_cleanup_personal_data()` erweitern um einen UPDATE-Block, der die o. g. Felder für qualifizierende Aufträge nullt und `anonymized_at = now()` setzt. `WHERE anonymized_at IS NULL AND status IN (...) AND COALESCE(delivered_at, created_at) < now() - interval '2 months'`.
-3. **Migration:** Storage-Cleanup im gleichen Function-Body auf Objekte einschränken, deren Ordnername einer jetzt anonymisierten Order-ID entspricht (heute wird pauschal nach `created_at` in Storage gelöscht — das bleibt so, ist konsistent).
-4. **admin_audit_log:** Retention hinzufügen — Einträge älter als 12 Monate löschen (Nachweispflicht vs. Datensparsamkeit; 12 Monate sind ein üblicher Kompromiss). Falls du eine andere Frist willst, sag Bescheid.
-5. **Frontend:** Order-Tabellen/Details zeigen `'anonymisiert'` sauber an (kein UI-Bruch bei NULL-Feldern). Prüfen, wo `empfaenger_name` / `empfaenger_adresse` als non-null angenommen wird.
-6. Keine Änderung am bestehenden Cron-Job — er ruft weiterhin `gdpr_cleanup_personal_data()` täglich um 03:15 UTC auf.
+Diese Einschränkung wird dem Kunden im Löschmodal transparent kommuniziert.
+
+## Technische Umsetzung
+
+### Datenbank
+Migration:
+- Tabelle `public.gdpr_deletion_tokens` (id uuid PK, order_id uuid FK → orders, token_hash text unique, requested_email citext, expires_at timestamptz, used_at timestamptz null, created_at timestamptz default now()). GRANT nur service_role. RLS enabled, keine Policies (nur SECURITY-DEFINER-Zugriff via Edge Function mit Service-Role).
+- Cleanup: `gdpr_cleanup_personal_data()` erweitern → abgelaufene/verbrauchte Tokens > 30 Tage löschen.
+
+### Edge Functions (drei neue, alle `verify_jwt = false`, alle validieren Tracking-Session per `verifyTrackingSession`)
+1. **`gdpr-customer-export`** — POST { session } → JSON-Download. Nutzt Service-Role für DB + signierte Storage-URLs (5 min).
+2. **`gdpr-customer-delete-request`** — POST { session, email } → generiert Token, speichert Hash, enqueued Bestätigungsmail über bestehendes `enqueue_email` → `transactional_emails`-Queue. Rate-Limit: max. 3 offene Tokens pro Order.
+3. **`gdpr-customer-delete-confirm`** — POST { token } → validiert (nicht abgelaufen, nicht verbraucht), führt Anonymisierung + Storage-Cleanup identisch zur `gdpr_cleanup_personal_data`-Logik aus, schreibt Audit-Log. Kein Session-Check nötig (Token IST der Nachweis).
+
+### E-Mail-Template
+Neues transaktionales Template `gdpr-delete-confirm.tsx` in `supabase/functions/_shared/transactional-email-templates/` und Registrierung in `registry.ts`. Ein Betreff wie „Bestätigen Sie die Löschung Ihrer Daten (Auftrag EC-…)". Deploy von `process-email-queue` + `send-transactional-email` nach dem Anlegen.
+
+### Frontend
+- `src/pages/TrackingPage.tsx`: neue Sektion „Datenschutz" mit den beiden Buttons (nur sichtbar wenn Session aktiv).
+- Neue Komponente `GdprPanel.tsx` mit Modalen (Export-Bestätigung, Lösch-Warnung + E-Mail-Feld + „Bestätigungslink senden").
+- Neue Route + Seite `src/pages/GdprConfirmDeletePage.tsx` für den Link aus der Mail. Öffentlich, ohne Auth.
+- Kein Login-Zwang, keine Merchant-Views verändert.
+
+### Sichtbarkeit im Admin
+- Admin sieht im Audit-Log die Aktionen `gdpr_customer_export` und `gdpr_customer_deleted` inkl. Auftragsnummer. Keine separate UI nötig — nutzt vorhandene Audit-Log-Anzeige.
 
 ## Nicht Teil dieses Plans
 
-- Härteres Löschen (statt Anonymisieren) — nicht gewünscht.
-- Aufbewahrungsfristen für Rechnungen/Steuer (§ 147 AO). Auftragsdaten sind keine Rechnungen; falls du Rechnungs-PDFs erzeugst und speichern musst, wäre das separat zu regeln.
+- Widerspruchsrecht (Art. 21), Datenübertragbarkeit (Art. 20 → identisch zum Export, JSON gilt als portables Format), Berichtigung (Art. 16 — Adressänderung erfordert Händler-Workflow, hier zu risikoreich für self-service).
+- Löschung über E-Mail-Adresse ohne Tracking-Token (würde Enumeration/Massen-Missbrauch ermöglichen). Statt dessen Ticket-Fallback über Support-Mail.
+- Änderungen an Merchant-Aufbewahrungsfristen.
 
-## Hinweis
+## Rechtlicher Hinweis
 
-Keine Rechtsberatung — die 2-Monats-Frist, das Behalten der PLZ und die Audit-Log-Retention sollte dein Datenschutzbeauftragter / Fachanwalt final bestätigen.
+Keine Rechtsberatung. Die konkrete Ausgestaltung (E-Mail-Bestätigung als angemessene Identitätsprüfung, welche Felder unter berechtigtem Interesse behalten werden dürfen, Frist zur Beantwortung 30 Tage) sollte der Datenschutzbeauftragte / Fachanwalt final absegnen. Insbesondere die Formulierung im Lösch-Modal und der Datenschutzhinweis „was nicht gelöscht wird und warum" gehören juristisch geprüft.

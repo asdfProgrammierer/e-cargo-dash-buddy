@@ -636,6 +636,44 @@ export type Database = {
         }
         Relationships: []
       }
+      gdpr_deletion_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          order_id: string
+          requested_email: string
+          token_hash: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          order_id: string
+          requested_email: string
+          token_hash: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          order_id?: string
+          requested_email?: string
+          token_hash?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gdpr_deletion_tokens_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_schedule: {
         Row: {
           bezeichnung: string
@@ -1676,6 +1714,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      anonymize_order: { Args: { _order_id: string }; Returns: boolean }
       cleanup_stale_work_sessions: { Args: never; Returns: undefined }
       current_driver_id: { Args: never; Returns: string }
       delete_email: {

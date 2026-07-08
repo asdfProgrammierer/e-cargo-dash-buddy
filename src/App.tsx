@@ -40,6 +40,7 @@ const StatistikenPage = lazy(() => import("./pages/admin/StatistikenPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const UnsubscribePage = lazy(() => import("./pages/UnsubscribePage"));
 const TrackingPage = lazy(() => import("./pages/TrackingPage"));
+const GdprConfirmDeletePage = lazy(() => import("./pages/GdprConfirmDeletePage"));
 const TrustPage = lazy(() => import("./pages/TrustPage"));
 const DriverLoginPage = lazy(() => import("./pages/driver/DriverLoginPage"));
 const DriverHomePage = lazy(() => import("./pages/driver/DriverHomePage"));
@@ -134,6 +135,7 @@ const AppRoutes = () => (
     <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route path="/unsubscribe" element={<UnsubscribePage />} />
     <Route path="/track/:token" element={<TrackingPage />} />
+    <Route path="/gdpr/confirm-delete" element={<GdprConfirmDeletePage />} />
     <Route path="/sicherheit" element={<TrustPage />} />
     <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
     <Route path="/admin/haendler" element={<AdminRoute><HaendlerVerwaltungPage /></AdminRoute>} />
