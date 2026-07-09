@@ -25,6 +25,7 @@ import { Printer, Trash2, XCircle, FileDown, Loader2 } from "lucide-react";
 import { Order, STATUS_LABELS, STATUS_COLORS } from "@/types/order";
 import { printShippingLabels } from "@/lib/shippingLabels";
 import { downloadOrderPdf } from "@/lib/orderPdf";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface OrderTableProps {
   orders: Order[];
@@ -37,6 +38,7 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
+  const isMobile = useIsMobile();
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -96,7 +98,7 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
   return (
     <div className="space-y-3">
       {selected.size > 0 && (
-        <div className="flex items-center gap-3 rounded-lg bg-primary/10 p-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 rounded-lg bg-primary/10 p-3">
           <span className="text-sm font-medium text-foreground">{selected.size} ausgewählt</span>
           <Button size="sm" variant="outline" onClick={printBulkLabels}>
             <Printer className="mr-2 h-4 w-4" />
@@ -107,6 +109,95 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
           </Button>
         </div>
       )}
+      {isMobile ? (
+        <div className="space-y-2">
+          {orders.map((order) => (
+            <div
+              key={order.id}
+              onClick={() => onSelect(order)}
+              className="rounded-xl border border-border/50 bg-card p-3 space-y-2 active:bg-muted/40 cursor-pointer"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0" onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={selected.has(order.id)}
+                    onCheckedChange={() => toggleSelect(order.id)}
+                  />
+                  <span className="font-mono text-sm font-medium truncate">{order.auftragsNr}</span>
+                  {order.isPickup && (
+                    <Badge variant="outline" className="border-warning text-warning text-[10px] uppercase tracking-wide">
+                      Abholung
+                    </Badge>
+                  )}
+                </div>
+                {order.dhlTrackingNumber ? (
+                  <Badge variant="secondary" className="border-0 text-xs bg-yellow-400 text-yellow-950 hover:bg-yellow-400 shrink-0">
+                    DHL
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className={`${STATUS_COLORS[order.status]} border-0 text-xs shrink-0`}>
+                    {STATUS_LABELS[order.status]}
+                  </Badge>
+                )}
+              </div>
+              <div className="text-sm">
+                <p className="font-medium truncate">{order.empfaengerName}</p>
+                <p className="text-xs text-muted-foreground truncate">{order.empfaengerStadt}</p>
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{order.pakete} Paket{order.pakete === 1 ? "" : "e"} · {order.gewicht} kg</span>
+                <span>{order.erstelltAm}</span>
+              </div>
+              <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-9 w-9" title="Etikett drucken" onClick={(e) => printLabel(e, order)}>
+                  <Printer className="h-4 w-4" />
+                </Button>
+                {order.status === "neu" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 text-destructive hover:text-destructive"
+                    title="Löschen"
+                    onClick={() => onDelete(order.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+                {order.status === "in_bearbeitung" && onCancel && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 text-destructive hover:text-destructive"
+                    title="Stornieren"
+                    onClick={() => setCancelTarget(order)}
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                )}
+                {(order.status === "unterwegs" ||
+                  order.status === "zugestellt" ||
+                  order.status === "nicht_zugestellt" ||
+                  order.status === "storniert") && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9"
+                    title="PDF herunterladen"
+                    onClick={(e) => downloadPdf(e, order)}
+                    disabled={pdfLoadingId === order.id}
+                  >
+                    {pdfLoadingId === order.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileDown className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
       <div className="rounded-xl border border-border/50 bg-card overflow-hidden">
         <Table>
           <TableHeader>
@@ -223,6 +314,7 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
           </TableBody>
         </Table>
       </div>
+      )}
 
       <AlertDialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
         <AlertDialogContent>

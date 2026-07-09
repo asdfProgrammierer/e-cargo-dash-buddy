@@ -139,6 +139,16 @@ All colors MUST be HSL.
   }
 }
 
+/* Responsive helpers for mobile/tablet */
+@layer utilities {
+  /* Radix Table wrapper already scrolls horizontally, but make sure content
+     never pushes the page wider than the viewport on mobile. */
+  .table-scroll-container {
+    @apply w-full overflow-x-auto;
+  }
+}
+
+
 /* Map hover popups (RoutesOverviewMap) */
 .ovr-hover-popup .maplibregl-popup-content {
   padding: 8px 10px;
