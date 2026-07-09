@@ -139,6 +139,32 @@ All colors MUST be HSL.
   }
 }
 
+/* Responsive helpers for mobile/tablet */
+@layer utilities {
+  /* Radix Table wrapper already scrolls horizontally, but make sure content
+     never pushes the page wider than the viewport on mobile. */
+  .table-scroll-container {
+    @apply w-full overflow-x-auto;
+  }
+}
+
+/* Radix Dialog: on small screens make dialogs almost full-width and scrollable
+   so long forms don't overflow the viewport. */
+@media (max-width: 640px) {
+  [role="dialog"][data-state="open"].fixed,
+  [data-radix-dialog-content] {
+    max-width: calc(100vw - 1.5rem) !important;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+  }
+}
+
+/* Ensure raw <table> inside cards can scroll horizontally without pushing layout */
+.rounded-xl > table,
+.rounded-lg > table {
+  min-width: 100%;
+}
+
 /* Map hover popups (RoutesOverviewMap) */
 .ovr-hover-popup .maplibregl-popup-content {
   padding: 8px 10px;
