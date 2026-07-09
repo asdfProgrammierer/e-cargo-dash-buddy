@@ -1,70 +1,64 @@
-## Ziel
+# Responsive Optimierung: Handy & Tablet
 
-Endkunden (Zustellempfänger ohne Login) sollen ihre DSGVO-Rechte selbst wahrnehmen können:
-- **Art. 15** — Auskunft: eigene Daten als JSON/PDF-Download.
-- **Art. 17** — Löschung: sofortige Anonymisierung ihres Auftrags (statt der 2-Monats-Automatik).
+Ziel: Alle Bereiche (Händler-Dashboard, Admin-Portal, Fahrer, öffentliche Seiten) voll bedienbar von 320px bis Desktop. Große Tabellen werden auf Handy zu Karten, auf Tablet+ bleiben Tabellen. Keine Business-Logik-Änderungen — nur Layout/Presentation.
 
-Basis ist der bereits existierende Tracking-Flow (`tracking_token` + PLZ → signierte Session). Der Session-Nachweis reicht aber allein nicht für Löschung — bei irreversiblen Aktionen setzen wir zusätzlich einen **E-Mail-Bestätigungslink** ein (Double-Opt-In). Damit ist der Empfänger als Berechtigter verifiziert (Art. 12 Abs. 6 DSGVO — angemessene Identitätsprüfung).
+## Leitprinzipien
+- Breakpoints: `sm` 640, `md` 768 (Tablet), `lg` 1024 (Desktop). Karten-Layout unter `md`.
+- Sidebar: bleibt Desktop-Nav; auf Mobile bereits als Sheet über `SidebarTrigger` — sicherstellen dass Trigger überall sichtbar.
+- Touch-Targets ≥ 44px, ausreichende Abstände, kein horizontales Page-Scroll.
+- Dialoge/Sheets: auf Mobile full-screen bzw. Bottom-Sheet.
 
-## Ablauf für den Endkunden
+## Änderungen pro Bereich
 
-### Einstiegspunkt
-Auf der bestehenden Tracking-Seite (`/tracking?token=…`) erscheint nach erfolgreichem PLZ-Login unten ein Bereich **„Datenschutz / Meine Daten"** mit zwei Buttons:
-- „Meine Daten herunterladen" (Art. 15)
-- „Meine Daten löschen" (Art. 17)
+### 1. Globales Layout
+- `DashboardLayout` / `AdminLayout` / `DriverLayout`: Header-Padding auf `px-3 sm:px-6`, Titel truncaten, Aktions-Icons kompakter (`gap-2`), Uhr auf `<sm` verstecken oder verkürzen.
+- `main` Padding: `p-3 sm:p-6`.
+- `NotificationBell` Dropdown: max-w-screen, kein Overflow.
 
-### Art. 15 — Auskunft (in einem Schritt)
-1. Klick → Edge Function `gdpr-customer-export` prüft die Tracking-Session.
-2. Antwort ist ein JSON-Download mit allen Feldern zu diesem einen Auftrag: Auftragsnummer, Status/-verlauf, Adresse/Kontaktdaten, Paketdaten, Zustellversuche, Zustelldatum, Nachweise (Unterschrift/Foto/Lieferschein als signierte, zeitlich begrenzte Download-Links).
-3. Ein Audit-Log-Eintrag `gdpr_customer_export` wird geschrieben (Order-ID, Zeitstempel, IP-Hash).
+### 2. Händler-Dashboard
+- **AuftraegePage / OrderTable**: unter `md` neue `OrderCards`-Ansicht (Auftrags-Nr, Status-Badge, Empfänger, Datum, Actions als Icons). Ab `md` bestehende Tabelle.
+- **OrderSearch / StatusFilter**: Filter-Chips scrollen horizontal (`overflow-x-auto`), Suchfeld full-width.
+- **StatsCards / DashboardStats**: Grid `grid-cols-2 md:grid-cols-4`, kleinere Zahlen/Padding auf Mobile.
+- **CreateOrderDialog / OrderDetailSheet / ExcelImport**: Dialog → auf Mobile `Sheet` von unten oder `max-h-[90vh] overflow-y-auto`, Formularfelder untereinander (`grid-cols-1 md:grid-cols-2`).
+- **AdressbuchPage**: Karten-Liste statt Tabelle unter `md`.
+- **ProfilPage**: Tabs scrollbar, Formularspalten stapeln, `OpeningHoursEditor` responsiv.
+- **MerchantAnalytics / Statistiken**: Charts `w-full`, Legenden umbrechen, KPI-Cards 2-Spalten Mobile.
 
-Keine E-Mail-Bestätigung nötig, da nur Daten zum aktuell schon durch Token+PLZ freigeschalteten Auftrag ausgeliefert werden — das gleiche Vertrauensniveau, das der Kunde bereits hat, um Sendungsstatus/Adresse/Nachweise zu sehen.
+### 3. Admin-Portal
+- **AdminSidebar**: gleiche Sheet-Behandlung.
+- **HaendlerVerwaltung / FahrerPage / FahrzeugePage / RoutenplanungPage / NewOrdersTable / StatistikenPage**: Tabellen → Karten unter `md`. Filter-Bar wrap.
+- **RouteBuilder / RoutesOverviewMap**: Karten-Container `h-[50vh] md:h-[70vh]`, Panels als Bottom-Sheet.
+- **Dialoge** (CreateOrder, EditMerchant, VirtualMerchant, ExcelImport, DriverStats, Invoice, Pricing): responsive Dialog-Größe, scrollbar.
+- **SettingsTabs / DhlSettings / DeliveryModes / Depots / RouteSettings / EmailTemplates / Notifications**: Tab-Leiste `overflow-x-auto`, Formulare stapeln.
+- **Detail-Seiten** (HaendlerDetail, FahrzeugDetail, RouteDetail): Zwei-Spalten → Stack auf Mobile.
 
-### Art. 17 — Löschung (Double-Opt-In per E-Mail)
-1. Klick auf „Meine Daten löschen" öffnet ein Modal mit Warnhinweis (unwiderruflich, betrifft nur diesen einen Auftrag, Rechnungs-/Steuerpflichten des Händlers bleiben davon unberührt).
-2. Feld: E-Mail-Adresse eingeben (muss mit `orders.empfaenger_email` übereinstimmen). Falls im Auftrag keine E-Mail hinterlegt ist, Fallback-Hinweis: „Bitte wenden Sie sich an support@ecargo-logistik.de" — dann geht's per Ticket, nicht self-service.
-3. Edge Function `gdpr-customer-delete-request` (verify_jwt=false, prüft Tracking-Session + Case-insensitive E-Mail-Match) erzeugt einen Einmal-Token (32 Byte hex, 24 h gültig, single-use) in neuer Tabelle `gdpr_deletion_tokens (id, order_id, token_hash, requested_email, expires_at, used_at, created_at)` und schickt eine Bestätigungsmail an genau die im Auftrag hinterlegte Adresse.
-4. Bestätigungsmail: „Klicken Sie hier, um die Löschung Ihrer Daten zu Auftrag `EC-XXX-…` zu bestätigen." Link → `/gdpr/confirm-delete?token=…`.
-5. Diese Seite ruft `gdpr-customer-delete-confirm` auf. Der Token wird per Hash verglichen, als `used_at` markiert und die Order sofort mit derselben Anonymisierungslogik wie der 2-Monats-Job behandelt (Felder auf NULL / `'anonymisiert'`, `anonymized_at = now()`, Storage-Objekte gelöscht, Status-Historie zu diesem Auftrag entfernt). Audit-Eintrag `gdpr_customer_deleted`.
-6. Erfolgsseite: „Ihre Daten wurden anonymisiert." Der Tracking-Token wird ebenfalls geleert, weiterer Zugriff ist nicht mehr möglich.
+### 4. Fahrer-Ansicht
+- Feinschliff: Buttons full-width auf Mobile, `SignaturePad` volle Breite mit fixem Aspect-Ratio, Stop-Detail scrollbar, PIN-Login größere Ziffern.
 
-## Was NICHT gelöscht wird (Rechtfertigung Art. 17 Abs. 3 lit. b/e DSGVO)
+### 5. Öffentliche Seiten
+- **TrackingPage / GdprPanel / GdprConfirmDeletePage**: bereits `max-w-2xl` — Padding `px-3`, Buttons full-width, Badges/History nicht abgeschnitten.
+- **LoginPage / DriverLoginPage / PendingApprovalPage / ResetPasswordPage / UnsubscribePage / TrustPage / NotFound / OnlineShopPage**: zentrierte Karten, `w-full max-w-md`, Padding korrekt.
 
-- Auftragsnummer, Händler-Zuordnung, PLZ, Status, Paketanzahl, Gewicht, Zustellversuche, Zeitstempel (Nachweispflicht des Händlers gegenüber seinem Auftraggeber; berechtigtes Interesse an Betriebs-/Abrechnungsstatistiken; PLZ ist ohne weitere Merkmale nicht personenbeziehbar).
-- `admin_audit_log`-Einträge (Nachweis der Rechtmäßigkeit der Verarbeitung, 12 Monate Retention greift separat).
+### 6. Neue Hilfskomponenten
+- `src/components/ui/responsive-dialog.tsx`: nutzt `useIsMobile` → rendert `Sheet` (side="bottom") auf Mobile, sonst `Dialog`. Wird schrittweise für große Formulare eingesetzt.
+- `src/components/dashboard/OrderCards.tsx`: mobile Kartenliste, teilt Props/Actions mit `OrderTable`.
+- Analog `AdminOrderCards`, `MerchantCards`, `DriverCards`, `VehicleCards`, `AddressCards` je nach Bedarf.
 
-Diese Einschränkung wird dem Kunden im Löschmodal transparent kommuniziert.
+## Umfang / Vorgehen
+Umsetzung in einem Rutsch, aber logisch gruppiert:
+1. Layouts + Header + Hilfskomponenten
+2. Händler-Dashboard (Tabellen → Karten, Dialoge, Filter)
+3. Admin-Portal (Tabellen → Karten, Dialoge, Detail-Seiten)
+4. Fahrer + öffentliche Seiten
+5. Smoke-Test via Playwright (375px + 768px Screenshots von Kernseiten)
 
-## Technische Umsetzung
+## Nicht enthalten
+- Keine Änderung an Business-Logik, Datenbank, Edge Functions, Auth.
+- Keine neuen Features, keine Redesigns der Farbwelt/Typografie.
+- Keine PWA-/Capacitor-Änderungen (App bleibt Web).
 
-### Datenbank
-Migration:
-- Tabelle `public.gdpr_deletion_tokens` (id uuid PK, order_id uuid FK → orders, token_hash text unique, requested_email citext, expires_at timestamptz, used_at timestamptz null, created_at timestamptz default now()). GRANT nur service_role. RLS enabled, keine Policies (nur SECURITY-DEFINER-Zugriff via Edge Function mit Service-Role).
-- Cleanup: `gdpr_cleanup_personal_data()` erweitern → abgelaufene/verbrauchte Tokens > 30 Tage löschen.
-
-### Edge Functions (drei neue, alle `verify_jwt = false`, alle validieren Tracking-Session per `verifyTrackingSession`)
-1. **`gdpr-customer-export`** — POST { session } → JSON-Download. Nutzt Service-Role für DB + signierte Storage-URLs (5 min).
-2. **`gdpr-customer-delete-request`** — POST { session, email } → generiert Token, speichert Hash, enqueued Bestätigungsmail über bestehendes `enqueue_email` → `transactional_emails`-Queue. Rate-Limit: max. 3 offene Tokens pro Order.
-3. **`gdpr-customer-delete-confirm`** — POST { token } → validiert (nicht abgelaufen, nicht verbraucht), führt Anonymisierung + Storage-Cleanup identisch zur `gdpr_cleanup_personal_data`-Logik aus, schreibt Audit-Log. Kein Session-Check nötig (Token IST der Nachweis).
-
-### E-Mail-Template
-Neues transaktionales Template `gdpr-delete-confirm.tsx` in `supabase/functions/_shared/transactional-email-templates/` und Registrierung in `registry.ts`. Ein Betreff wie „Bestätigen Sie die Löschung Ihrer Daten (Auftrag EC-…)". Deploy von `process-email-queue` + `send-transactional-email` nach dem Anlegen.
-
-### Frontend
-- `src/pages/TrackingPage.tsx`: neue Sektion „Datenschutz" mit den beiden Buttons (nur sichtbar wenn Session aktiv).
-- Neue Komponente `GdprPanel.tsx` mit Modalen (Export-Bestätigung, Lösch-Warnung + E-Mail-Feld + „Bestätigungslink senden").
-- Neue Route + Seite `src/pages/GdprConfirmDeletePage.tsx` für den Link aus der Mail. Öffentlich, ohne Auth.
-- Kein Login-Zwang, keine Merchant-Views verändert.
-
-### Sichtbarkeit im Admin
-- Admin sieht im Audit-Log die Aktionen `gdpr_customer_export` und `gdpr_customer_deleted` inkl. Auftragsnummer. Keine separate UI nötig — nutzt vorhandene Audit-Log-Anzeige.
-
-## Nicht Teil dieses Plans
-
-- Widerspruchsrecht (Art. 21), Datenübertragbarkeit (Art. 20 → identisch zum Export, JSON gilt als portables Format), Berichtigung (Art. 16 — Adressänderung erfordert Händler-Workflow, hier zu risikoreich für self-service).
-- Löschung über E-Mail-Adresse ohne Tracking-Token (würde Enumeration/Massen-Missbrauch ermöglichen). Statt dessen Ticket-Fallback über Support-Mail.
-- Änderungen an Merchant-Aufbewahrungsfristen.
-
-## Rechtlicher Hinweis
-
-Keine Rechtsberatung. Die konkrete Ausgestaltung (E-Mail-Bestätigung als angemessene Identitätsprüfung, welche Felder unter berechtigtem Interesse behalten werden dürfen, Frist zur Beantwortung 30 Tage) sollte der Datenschutzbeauftragte / Fachanwalt final absegnen. Insbesondere die Formulierung im Lösch-Modal und der Datenschutzhinweis „was nicht gelöscht wird und warum" gehören juristisch geprüft.
+## Technisch
+- Tailwind-Breakpoints wie oben.
+- `useIsMobile()` (bereits vorhanden, 768px) für bedingtes Rendering von Karten vs. Tabellen und Dialog vs. Sheet.
+- Bestehende shadcn `Sheet` Komponente wird für Bottom-Sheets wiederverwendet.
+- Keine neuen Dependencies.
