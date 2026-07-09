@@ -148,22 +148,6 @@ All colors MUST be HSL.
   }
 }
 
-/* Radix Dialog: on small screens make dialogs almost full-width and scrollable
-   so long forms don't overflow the viewport. */
-@media (max-width: 640px) {
-  [role="dialog"][data-state="open"].fixed,
-  [data-radix-dialog-content] {
-    max-width: calc(100vw - 1.5rem) !important;
-    max-height: calc(100vh - 2rem);
-    overflow-y: auto;
-  }
-}
-
-/* Ensure raw <table> inside cards can scroll horizontally without pushing layout */
-.rounded-xl > table,
-.rounded-lg > table {
-  min-width: 100%;
-}
 
 /* Map hover popups (RoutesOverviewMap) */
 .ovr-hover-popup .maplibregl-popup-content {
