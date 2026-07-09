@@ -107,13 +107,13 @@ const AuftraegePage = () => {
     <DashboardLayout title="Aufträge">
       <PageHead title="Aufträge – e-cargo Händler-Dashboard" description="Alle e-cargo Kurieraufträge auf einen Blick: Status, Suche, Filter und Detailansicht Ihrer Sendungen im Ruhrgebiet." path="/auftraege" />
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center min-w-0">
             <OrderSearch value={search} onChange={setSearch} />
             <StatusFilter activeFilter={filter} onFilter={setFilter} />
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-0.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-0.5 overflow-x-auto">
               {TIME_FILTERS.map((tf) => (
                 <Button
                   key={tf.value}
