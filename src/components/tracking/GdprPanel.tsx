@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +17,7 @@ interface Props {
 
 export function GdprPanel({ session, auftragsNr, onDeletionRequested }: Props) {
   const { toast } = useToast();
+  const [open, setOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -93,7 +93,7 @@ export function GdprPanel({ session, auftragsNr, onDeletionRequested }: Props) {
     }
   }
 
-  function closeDialog(open: boolean) {
+  function closeDeleteDialog(open: boolean) {
     setDeleteOpen(open);
     if (!open) {
       setSent(false);
@@ -102,28 +102,35 @@ export function GdprPanel({ session, auftragsNr, onDeletionRequested }: Props) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <ShieldCheck className="h-4 w-4 text-primary" />
-          Meine Daten (Datenschutz)
-        </CardTitle>
-        <CardDescription>
-          Nach DSGVO haben Sie das Recht, eine Kopie Ihrer Daten zu erhalten (Art. 15) oder deren Löschung zu verlangen (Art. 17).
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <Button variant="outline" className="w-full justify-start" onClick={handleExport} disabled={exporting}>
-          {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-          Meine Daten herunterladen (JSON)
-        </Button>
-        <Button variant="outline" className="w-full justify-start text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
-          <Trash2 className="mr-2 h-4 w-4" />
-          Meine Daten löschen lassen
-        </Button>
-      </CardContent>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button className="inline text-sm underline underline-offset-4 hover:text-primary transition-colors">
+          Meine Daten
+        </button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+            Meine Daten (Datenschutz)
+          </DialogTitle>
+          <DialogDescription>
+            Nach DSGVO haben Sie das Recht, eine Kopie Ihrer Daten zu erhalten (Art. 15) oder deren Löschung zu verlangen (Art. 17).
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Button variant="outline" className="w-full justify-start" onClick={handleExport} disabled={exporting}>
+            {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            Meine Daten herunterladen (JSON)
+          </Button>
+          <Button variant="outline" className="w-full justify-start text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="mr-2 h-4 w-4" />
+            Meine Daten löschen lassen
+          </Button>
+        </div>
+      </DialogContent>
 
-      <Dialog open={deleteOpen} onOpenChange={closeDialog}>
+      <Dialog open={deleteOpen} onOpenChange={closeDeleteDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Löschung Ihrer Daten anfordern</DialogTitle>
@@ -136,7 +143,7 @@ export function GdprPanel({ session, auftragsNr, onDeletionRequested }: Props) {
             <div className="space-y-3 text-sm">
               <p>Wir haben Ihnen soeben eine E-Mail mit einem Bestätigungslink gesendet. Bitte prüfen Sie auch Ihren Spam-Ordner. Der Link ist 24 Stunden gültig.</p>
               <DialogFooter>
-                <Button onClick={() => closeDialog(false)}>Verstanden</Button>
+                <Button onClick={() => closeDeleteDialog(false)}>Verstanden</Button>
               </DialogFooter>
             </div>
           ) : (
@@ -152,7 +159,7 @@ export function GdprPanel({ session, auftragsNr, onDeletionRequested }: Props) {
                 <Input id="gdpr-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" required maxLength={255} />
               </div>
               <DialogFooter className="gap-2 sm:gap-0">
-                <Button type="button" variant="ghost" onClick={() => closeDialog(false)} disabled={requesting}>Abbrechen</Button>
+                <Button type="button" variant="ghost" onClick={() => closeDeleteDialog(false)} disabled={requesting}>Abbrechen</Button>
                 <Button type="submit" variant="destructive" disabled={requesting}>
                   {requesting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Bestätigungslink senden
@@ -162,6 +169,6 @@ export function GdprPanel({ session, auftragsNr, onDeletionRequested }: Props) {
           )}
         </DialogContent>
       </Dialog>
-    </Card>
+    </Dialog>
   );
 }

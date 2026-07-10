@@ -538,7 +538,31 @@ export default function TrackingPage() {
           Wir liefern 100% elektrisch · e-cargo
         </p>
 
-        <GdprPanel session={session} auftragsNr={order.auftragsNr} />
+        <Card className="bg-muted/30 border-none shadow-none">
+          <CardContent className="py-4">
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              <a
+                href="https://ecargo-logistik.de/datenschutz"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-4 hover:text-primary transition-colors"
+              >
+                Datenschutz
+              </a>
+              <span className="hidden sm:inline text-border" aria-hidden="true">·</span>
+              <a
+                href="https://ecargo-logistik.de/impressum"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-4 hover:text-primary transition-colors"
+              >
+                Impressum
+              </a>
+              <span className="hidden sm:inline text-border" aria-hidden="true">·</span>
+              <GdprPanel session={session} auftragsNr={order.auftragsNr} />
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
