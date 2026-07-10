@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { z } from "zod";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -481,27 +481,34 @@ export default function TrackingPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              {INSTRUCTION_OPTIONS.map((opt) => (
-                <div key={opt.value} className="flex items-center gap-2">
-                  <Checkbox
-                    id={`opt-${opt.value}`}
-                    checked={selectedOptions.includes(opt.value)}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {INSTRUCTION_OPTIONS.map((opt) => {
+                const selected = selectedOptions.includes(opt.value);
+                return (
+                  <Button
+                    key={opt.value}
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start h-auto py-3 px-4 text-left transition-colors",
+                      selected && "bg-success text-success-foreground border-success hover:bg-success/90 hover:text-success-foreground"
+                    )}
                     disabled={!editable || saving}
-                    onCheckedChange={(checked) => {
+                    onClick={() => {
                       setSelectedOptions((prev) =>
-                        checked ? Array.from(new Set([...prev, opt.value])) : prev.filter((v) => v !== opt.value)
+                        selected ? prev.filter((v) => v !== opt.value) : Array.from(new Set([...prev, opt.value]))
                       );
                     }}
-                  />
-                  <Label htmlFor={`opt-${opt.value}`} className="font-normal cursor-pointer">
-                    {opt.label}
+                  >
+                    <span className="flex-1">{opt.label}</span>
                     {opt.requiresNote && (
-                      <span className="ml-1 text-xs text-muted-foreground">(Hinweis erforderlich)</span>
+                      <span className={cn("ml-1 text-xs", selected ? "text-success-foreground/80" : "text-muted-foreground")}>
+                        (Hinweis erforderlich)
+                      </span>
                     )}
-                  </Label>
-                </div>
-              ))}
+                  </Button>
+                );
+              })}
             </div>
             <div className="space-y-2">
               <Label htmlFor="freetext">
