@@ -490,7 +490,7 @@ export default function TrackingPage() {
                     type="button"
                     variant="outline"
                     className={cn(
-                      "w-full justify-start h-auto py-3 px-4 text-left transition-colors",
+                      "w-full h-auto min-h-[3rem] py-3 px-4 flex flex-col items-start gap-0.5 whitespace-normal text-left transition-colors",
                       selected && "bg-success text-success-foreground border-success hover:bg-success/90 hover:text-success-foreground"
                     )}
                     disabled={!editable || saving}
@@ -500,10 +500,10 @@ export default function TrackingPage() {
                       );
                     }}
                   >
-                    <span className="flex-1">{opt.label}</span>
+                    <span className="w-full break-words leading-snug">{opt.label}</span>
                     {opt.requiresNote && (
-                      <span className={cn("ml-1 text-xs", selected ? "text-success-foreground/80" : "text-muted-foreground")}>
-                        (Hinweis erforderlich)
+                      <span className={cn("w-full text-xs leading-tight", selected ? "text-success-foreground/80" : "text-muted-foreground")}>
+                        Hinweis erforderlich
                       </span>
                     )}
                   </Button>
