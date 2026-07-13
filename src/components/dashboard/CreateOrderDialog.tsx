@@ -79,6 +79,7 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
   const [senderDefaults, setSenderDefaults] = useState({ absenderName: "", absenderAdresse: "" });
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactPopoverOpen, setContactPopoverOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const [coveredPostcodes, setCoveredPostcodes] = useState<Set<string>>(new Set());
 
   // Load profile data once
