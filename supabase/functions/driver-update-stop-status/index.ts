@@ -288,6 +288,7 @@ Deno.serve(async (req) => {
               auftragsNr: order.auftrags_nr,
               lieferadresse,
               trackingUrl,
+              reviewUrl: "https://g.page/r/Ce31_KA3ZK4BEAE/review",
             };
 
             let templateName: string;
