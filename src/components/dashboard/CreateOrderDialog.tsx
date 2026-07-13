@@ -79,6 +79,7 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
   const [senderDefaults, setSenderDefaults] = useState({ absenderName: "", absenderAdresse: "" });
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactPopoverOpen, setContactPopoverOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const [coveredPostcodes, setCoveredPostcodes] = useState<Set<string>>(new Set());
 
   // Load profile data once
@@ -246,43 +247,60 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
           <div className="rounded-lg border border-border p-3 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Empfänger</p>
-              {contacts.length > 0 && (
-                <Popover open={contactPopoverOpen} onOpenChange={setContactPopoverOpen}>
+              <div className="flex items-center gap-1.5">
+                <Popover open={infoOpen} onOpenChange={setInfoOpen}>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
-                      <BookUser className="h-3.5 w-3.5" />
-                      Aus Adressbuch
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" aria-label="Datenschutzhinweis">
+                      <Info className="h-4 w-4" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-72 p-0" align="end">
-                    <Command>
-                      <CommandInput placeholder="Kontakt suchen…" />
-                      <CommandList>
-                        <CommandEmpty>Kein Kontakt gefunden</CommandEmpty>
-                        <CommandGroup>
-                          {contacts.map((c) => (
-                            <CommandItem
-                              key={c.id}
-                              onSelect={() => selectContact(c)}
-                              className="flex flex-col items-start gap-0.5"
-                            >
-                              <span className="font-medium text-sm">{c.ansprechpartner}</span>
-                              {c.firma_name && (
-                                <span className="text-xs text-muted-foreground">{c.firma_name}</span>
-                              )}
-                              {c.stadt && (
-                                <span className="text-xs text-muted-foreground">
-                                  {[c.plz, c.stadt].filter(Boolean).join(" ")}
-                                </span>
-                              )}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
+                  <PopoverContent className="w-80 sm:w-96" align="end">
+                    <div className="space-y-2 text-sm">
+                      <p className="font-semibold text-foreground">Wichtige Information zum Datenschutz</p>
+                      <p className="text-muted-foreground leading-relaxed">
+                        Bitte beachten Sie, dass Sie gemäß Art. 4 Nr. 11 DSGVO die Einwilligung des Empfängers zur Weitergabe seiner E-Mail-Adresse an die e-cargo Gesellschaft für Elektromobilität UG einholen müssen. Für Sendungen innerhalb des Liefergebiets wird die E-Mail-Adresse für den Versand einer e-cargo Paketankündigung an den Empfänger verwendet. Die Angabe einer E-Mail-Adresse ist für Sendungen nicht verpflichtend.
+                      </p>
+                    </div>
                   </PopoverContent>
                 </Popover>
-              )}
+                {contacts.length > 0 && (
+                  <Popover open={contactPopoverOpen} onOpenChange={setContactPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                        <BookUser className="h-3.5 w-3.5" />
+                        Aus Adressbuch
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 p-0" align="end">
+                      <Command>
+                        <CommandInput placeholder="Kontakt suchen…" />
+                        <CommandList>
+                          <CommandEmpty>Kein Kontakt gefunden</CommandEmpty>
+                          <CommandGroup>
+                            {contacts.map((c) => (
+                              <CommandItem
+                                key={c.id}
+                                onSelect={() => selectContact(c)}
+                                className="flex flex-col items-start gap-0.5"
+                              >
+                                <span className="font-medium text-sm">{c.ansprechpartner}</span>
+                                {c.firma_name && (
+                                  <span className="text-xs text-muted-foreground">{c.firma_name}</span>
+                                )}
+                                {c.stadt && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {[c.plz, c.stadt].filter(Boolean).join(" ")}
+                                  </span>
+                                )}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
           </div>
 
           {/* Save to address book */}
