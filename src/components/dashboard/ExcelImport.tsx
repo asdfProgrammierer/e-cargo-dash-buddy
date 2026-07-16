@@ -40,6 +40,8 @@ interface ExcelImportProps {
   merchantIdOverride?: string | null;
   /** Override sender defaults (admin import). When provided, profile fetch is skipped. */
   senderOverride?: { name: string; adresse: string } | null;
+  /** Hides the manual template selector (used on the merchant import page). Auto-detection still applies. */
+  hideTemplateSelector?: boolean;
 }
 
 interface PreviewRow {
