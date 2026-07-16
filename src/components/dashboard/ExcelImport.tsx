@@ -170,7 +170,7 @@ function downloadTemplate(template: TemplateKey) {
   XLSX.writeFile(wb, fileName);
 }
 
-export function ExcelImport({ onImport, merchantIdOverride, senderOverride }: ExcelImportProps) {
+export function ExcelImport({ onImport, merchantIdOverride, senderOverride, hideTemplateSelector }: ExcelImportProps) {
   const { user, ownerUserId } = useAuth();
   const merchantId = merchantIdOverride ?? ownerUserId ?? user?.id ?? null;
   const [preview, setPreview] = useState<PreviewRow[]>([]);
