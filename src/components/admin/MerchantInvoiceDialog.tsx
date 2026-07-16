@@ -104,28 +104,23 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
     const doc = new jsPDF();
     const merchantName = merchant.firma_name || merchant.ansprechpartner || "Händler";
     const createdAt = new Date().toLocaleDateString("de-DE");
-    const compactStartDate = startDate.replace(/-/g, "");
-    const compactEndDate = endDate.replace(/-/g, "");
-    const invoiceNumber = `RE-${merchant.id.slice(0, 8).toUpperCase()}-${compactStartDate}-${compactEndDate}`;
 
     doc.setFontSize(18);
-    doc.text("Rechnung", 14, 18);
+    doc.text("Auftragsaufzählung", 14, 18);
     doc.setFontSize(11);
     doc.text(`Händler: ${merchantName}`, 14, 28);
-    doc.text(`Rechnungsnummer: ${invoiceNumber}`, 14, 35);
-    doc.text(`Zeitraum: ${startDate} bis ${endDate}`, 14, 42);
-    doc.text(`Erstellt am: ${createdAt}`, 14, 49);
+    doc.text(`Zeitraum: ${startDate} bis ${endDate}`, 14, 35);
+    doc.text(`Erstellt am: ${createdAt}`, 14, 42);
 
     autoTable(doc, {
-      startY: 58,
-      head: [["Auftrag", "Datum", "Empfänger", "Status", "Pakete", "Preis", "Summe"]],
+      startY: 52,
+      head: [["Auftrag", "Datum", "Status", "Pakete", "Preis", "Summe"]],
       body: orders.map((order) => [
         order.auftrags_nr,
         (() => {
           const date = order.status === "zugestellt" ? order.delivered_at : order.updated_at;
           return date ? new Date(date).toLocaleDateString("de-DE") : "–";
         })(),
-        order.empfaenger_name,
         order.status === "zugestellt" ? "Zugestellt" : "Nicht zugestellt",
         String(order.pakete),
         formatCurrency(packagePrice),
@@ -136,13 +131,11 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
     });
 
     const finalY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 70;
-    doc.text(`Gelieferte Aufträge: ${summary.orderCount}`, 14, finalY + 12);
-    doc.text(`Gelieferte Pakete: ${summary.totalPackages}`, 14, finalY + 19);
-    doc.text(`Paketpreis: ${formatCurrency(packagePrice)}`, 14, finalY + 26);
+    doc.text(`Gelieferte Pakete: ${summary.totalPackages}`, 14, finalY + 12);
     doc.setFontSize(13);
-    doc.text(`Gesamtbetrag: ${formatCurrency(summary.totalAmount)}`, 14, finalY + 36);
+    doc.text(`Gesamtbetrag: ${formatCurrency(summary.totalAmount)}`, 14, finalY + 22);
 
-    doc.save(`rechnung-${merchantName.toLowerCase().replace(/\s+/g, "-")}-${startDate}-${endDate}.pdf`);
+    doc.save(`auftragsaufzaehlung-${merchantName.toLowerCase().replace(/\s+/g, "-")}-${startDate}-${endDate}.pdf`);
   };
 
   return (
@@ -150,14 +143,14 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <FileText className="h-4 w-4" />
-          Rechnung
+          Auftragsaufzählung
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-5xl">
         <DialogHeader>
-          <DialogTitle>Rechnung erstellen</DialogTitle>
+          <DialogTitle>Auftragsaufzählung erstellen</DialogTitle>
           <DialogDescription>
-            Lieferscheine für {merchant.firma_name || merchant.ansprechpartner || "diesen Händler"} im gewählten Zeitraum abrechnen.
+            Aufträge für {merchant.firma_name || merchant.ansprechpartner || "diesen Händler"} im gewählten Zeitraum auflisten.
           </DialogDescription>
         </DialogHeader>
 
@@ -200,7 +193,7 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
 
           <div className="flex items-center justify-between gap-3 rounded-lg border p-4">
             <div className="space-y-1">
-              <p className="text-sm font-medium">Rechnungsstatus</p>
+              <p className="text-sm font-medium">Status</p>
               <div className="flex items-center gap-2">
                 <Badge variant={orders.length ? "default" : "secondary"}>
                   {orders.length ? "Vorschau bereit" : "Noch keine Vorschau"}
@@ -220,7 +213,6 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
                 <TableRow>
                   <TableHead>Auftrag</TableHead>
                   <TableHead>Datum</TableHead>
-                  <TableHead>Empfänger</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Pakete</TableHead>
                   <TableHead>Preis/Paket</TableHead>
@@ -230,8 +222,8 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
               <TableBody>
                 {!orders.length ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
-                      Noch keine Rechnungsdaten geladen
+                    <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                      Noch keine Daten geladen
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -244,7 +236,6 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
                           return date ? new Date(date).toLocaleDateString("de-DE") : "–";
                         })()}
                       </TableCell>
-                      <TableCell>{order.empfaenger_name}</TableCell>
                       <TableCell>
                         <Badge variant={order.status === "zugestellt" ? "default" : "secondary"}>
                           {order.status === "zugestellt" ? "Zugestellt" : "Nicht zugestellt"}
