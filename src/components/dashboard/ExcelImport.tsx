@@ -361,29 +361,31 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride, hide
   return (
     <div className="space-y-6">
       {/* Template selector */}
-      <Card>
-        <CardContent className="p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-medium">Vorlage</p>
-            <p className="text-xs text-muted-foreground">
-              Das Format wird automatisch erkannt. Du kannst es bei Bedarf manuell festlegen.
-              {detectedTemplate && template === "auto" && (
-                <> Erkannt: <strong className="text-foreground">{detectedTemplate === "grosskunde" ? "Großkunde" : "Standard"}</strong>.</>
-              )}
-            </p>
-          </div>
-          <Select value={template} onValueChange={(v) => setTemplate(v as TemplateKey)}>
-            <SelectTrigger className="w-full sm:w-72">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="auto">Automatisch erkennen</SelectItem>
-              <SelectItem value="standard">Standard (e-cargo Vorlage)</SelectItem>
-              <SelectItem value="grosskunde">Großkunde (Filiale / Lieferung)</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
+      {!hideTemplateSelector && (
+        <Card>
+          <CardContent className="p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium">Vorlage</p>
+              <p className="text-xs text-muted-foreground">
+                Das Format wird automatisch erkannt. Du kannst es bei Bedarf manuell festlegen.
+                {detectedTemplate && template === "auto" && (
+                  <> Erkannt: <strong className="text-foreground">{detectedTemplate === "grosskunde" ? "Großkunde" : "Standard"}</strong>.</>
+                )}
+              </p>
+            </div>
+            <Select value={template} onValueChange={(v) => setTemplate(v as TemplateKey)}>
+              <SelectTrigger className="w-full sm:w-72">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Automatisch erkennen</SelectItem>
+                <SelectItem value="standard">Standard (e-cargo Vorlage)</SelectItem>
+                <SelectItem value="grosskunde">Großkunde (Filiale / Lieferung)</SelectItem>
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Sender info from profile */}
       {senderDefaults.name && (
