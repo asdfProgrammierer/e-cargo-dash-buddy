@@ -28,3 +28,6 @@ verify_jwt = false
 
 [functions.shopify-push-fulfillments]
 verify_jwt = false
+
+[functions.wms-create-shipment]
+verify_jwt = false
