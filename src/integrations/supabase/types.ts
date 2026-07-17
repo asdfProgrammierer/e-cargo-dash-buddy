@@ -842,6 +842,8 @@ export type Database = {
           empfaenger_telefon: string | null
           external_order_name: string | null
           external_order_ref: string | null
+          external_source_hash: string | null
+          external_source_ref: string | null
           geocoded_at: string | null
           gewicht: number
           id: string
@@ -856,6 +858,7 @@ export type Database = {
           shop_connection_id: string | null
           shopify_fulfilled_at: string | null
           shopify_fulfillment_id: string | null
+          source_system: string | null
           status: string
           tracking_token: string | null
           updated_at: string
@@ -884,6 +887,8 @@ export type Database = {
           empfaenger_telefon?: string | null
           external_order_name?: string | null
           external_order_ref?: string | null
+          external_source_hash?: string | null
+          external_source_ref?: string | null
           geocoded_at?: string | null
           gewicht?: number
           id?: string
@@ -898,6 +903,7 @@ export type Database = {
           shop_connection_id?: string | null
           shopify_fulfilled_at?: string | null
           shopify_fulfillment_id?: string | null
+          source_system?: string | null
           status?: string
           tracking_token?: string | null
           updated_at?: string
@@ -926,6 +932,8 @@ export type Database = {
           empfaenger_telefon?: string | null
           external_order_name?: string | null
           external_order_ref?: string | null
+          external_source_hash?: string | null
+          external_source_ref?: string | null
           geocoded_at?: string | null
           gewicht?: number
           id?: string
@@ -940,6 +948,7 @@ export type Database = {
           shop_connection_id?: string | null
           shopify_fulfilled_at?: string | null
           shopify_fulfillment_id?: string | null
+          source_system?: string | null
           status?: string
           tracking_token?: string | null
           updated_at?: string
@@ -1599,6 +1608,8 @@ export type Database = {
           empfaenger_telefon: string | null
           external_order_name: string | null
           external_order_ref: string | null
+          external_source_hash: string | null
+          external_source_ref: string | null
           geocoded_at: string | null
           gewicht: number
           id: string
@@ -1613,6 +1624,7 @@ export type Database = {
           shop_connection_id: string | null
           shopify_fulfilled_at: string | null
           shopify_fulfillment_id: string | null
+          source_system: string | null
           status: string
           tracking_token: string | null
           updated_at: string
@@ -1654,6 +1666,8 @@ export type Database = {
           empfaenger_telefon: string | null
           external_order_name: string | null
           external_order_ref: string | null
+          external_source_hash: string | null
+          external_source_ref: string | null
           geocoded_at: string | null
           gewicht: number
           id: string
@@ -1668,6 +1682,7 @@ export type Database = {
           shop_connection_id: string | null
           shopify_fulfilled_at: string | null
           shopify_fulfillment_id: string | null
+          source_system: string | null
           status: string
           tracking_token: string | null
           updated_at: string
