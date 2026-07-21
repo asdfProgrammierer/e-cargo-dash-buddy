@@ -224,24 +224,24 @@ export function MerchantAnalytics() {
                 </div>
               </div>
 
-              {/* Top Empfänger */}
+              {/* Top PLZ */}
               <div className="rounded-xl border border-border/50 p-4">
                 <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
-                  <Users className="h-4 w-4 text-primary" />
-                  Top 10 Empfänger
+                  <MapPin className="h-4 w-4 text-primary" />
+                  Top 10 PLZ
                 </div>
-                {stats.topRecipients.length === 0 ? (
+                {stats.topPlz.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Keine Daten im Zeitraum.</p>
                 ) : (
                   <ul className="space-y-1.5 text-sm">
-                    {stats.topRecipients.map(([name, count], i) => (
+                    {stats.topPlz.map(([plz, count], i) => (
                       <li
-                        key={`${name}-${i}`}
+                        key={`${plz}-${i}`}
                         className="flex items-center justify-between gap-3"
                       >
                         <span className="truncate text-foreground">
                           <span className="mr-2 text-muted-foreground">{i + 1}.</span>
-                          {name}
+                          {plz}
                         </span>
                         <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                           {count}
@@ -252,26 +252,6 @@ export function MerchantAnalytics() {
                 )}
               </div>
             </div>
-
-            {/* Top Hindernisgründe */}
-            {stats.topReasons.length > 0 && (
-              <div className="rounded-xl border border-border/50 p-4">
-                <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
-                  <AlertTriangle className="h-4 w-4 text-warning" />
-                  Häufigste Hindernisgründe
-                </div>
-                <ul className="space-y-1.5 text-sm">
-                  {stats.topReasons.map(([reason, count], i) => (
-                    <li key={`${reason}-${i}`} className="flex items-center justify-between gap-3">
-                      <span className="truncate text-foreground">{reason}</span>
-                      <span className="shrink-0 rounded-md bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
-                        {count}×
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
         )}
       </CardContent>
