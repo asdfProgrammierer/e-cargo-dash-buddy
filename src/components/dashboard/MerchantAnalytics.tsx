@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Clock, AlertTriangle, Users, BarChart3, Loader2 } from "lucide-react";
+import { CheckCircle2, Clock, AlertTriangle, MapPin, BarChart3, Loader2 } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -18,14 +18,9 @@ type Range = "7" | "30" | "90";
 interface OrderRow {
   id: string;
   status: string;
-  empfaenger_name: string;
+  empfaenger_plz: string;
   created_at: string;
   delivered_at: string | null;
-}
-
-interface HistoryRow {
-  reason: string | null;
-  created_at: string;
 }
 
 const RANGES: { label: string; value: Range; days: number }[] = [
@@ -40,7 +35,6 @@ export function MerchantAnalytics() {
   const [range, setRange] = useState<Range>("30");
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<OrderRow[]>([]);
-  const [history, setHistory] = useState<HistoryRow[]>([]);
 
   const days = RANGES.find((r) => r.value === range)?.days ?? 30;
 
@@ -57,7 +51,6 @@ export function MerchantAnalytics() {
       if (!uid) {
         if (!cancelled) {
           setOrders([]);
-          setHistory([]);
           setLoading(false);
         }
         return;
@@ -69,26 +62,16 @@ export function MerchantAnalytics() {
         .maybeSingle();
       const ownerId = (prof?.parent_user_id as string | null) ?? uid;
 
-      const [ordersRes, histRes] = await Promise.all([
-        supabase
-          .from("orders")
-          .select("id, status, empfaenger_name, created_at, delivered_at")
-          .eq("user_id", ownerId)
-          .gte("created_at", sinceIso)
-          .order("created_at", { ascending: false })
-          .limit(1000),
-        supabase
-          .from("order_status_history")
-          .select("reason, created_at")
-          .eq("user_id", ownerId)
-          .eq("status", "nicht_zugestellt")
-          .gte("created_at", sinceIso)
-          .limit(1000),
-      ]);
+      const ordersRes = await supabase
+        .from("orders")
+        .select("id, status, empfaenger_plz, created_at, delivered_at")
+        .eq("user_id", ownerId)
+        .gte("created_at", sinceIso)
+        .order("created_at", { ascending: false })
+        .limit(1000);
 
       if (cancelled) return;
       setOrders((ordersRes.data as OrderRow[]) ?? []);
-      setHistory((histRes.data as HistoryRow[]) ?? []);
       setLoading(false);
     };
     load();
@@ -118,13 +101,13 @@ export function MerchantAnalytics() {
         ? deliveryDurations.reduce((a, b) => a + b, 0) / deliveryDurations.length
         : null;
 
-    // Top Empfänger
-    const recipientCounts = new Map<string, number>();
+    // Top PLZ
+    const plzCounts = new Map<string, number>();
     orders.forEach((o) => {
-      const name = o.empfaenger_name?.trim() || "—";
-      recipientCounts.set(name, (recipientCounts.get(name) ?? 0) + 1);
+      const plz = o.empfaenger_plz?.trim() || "—";
+      plzCounts.set(plz, (plzCounts.get(plz) ?? 0) + 1);
     });
-    const topRecipients = Array.from(recipientCounts.entries())
+    const topPlz = Array.from(plzCounts.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10);
 
@@ -138,29 +121,15 @@ export function MerchantAnalytics() {
     });
     const weekdayData = WEEKDAYS.map((day, i) => ({ day, sendungen: weekdayCounts[i] }));
 
-    // Top Hindernis-Gründe
-    const reasonCounts = new Map<string, number>();
-    history.forEach((h) => {
-      const r = (h.reason ?? "").trim();
-      if (!r) return;
-      // Strip "Versuch X/Y: " prefix
-      const clean = r.replace(/^Versuch\s+\d+\/\d+:\s*/i, "").trim() || r;
-      reasonCounts.set(clean, (reasonCounts.get(clean) ?? 0) + 1);
-    });
-    const topReasons = Array.from(reasonCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3);
-
     return {
       deliveryRate,
       failureRate,
       avgDeliveryHours,
-      topRecipients,
+      topPlz,
       weekdayData,
-      topReasons,
       totalFinished: finished,
     };
-  }, [orders, history]);
+  }, [orders]);
 
   const formatDuration = (h: number) => {
     if (h < 1) return `${Math.round(h * 60)} Min`;
@@ -255,24 +224,24 @@ export function MerchantAnalytics() {
                 </div>
               </div>
 
-              {/* Top Empfänger */}
+              {/* Top PLZ */}
               <div className="rounded-xl border border-border/50 p-4">
                 <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
-                  <Users className="h-4 w-4 text-primary" />
-                  Top 10 Empfänger
+                  <MapPin className="h-4 w-4 text-primary" />
+                  Top 10 PLZ
                 </div>
-                {stats.topRecipients.length === 0 ? (
+                {stats.topPlz.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Keine Daten im Zeitraum.</p>
                 ) : (
                   <ul className="space-y-1.5 text-sm">
-                    {stats.topRecipients.map(([name, count], i) => (
+                    {stats.topPlz.map(([plz, count], i) => (
                       <li
-                        key={`${name}-${i}`}
+                        key={`${plz}-${i}`}
                         className="flex items-center justify-between gap-3"
                       >
                         <span className="truncate text-foreground">
                           <span className="mr-2 text-muted-foreground">{i + 1}.</span>
-                          {name}
+                          {plz}
                         </span>
                         <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                           {count}
@@ -283,26 +252,6 @@ export function MerchantAnalytics() {
                 )}
               </div>
             </div>
-
-            {/* Top Hindernisgründe */}
-            {stats.topReasons.length > 0 && (
-              <div className="rounded-xl border border-border/50 p-4">
-                <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
-                  <AlertTriangle className="h-4 w-4 text-warning" />
-                  Häufigste Hindernisgründe
-                </div>
-                <ul className="space-y-1.5 text-sm">
-                  {stats.topReasons.map(([reason, count], i) => (
-                    <li key={`${reason}-${i}`} className="flex items-center justify-between gap-3">
-                      <span className="truncate text-foreground">{reason}</span>
-                      <span className="shrink-0 rounded-md bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
-                        {count}×
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
         )}
       </CardContent>
