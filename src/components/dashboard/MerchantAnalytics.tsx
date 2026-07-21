@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Clock, AlertTriangle, Users, BarChart3, Loader2 } from "lucide-react";
+import { CheckCircle2, Clock, AlertTriangle, MapPin, BarChart3, Loader2 } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -18,14 +18,9 @@ type Range = "7" | "30" | "90";
 interface OrderRow {
   id: string;
   status: string;
-  empfaenger_name: string;
+  empfaenger_plz: string;
   created_at: string;
   delivered_at: string | null;
-}
-
-interface HistoryRow {
-  reason: string | null;
-  created_at: string;
 }
 
 const RANGES: { label: string; value: Range; days: number }[] = [
