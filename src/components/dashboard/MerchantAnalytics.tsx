@@ -35,7 +35,6 @@ export function MerchantAnalytics() {
   const [range, setRange] = useState<Range>("30");
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<OrderRow[]>([]);
-  const [history, setHistory] = useState<HistoryRow[]>([]);
 
   const days = RANGES.find((r) => r.value === range)?.days ?? 30;
 
@@ -52,7 +51,6 @@ export function MerchantAnalytics() {
       if (!uid) {
         if (!cancelled) {
           setOrders([]);
-          setHistory([]);
           setLoading(false);
         }
         return;
@@ -64,26 +62,16 @@ export function MerchantAnalytics() {
         .maybeSingle();
       const ownerId = (prof?.parent_user_id as string | null) ?? uid;
 
-      const [ordersRes, histRes] = await Promise.all([
-        supabase
-          .from("orders")
-          .select("id, status, empfaenger_name, created_at, delivered_at")
-          .eq("user_id", ownerId)
-          .gte("created_at", sinceIso)
-          .order("created_at", { ascending: false })
-          .limit(1000),
-        supabase
-          .from("order_status_history")
-          .select("reason, created_at")
-          .eq("user_id", ownerId)
-          .eq("status", "nicht_zugestellt")
-          .gte("created_at", sinceIso)
-          .limit(1000),
-      ]);
+      const ordersRes = await supabase
+        .from("orders")
+        .select("id, status, empfaenger_plz, created_at, delivered_at")
+        .eq("user_id", ownerId)
+        .gte("created_at", sinceIso)
+        .order("created_at", { ascending: false })
+        .limit(1000);
 
       if (cancelled) return;
       setOrders((ordersRes.data as OrderRow[]) ?? []);
-      setHistory((histRes.data as HistoryRow[]) ?? []);
       setLoading(false);
     };
     load();
