@@ -140,6 +140,7 @@ Deno.serve(async (req) => {
               body: {
                 templateName: "order-unterwegs",
                 recipientEmail: email,
+                orderId: o.id,
                 idempotencyKey: `order-status-${o.id}-unterwegs`,
                 templateData,
               },
