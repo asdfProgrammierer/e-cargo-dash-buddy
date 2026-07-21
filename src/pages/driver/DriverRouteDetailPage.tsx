@@ -216,6 +216,40 @@ const DriverRouteDetailPage = () => {
 
   useEffect(() => { void checkGpsPermission(); }, []);
 
+  // Realtime: Aktualisiere Stopps + zugehörige Aufträge (z.B. Lieferanweisungen)
+  // automatisch, ohne dass der Fahrer die Route neu öffnen muss.
+  useEffect(() => {
+    if (!id) return;
+    const channel = supabase
+      .channel(`driver-route-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "route_stops", filter: `route_id=eq.${id}` },
+        () => { void load(); },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "routes", filter: `id=eq.${id}` },
+        () => { void load(); },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders" },
+        (payload) => {
+          const newId = (payload.new as { id?: string } | null)?.id;
+          if (!newId) return;
+          // Nur reload, wenn der geänderte Auftrag Teil dieser Route ist.
+          if (stopsRef.current.some((s) => s.order?.id === newId)) {
+            void load();
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id]);
+
   const requestGpsPermission = async () => {
     setRequestingGps(true);
     try {
