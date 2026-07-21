@@ -93,6 +93,8 @@ const DriverRouteDetailPage = () => {
   const [endDepot, setEndDepot] = useState<Depot | null>(null);
   const [startingRoute, setStartingRoute] = useState(false);
   const [stops, setStops] = useState<Stop[]>([]);
+  const stopsRef = useRef<Stop[]>([]);
+  useEffect(() => { stopsRef.current = stops; }, [stops]);
   const [loading, setLoading] = useState(true);
   const [activeStop, setActiveStop] = useState<Stop | null>(null);
   const [reason, setReason] = useState(REASONS[0]);
