@@ -101,13 +101,13 @@ export function MerchantAnalytics() {
         ? deliveryDurations.reduce((a, b) => a + b, 0) / deliveryDurations.length
         : null;
 
-    // Top Empfänger
-    const recipientCounts = new Map<string, number>();
+    // Top PLZ
+    const plzCounts = new Map<string, number>();
     orders.forEach((o) => {
-      const name = o.empfaenger_name?.trim() || "—";
-      recipientCounts.set(name, (recipientCounts.get(name) ?? 0) + 1);
+      const plz = o.empfaenger_plz?.trim() || "—";
+      plzCounts.set(plz, (plzCounts.get(plz) ?? 0) + 1);
     });
-    const topRecipients = Array.from(recipientCounts.entries())
+    const topPlz = Array.from(plzCounts.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10);
 
@@ -121,29 +121,15 @@ export function MerchantAnalytics() {
     });
     const weekdayData = WEEKDAYS.map((day, i) => ({ day, sendungen: weekdayCounts[i] }));
 
-    // Top Hindernis-Gründe
-    const reasonCounts = new Map<string, number>();
-    history.forEach((h) => {
-      const r = (h.reason ?? "").trim();
-      if (!r) return;
-      // Strip "Versuch X/Y: " prefix
-      const clean = r.replace(/^Versuch\s+\d+\/\d+:\s*/i, "").trim() || r;
-      reasonCounts.set(clean, (reasonCounts.get(clean) ?? 0) + 1);
-    });
-    const topReasons = Array.from(reasonCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3);
-
     return {
       deliveryRate,
       failureRate,
       avgDeliveryHours,
-      topRecipients,
+      topPlz,
       weekdayData,
-      topReasons,
       totalFinished: finished,
     };
-  }, [orders, history]);
+  }, [orders]);
 
   const formatDuration = (h: number) => {
     if (h < 1) return `${Math.round(h * 60)} Min`;
