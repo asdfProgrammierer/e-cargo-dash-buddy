@@ -318,7 +318,7 @@ Deno.serve(async (req) => {
             }
 
             const { error: mailErr } = await userClient.functions.invoke("send-transactional-email", {
-              body: { templateName, recipientEmail: email, idempotencyKey, templateData },
+              body: { templateName, recipientEmail: email, orderId: stop.order_id, idempotencyKey, templateData },
             });
             if (mailErr) console.error("status email failed", stop.order_id, mailErr);
           }

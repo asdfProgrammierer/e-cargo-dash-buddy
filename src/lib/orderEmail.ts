@@ -99,6 +99,7 @@ export async function sendOrderStatusEmail(payload: OrderEmailPayload): Promise<
       body: {
         templateName,
         recipientEmail: email,
+        orderId: payload.orderId,
         idempotencyKey: `order-status-${payload.orderId}-${payload.status}`,
         templateData,
       },

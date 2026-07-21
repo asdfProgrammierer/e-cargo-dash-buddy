@@ -3,6 +3,7 @@ import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { TEMPLATES } from '../_shared/transactional-email-templates/registry.ts'
 import { loadTemplateOverride } from '../_shared/transactional-email-templates/overrides.ts'
+import { buildTrackingUrl } from '../_shared/site-url.ts'
 
 // Configuration baked in at scaffold time — do NOT change these manually.
 // To update, re-run the email domain setup flow.
@@ -83,6 +84,7 @@ Deno.serve(async (req) => {
   let idempotencyKey: string
   let messageId: string
   let templateData: Record<string, any> = {}
+  let orderId: string | undefined
   try {
     const body = await req.json()
     templateName = body.templateName || body.template_name
@@ -92,6 +94,7 @@ Deno.serve(async (req) => {
     if (body.templateData && typeof body.templateData === 'object') {
       templateData = body.templateData
     }
+    orderId = typeof body.orderId === 'string' ? body.orderId : undefined
   } catch {
     return new Response(
       JSON.stringify({ error: 'Invalid JSON in request body' }),
@@ -147,6 +150,135 @@ Deno.serve(async (req) => {
 
   // Create Supabase client with service role (bypasses RLS)
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+  // ------------------------------------------------------------------
+  // Authorization: prevent authenticated users from turning this
+  // endpoint into an open email relay with attacker-controlled content.
+  //   - gdpr-delete-confirm may only be triggered by server code
+  //     (service_role) — the double-opt-in flow runs server-side.
+  //   - order-* templates require the caller to be admin, the owning
+  //     merchant (or a sub-account thereof), or the driver assigned to
+  //     the referenced order. Recipient and identifying fields are then
+  //     rebuilt server-side from the order record, so callers cannot
+  //     inject arbitrary content.
+  // ------------------------------------------------------------------
+  const isServiceRole = role === 'service_role'
+  let callerUserId: string | null = null
+  if (!isServiceRole) {
+    const { data: userData, error: userErr } = await supabase.auth.getUser(token)
+    if (userErr || !userData?.user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+    callerUserId = userData.user.id
+  }
+
+  if (templateName === 'gdpr-delete-confirm' && !isServiceRole) {
+    return new Response(
+      JSON.stringify({ error: 'Forbidden' }),
+      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
+  }
+
+  let isAdmin = false
+  if (callerUserId) {
+    const { data: roleRow } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', callerUserId)
+      .eq('role', 'admin')
+      .maybeSingle()
+    isAdmin = !!roleRow
+  }
+
+  if (templateName.startsWith('order-') && !isServiceRole && !isAdmin) {
+    if (!orderId) {
+      return new Response(
+        JSON.stringify({ error: 'orderId is required for order-* templates' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+    const { data: order } = await supabase
+      .from('orders')
+      .select('id, user_id, auftrags_nr, empfaenger_name, empfaenger_email, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, tracking_token')
+      .eq('id', orderId)
+      .maybeSingle()
+    if (!order) {
+      return new Response(
+        JSON.stringify({ error: 'Order not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    let allowed = order.user_id === callerUserId
+    if (!allowed && callerUserId) {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('parent_user_id')
+        .eq('user_id', callerUserId)
+        .maybeSingle()
+      if (prof?.parent_user_id && prof.parent_user_id === order.user_id) allowed = true
+    }
+    if (!allowed && callerUserId) {
+      const { data: driverRow } = await supabase
+        .from('drivers')
+        .select('id')
+        .eq('auth_user_id', callerUserId)
+        .maybeSingle()
+      if (driverRow?.id) {
+        const { data: assigned } = await supabase
+          .from('route_stops')
+          .select('id, routes!inner(driver_id)')
+          .eq('order_id', orderId)
+          .eq('routes.driver_id', driverRow.id)
+          .limit(1)
+          .maybeSingle()
+        if (assigned) allowed = true
+      }
+    }
+    if (!allowed) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: not authorized for this order' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    // Force recipient + identifying template fields to values derived from
+    // the order record. Preserve caller-supplied context fields (reason,
+    // etaWindow, etaCenter, uebergabeArt, nachbarName, uebergabeBemerkung,
+    // attemptNumber, nextAttemptNumber, googleReviewUrl, ...).
+    if (!order.empfaenger_email) {
+      return new Response(
+        JSON.stringify({ error: 'Order has no recipient email' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+    recipientEmail = order.empfaenger_email
+
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('firma_name, ansprechpartner')
+      .eq('user_id', order.user_id)
+      .maybeSingle()
+    const haendlerName =
+      (prof?.firma_name?.trim() || prof?.ansprechpartner?.trim() || 'Ihr Händler')
+    const lieferadresse = [
+      order.empfaenger_name,
+      order.empfaenger_adresse,
+      [order.empfaenger_plz, order.empfaenger_stadt].filter(Boolean).join(' '),
+    ].filter((x) => x && String(x).trim().length > 0).join(', ')
+
+    templateData = {
+      ...templateData,
+      kundenname: order.empfaenger_name,
+      haendlerName,
+      auftragsNr: order.auftrags_nr,
+      lieferadresse,
+      trackingUrl: buildTrackingUrl(order.tracking_token, req),
+    }
+  }
 
   // 2. Check suppression list (fail-closed: if we can't verify, don't send)
   const { data: suppressed, error: suppressionError } = await supabase
