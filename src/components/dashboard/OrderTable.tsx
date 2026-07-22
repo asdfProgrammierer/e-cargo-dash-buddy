@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import {
   Table,
@@ -38,7 +38,26 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
+  const [pageSize, setPageSize] = useState<number | "all">(25);
+  const [page, setPage] = useState(1);
   const isMobile = useIsMobile();
+
+  const totalPages = pageSize === "all" ? 1 : Math.max(1, Math.ceil(orders.length / pageSize));
+
+  useEffect(() => {
+    if (page > totalPages) setPage(1);
+  }, [totalPages, page]);
+
+  const pagedOrders = useMemo(() => {
+    if (pageSize === "all") return orders;
+    const start = (page - 1) * pageSize;
+    return orders.slice(start, start + pageSize);
+  }, [orders, page, pageSize]);
+
+  const changePageSize = (val: number | "all") => {
+    setPageSize(val);
+    setPage(1);
+  };
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -111,7 +130,7 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
       )}
       {isMobile ? (
         <div className="space-y-2">
-          {orders.map((order) => (
+          {pagedOrders.map((order) => (
             <div
               key={order.id}
               onClick={() => onSelect(order)}
@@ -220,7 +239,7 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
             </TableRow>
           </TableHeader>
           <TableBody>
-            {orders.map((order) => (
+            {pagedOrders.map((order) => (
               <TableRow key={order.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => onSelect(order)}>
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <Checkbox
@@ -315,6 +334,51 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
         </Table>
       </div>
       )}
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm text-muted-foreground">
+        <div className="flex items-center gap-1">
+          <span className="mr-1">Anzeigen:</span>
+          {([25, 50, "all"] as const).map((size) => (
+            <Button
+              key={String(size)}
+              variant={pageSize === size ? "default" : "ghost"}
+              size="sm"
+              className="h-7 text-xs px-2.5"
+              onClick={() => changePageSize(size)}
+            >
+              {size === "all" ? "Alle" : size}
+            </Button>
+          ))}
+        </div>
+        {pageSize !== "all" && totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs px-2.5"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Zurück
+            </Button>
+            <span>
+              Seite {page} von {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs px-2.5"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Weiter
+            </Button>
+          </div>
+        )}
+        <div className="text-xs">
+          {orders.length} Aufträge gesamt
+        </div>
+      </div>
 
       <AlertDialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
         <AlertDialogContent>
