@@ -38,7 +38,14 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
-  const [pageSize, setPageSize] = useState<number | "all">(25);
+  const PAGE_SIZE_STORAGE_KEY = "orderTable:pageSize";
+  const [pageSize, setPageSize] = useState<number | "all">(() => {
+    if (typeof window === "undefined") return 25;
+    const stored = window.localStorage.getItem(PAGE_SIZE_STORAGE_KEY);
+    if (stored === "all") return "all";
+    const n = Number(stored);
+    return n === 25 || n === 50 ? n : 25;
+  });
   const [page, setPage] = useState(1);
   const isMobile = useIsMobile();
 
@@ -57,6 +64,9 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
   const changePageSize = (val: number | "all") => {
     setPageSize(val);
     setPage(1);
+    try {
+      window.localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(val));
+    } catch {}
   };
 
   const toggleSelect = (id: string) => {
