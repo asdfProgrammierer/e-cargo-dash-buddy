@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2 } from "lucide-react";
+import { Loader2, FileText } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { getPublicSiteUrl } from "@/lib/siteUrl";
 import logoAsset from "@/assets/logo.png.asset.json";
@@ -17,6 +18,8 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [firma, setFirma] = useState("");
+  const [agbAccepted, setAgbAccepted] = useState(false);
+  const [emailConsent, setEmailConsent] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +33,14 @@ const LoginPage = () => {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!agbAccepted) {
+      toast.error("Bitte bestätige die AGB, um fortzufahren.");
+      return;
+    }
+    if (!emailConsent) {
+      toast.error("Bitte bestätige die Kontaktaufnahme per E-Mail.");
+      return;
+    }
     setLoading(true);
     const { error } = await supabase.auth.signUp({
       email,
@@ -61,7 +72,7 @@ const LoginPage = () => {
               height={56}
               fetchPriority="high"
               decoding="async"
-              className="h-14 w-14 object-contain"
+              className="h-14 w-14 object-cover rounded-2xl"
             />
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground">e-cargo</h1>
@@ -136,6 +147,37 @@ const LoginPage = () => {
                   <div className="space-y-2">
                     <Label>Passwort</Label>
                     <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+                  </div>
+                  <div className="space-y-3 pt-1">
+                    <div className="flex items-start gap-2">
+                      <Checkbox
+                        id="agb"
+                        checked={agbAccepted}
+                        onCheckedChange={(v) => setAgbAccepted(v === true)}
+                      />
+                      <Label htmlFor="agb" className="text-xs font-normal leading-snug cursor-pointer">
+                        Ich akzeptiere die{" "}
+                        <a
+                          href="/agb.pdf"
+                          download
+                          className="inline-flex items-center gap-1 text-primary underline underline-offset-2 hover:no-underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          AGB <FileText className="h-3 w-3" />
+                        </a>
+                        .
+                      </Label>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Checkbox
+                        id="email-consent"
+                        checked={emailConsent}
+                        onCheckedChange={(v) => setEmailConsent(v === true)}
+                      />
+                      <Label htmlFor="email-consent" className="text-xs font-normal leading-snug cursor-pointer">
+                        Ich bin damit einverstanden, von e-cargo per E-Mail kontaktiert zu werden.
+                      </Label>
+                    </div>
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
