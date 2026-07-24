@@ -1,4 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Navigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { PageHead } from "@/components/PageHead";
 import { DashboardStats, filterByRange, type TimeRange } from "@/components/dashboard/DashboardStats";
@@ -12,6 +15,29 @@ import { Order, OrderStatus } from "@/types/order";
 
 const DashboardPage = () => {
   const { orders, addOrder, updateStatus, deleteOrder, updateOrder } = useOrders();
+  const { user, isSubAccount } = useAuth();
+  const [profileCheck, setProfileCheck] = useState<"loading" | "complete" | "incomplete">("loading");
+
+  useEffect(() => {
+    if (!user) return;
+    if (isSubAccount) {
+      setProfileCheck("complete");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("firma_name, strasse, plz, stadt")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const complete = !!(data?.firma_name && data?.strasse && data?.plz && data?.stadt);
+      setProfileCheck(complete ? "complete" : "incomplete");
+    })();
+    return () => { cancelled = true; };
+  }, [user, isSubAccount]);
+
   const [filter, setFilter] = useState<OrderStatus | "alle">("alle");
   const [range, setRange] = useState<TimeRange>("alle");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -28,6 +54,10 @@ const DashboardPage = () => {
     setSelectedOrder(order);
     setSheetOpen(true);
   };
+
+  if (profileCheck === "incomplete") {
+    return <Navigate to="/profil?welcome=1" replace />;
+  }
 
   return (
     <DashboardLayout title="Dashboard">

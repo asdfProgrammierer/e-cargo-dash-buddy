@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -21,6 +22,8 @@ import {
 
 const ProfilPage = () => {
   const { user, isSubAccount } = useAuth();
+  const [searchParams] = useSearchParams();
+  const showWelcome = searchParams.get("welcome") === "1";
   const fileRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -143,6 +146,19 @@ const ProfilPage = () => {
     <DashboardLayout title="Mein Profil">
       <PageHead title="Mein Profil – e-cargo Händler-Dashboard" description="Verwalten Sie Ihre e-cargo Händlerdaten, Firmenlogo, Ansprechpartner, Öffnungszeiten und Sub-Accounts an einer Stelle." path="/profil" />
       <div className="max-w-2xl space-y-6">
+        {showWelcome && !isSubAccount && (
+          <Card className="border-primary/40 bg-primary/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-primary" />
+                Willkommen bei e-cargo!
+              </CardTitle>
+              <CardDescription>
+                Bitte vervollständige zuerst dein Händlerprofil (Firma, Adresse, Kontaktdaten). Danach steht dir das Dashboard vollständig zur Verfügung.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
         {isSubAccount && (
           <Card>
             <CardHeader>
