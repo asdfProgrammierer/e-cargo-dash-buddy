@@ -114,9 +114,30 @@ export function AppSidebar() {
           {!collapsed && "Abmelden"}
         </Button>
         {!collapsed && (
-          <p className="text-[10px] text-sidebar-foreground/40">
-            © 2026 e-cargo · Ruhrgebiet
-          </p>
+          <div className="space-y-1">
+            <p className="text-[10px] text-sidebar-foreground/40">
+              © 2026 e-cargo · Ruhrgebiet
+            </p>
+            <div className="flex flex-wrap items-center gap-x-2 text-[10px] text-sidebar-foreground/40">
+              <a
+                href="https://ecargo-logistik.de/datenschutz"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-sidebar-foreground transition-colors"
+              >
+                Datenschutz
+              </a>
+              <span aria-hidden="true">·</span>
+              <a
+                href="https://ecargo-logistik.de/impressum"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-sidebar-foreground transition-colors"
+              >
+                Impressum
+              </a>
+            </div>
+          </div>
         )}
       </SidebarFooter>
     </Sidebar>
