@@ -11,6 +11,18 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { MapPin, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fetchPostcodePolygons } from "@/lib/plzBoundaries";
+
+interface ZoneRow {
+  id: string;
+  name: string;
+  label: string;
+  color: string | null;
+  postcodes: string[];
+}
+
+const ZONE_FALLBACK_COLORS = ["#2F855A", "#2B6CB0", "#B7791F", "#805AD5", "#C05621", "#319795"];
+const ZONES_PREF_KEY = "routesMap:showZones";
 
 interface Depot { id: string; name: string; lat: number | null; lng: number | null; is_default: boolean; }
 interface RouteRow {
@@ -91,6 +103,13 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
   const hidden = hiddenProp ?? hiddenState;
   const setHidden = setHiddenState;
   const [loading, setLoading] = useState(true);
+  const [zones, setZones] = useState<ZoneRow[]>([]);
+  const [zonesLoading, setZonesLoading] = useState(false);
+  const [zonesError, setZonesError] = useState<string | null>(null);
+  const [zonePolygons, setZonePolygons] = useState<Record<string, GeoJSON.Polygon | GeoJSON.MultiPolygon>>({});
+  const [showZones, setShowZones] = useState<boolean>(() => {
+    try { return localStorage.getItem(ZONES_PREF_KEY) === "1"; } catch { return false; }
+  });
 
   const mapRef = useRef<maplibregl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -103,6 +122,96 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
     routes.forEach((r, i) => { m[r.id] = ROUTE_COLORS[i % ROUTE_COLORS.length]; });
     return m;
   }, [routes]);
+
+  const zoneColor = (zone: ZoneRow, index: number) => zone.color || ZONE_FALLBACK_COLORS[index % ZONE_FALLBACK_COLORS.length];
+
+  // Load active delivery zones + their postcodes
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("delivery_zones")
+        .select("id, name, label, color, sort_order, active, delivery_zone_postcodes(postcode)")
+        .eq("active", true)
+        .order("sort_order", { ascending: true });
+      if (cancelled) return;
+      const rows = ((data as unknown as Array<ZoneRow & { delivery_zone_postcodes?: Array<{ postcode: string }> }>) ?? []).map((z) => ({
+        id: z.id,
+        name: z.name,
+        label: z.label,
+        color: z.color,
+        postcodes: (z.delivery_zone_postcodes ?? []).map((p) => p.postcode.trim()),
+      }));
+      setZones(rows);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Fetch PLZ boundary polygons once zones are shown
+  useEffect(() => {
+    if (!showZones || zones.length === 0) return;
+    const controller = new AbortController();
+    const pcs = zones.flatMap((z) => z.postcodes);
+    const missing = pcs.filter((pc) => !zonePolygons[pc]);
+    if (missing.length === 0) return;
+    setZonesLoading(true);
+    setZonesError(null);
+    fetchPostcodePolygons(pcs, controller.signal)
+      .then((polys) => setZonePolygons((prev) => ({ ...prev, ...polys })))
+      .catch(() => setZonesError("PLZ-Grenzen konnten nicht geladen werden"))
+      .finally(() => setZonesLoading(false));
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showZones, zones]);
+
+  // Render zone polygons as map layers
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const apply = () => {
+      if (!mapRef.current) return;
+      if (map.getLayer("zone-labels")) map.removeLayer("zone-labels");
+      if (map.getLayer("zone-outline")) map.removeLayer("zone-outline");
+      if (map.getLayer("zone-fill")) map.removeLayer("zone-fill");
+      if (map.getSource("zones")) map.removeSource("zones");
+      if (!showZones) return;
+
+      const features: GeoJSON.Feature[] = [];
+      zones.forEach((z, i) => {
+        const color = zoneColor(z, i);
+        z.postcodes.forEach((pc) => {
+          const geometry = zonePolygons[pc];
+          if (!geometry) return;
+          features.push({
+            type: "Feature",
+            geometry,
+            properties: { zoneLabel: z.label, zoneName: z.name, postcode: pc, color },
+          });
+        });
+      });
+      if (features.length === 0) return;
+
+      map.addSource("zones", { type: "geojson", data: { type: "FeatureCollection", features } });
+      const beforeId = (map.getStyle().layers ?? []).find((l) => l.id.startsWith("ovr-line-"))?.id;
+      map.addLayer({
+        id: "zone-fill",
+        type: "fill",
+        source: "zones",
+        paint: { "fill-color": ["get", "color"], "fill-opacity": 0.14 },
+      }, beforeId);
+      map.addLayer({
+        id: "zone-outline",
+        type: "line",
+        source: "zones",
+        paint: { "line-color": ["get", "color"], "line-width": 1.5, "line-opacity": 0.75 },
+      }, beforeId);
+    };
+
+    if (map.loaded()) apply();
+    else map.once("load", apply);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showZones, zones, zonePolygons, routes]);
 
   const load = async () => {
     setLoading(true);
@@ -550,6 +659,32 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
           </div>
 
           <div className="border-t border-border/50 pt-2.5 space-y-1 text-caption text-muted-foreground">
+            <div className="space-y-1.5 pb-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium uppercase tracking-wide">Lieferzonen</span>
+                <Button
+                  variant={showZones ? "secondary" : "outline"}
+                  size="sm"
+                  className="h-7 px-2 text-caption"
+                  onClick={() => {
+                    const next = !showZones;
+                    setShowZones(next);
+                    try { localStorage.setItem(ZONES_PREF_KEY, next ? "1" : "0"); } catch { /* noop */ }
+                  }}
+                >
+                  {showZones ? "Ausblenden" : "Einblenden"}
+                </Button>
+              </div>
+              {showZones && zonesLoading && <div>Lade PLZ-Grenzen…</div>}
+              {showZones && zonesError && <div className="text-destructive">{zonesError}</div>}
+              {showZones && !zonesLoading && zones.length === 0 && <div>Keine aktiven Zonen hinterlegt.</div>}
+              {showZones && zones.map((z, i) => (
+                <div key={z.id} className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-sm border" style={{ backgroundColor: `${zoneColor(z, i)}33`, borderColor: zoneColor(z, i) }} />
+                  <span className="truncate">{z.label} · {z.name}</span>
+                </div>
+              ))}
+            </div>
             <div className="flex items-center gap-2">
               <span className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-foreground text-background text-[9px] font-bold">★</span>
               <span>Standard-Depot</span>
