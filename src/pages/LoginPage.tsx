@@ -158,8 +158,9 @@ const LoginPage = () => {
                       <Label htmlFor="agb" className="text-xs font-normal leading-snug cursor-pointer">
                         Ich akzeptiere die{" "}
                         <a
-                          href="/agb.pdf"
-                          download
+                          href="https://ecargo-logistik.de"
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-primary underline underline-offset-2 hover:no-underline"
                           onClick={(e) => e.stopPropagation()}
                         >
