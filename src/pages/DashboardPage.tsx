@@ -20,6 +20,7 @@ const DashboardPage = () => {
 
   useEffect(() => {
     if (!user) return;
+    if (isSubAccount === null) return; // Sub-Account-Status noch unbekannt: nicht vorschnell umleiten
     if (isSubAccount) {
       setProfileCheck("complete");
       return;
