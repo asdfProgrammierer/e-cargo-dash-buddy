@@ -340,7 +340,11 @@ const RoutenplanungPage = () => {
         ];
       });
 
-      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+      ]);
+      const doc: jsPDFType = new jsPDF({ unit: "mm", format: "a4" });
       const dateStr = new Date(route.datum).toLocaleDateString("de-DE");
       doc.setFontSize(16);
       doc.text(`Route: ${route.name}`, 14, 16);
