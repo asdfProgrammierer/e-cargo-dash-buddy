@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { sendOrderStatusEmail } from "@/lib/orderEmail";
+import { lookupCityByPostcode, isCompletePostcode } from "@/lib/plzCity";
 
 interface AdminCreateOrderDialogProps {
   merchantUserId?: string;
@@ -147,6 +148,26 @@ export function AdminCreateOrderDialog({
 
   const update = (field: string, value: string | number) =>
     setForm((prev) => ({ ...prev, [field]: value }));
+
+  // Auto-complete the city as soon as a full 5-digit postcode is entered.
+  useEffect(() => {
+    const plz = form.empfaengerPlz;
+    if (!isCompletePostcode(plz)) return;
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const city = await lookupCityByPostcode(plz);
+      if (cancelled || !city) return;
+      setForm((prev) =>
+        prev.empfaengerPlz === plz && !prev.empfaengerStadt.trim()
+          ? { ...prev, empfaengerStadt: city }
+          : prev,
+      );
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [form.empfaengerPlz]);
 
   const pickAddress = (entry: AddressBookEntry) => {
     setSelectedAddressId(entry.id);

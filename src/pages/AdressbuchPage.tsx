@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Star, Trash2, Pencil, Search, Building2, Phone, Mail, MapPin } from "lucide-react";
 import { toast } from "sonner";
+import { lookupCityByPostcode, isCompletePostcode } from "@/lib/plzCity";
 
 interface Contact {
   id: string;
@@ -145,6 +146,22 @@ const AdressbuchPage = () => {
     setEditingId(null);
     setDialogOpen(true);
   };
+
+  // Auto-complete the city as soon as a full 5-digit postcode is entered.
+  useEffect(() => {
+    const plz = form.plz;
+    if (!isCompletePostcode(plz)) return;
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const city = await lookupCityByPostcode(plz);
+      if (cancelled || !city) return;
+      setForm((prev) => (prev.plz === plz && !prev.stadt.trim() ? { ...prev, stadt: city } : prev));
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [form.plz]);
 
   const filtered = contacts.filter((c) => {
     if (showFavoritesOnly && !c.is_favorite) return false;
