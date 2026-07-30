@@ -600,9 +600,9 @@ const RoutenplanungPage = () => {
       </Dialog>
 
       {/* 4-Quadrant Layout: Left (Routes + Stops) | Right (Map + New Orders) */}
-      <div className="grid grid-cols-1 lg:grid-cols-[520px_1fr] gap-3 flex-1 min-h-0 overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-[520px_1fr] gap-3 flex-1 min-h-0 lg:overflow-hidden">
         {/* LEFT COLUMN */}
-        <div className="flex flex-col gap-3 min-h-0 overflow-hidden">
+        <div className="flex flex-col gap-3 min-h-0 lg:overflow-hidden">
           {/* Routes (top) */}
           <Card className="shadow-card flex flex-col min-h-0 overflow-hidden" style={{ flex: "0 0 auto", maxHeight: "30%" }}>
             <div className="flex items-center justify-between px-4 h-10 border-b border-border/50">
