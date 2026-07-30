@@ -75,6 +75,9 @@ interface DbOrder {
   delivery_unconfirmed?: boolean | null;
 }
 
+const ORDER_COLUMNS =
+  "id, user_id, auftrags_nr, absender_name, absender_adresse, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_email, empfaenger_telefon, pakete, gewicht, package_length_cm, package_width_cm, package_height_cm, status, notizen, created_at, updated_at, delivery_attempts, is_pickup, dhl_label_url, dhl_tracking_number, delivery_unconfirmed, signature_required";
+
 function dbToOrder(row: DbOrder): Order {
   return {
     id: row.id,
