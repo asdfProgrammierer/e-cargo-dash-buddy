@@ -477,7 +477,8 @@ const AdminDashboardPage = () => {
               Für diesen Status sind aktuell keine Bestellungen vorhanden.
             </div>
           ) : (
-            <Table>
+            <div className="overflow-x-auto">
+            <Table className="min-w-[820px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Auftragsnr.</TableHead>
@@ -532,6 +533,7 @@ const AdminDashboardPage = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
