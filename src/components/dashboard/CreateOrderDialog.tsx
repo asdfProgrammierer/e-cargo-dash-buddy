@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Info } from "lucide-react";
 import { fetchCoveredPostcodes, isCheckablePostcode, isCoveredPostcode } from "@/lib/deliveryCoverage";
+import { lookupCityByPostcode, isCompletePostcode } from "@/lib/plzCity";
 
 interface CreateOrderDialogProps {
   onSubmit: (
@@ -209,6 +210,26 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
 
   const update = (field: string, value: string | number | boolean) =>
     setForm((prev) => ({ ...prev, [field]: value }));
+
+  // Auto-complete the city as soon as a full 5-digit postcode is entered.
+  useEffect(() => {
+    const plz = form.empfaengerPlz;
+    if (!isCompletePostcode(plz)) return;
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const city = await lookupCityByPostcode(plz);
+      if (cancelled || !city) return;
+      setForm((prev) =>
+        prev.empfaengerPlz === plz && !prev.empfaengerStadt.trim()
+          ? { ...prev, empfaengerStadt: city }
+          : prev,
+      );
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [form.empfaengerPlz]);
 
   const showOutsideDeliveryHint =
     isCheckablePostcode(form.empfaengerPlz) && !isCoveredPostcode(form.empfaengerPlz, coveredPostcodes);
