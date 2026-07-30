@@ -38,6 +38,7 @@ interface Stop {
     notizen: string | null;
     lat: number | null;
     lng: number | null;
+    signature_required?: boolean | null;
   } | null;
 }
 
