@@ -109,7 +109,7 @@ const FahrzeugePage = () => {
   return (
     <AdminLayout title="Fahrzeugverwaltung">
       <div className="space-y-4">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap gap-2 justify-between items-center">
           <p className="text-muted-foreground text-sm">{vehicles.length} Fahrzeuge</p>
           <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm(emptyForm); } }}>
             <DialogTrigger asChild>
@@ -119,7 +119,7 @@ const FahrzeugePage = () => {
               <DialogHeader><DialogTitle>{editId ? "Fahrzeug bearbeiten" : "Neues Fahrzeug"}</DialogTitle></DialogHeader>
               <div className="space-y-3">
                 <div><Label>Kennzeichen *</Label><Input value={form.kennzeichen} onChange={(e) => setForm({ ...form, kennzeichen: e.target.value })} /></div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <Label>Typ</Label>
                     <Select value={form.typ} onValueChange={(v) => setForm({ ...form, typ: v as Vehicle["typ"] })}>
@@ -152,8 +152,8 @@ const FahrzeugePage = () => {
           </Dialog>
         </div>
 
-        <div className="rounded-lg border">
-          <Table>
+        <div className="rounded-lg border overflow-x-auto">
+          <Table className="min-w-[800px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Kennzeichen</TableHead>
