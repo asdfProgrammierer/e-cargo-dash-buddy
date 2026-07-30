@@ -429,10 +429,10 @@ const RoutenplanungPage = () => {
 
   return (
     <AdminLayout title="Routenplanung">
-      <div className="flex h-[calc(100vh-3.5rem-3rem)] flex-col gap-3 overflow-hidden">
+      <div className="flex min-h-[calc(100vh-3.5rem-3rem)] lg:h-[calc(100vh-3.5rem-3rem)] flex-col gap-3 lg:overflow-hidden">
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap">
           <Label className="text-caption text-muted-foreground">Datum</Label>
           <Input
             type="date"
@@ -444,7 +444,7 @@ const RoutenplanungPage = () => {
             {routesForDate.length} Routen
           </Badge>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
         <Button
           size="sm"
           variant="outline"
