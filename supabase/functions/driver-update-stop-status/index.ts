@@ -123,6 +123,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Auftragsspezifische Pflicht: Händler hat "Unterschrift erforderlich" gesetzt
+    if (status === "erledigt" && !signatureBase64) {
+      const { data: orderReq } = await admin
+        .from("orders")
+        .select("signature_required")
+        .eq("id", stop.order_id)
+        .maybeSingle();
+      if (orderReq?.signature_required) {
+        return new Response(
+          JSON.stringify({ error: "Für diesen Auftrag ist eine Unterschrift erforderlich" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     const stopUpdate: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
     if (reason) stopUpdate.notiz = reason;
     if (status === "erledigt") {
