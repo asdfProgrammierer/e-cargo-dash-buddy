@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import type jsPDFType from "jspdf";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -101,6 +100,10 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
       return;
     }
 
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
     const doc = new jsPDF();
     const merchantName = merchant.firma_name || merchant.ansprechpartner || "Händler";
     const createdAt = new Date().toLocaleDateString("de-DE");
