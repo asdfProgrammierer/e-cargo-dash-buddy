@@ -1038,7 +1038,7 @@ const DriverRouteDetailPage = () => {
               }}
             />
             <div className="grid grid-cols-2 gap-2">
-              {(activeMode?.signature_required || activeMode?.key === "persoenlich") && (
+              {(signatureMandatory || activeMode?.key === "persoenlich") && (
                 <Button
                   type="button"
                   variant={hasSignature ? "default" : "outline"}
@@ -1047,7 +1047,7 @@ const DriverRouteDetailPage = () => {
                 >
                   <PenLine className="h-4 w-4 mr-1.5 shrink-0" />
                   {hasSignature ? "Unterschrift ✓" : "Unterschrift"}
-                  {activeMode?.signature_required && !hasSignature && (
+                  {signatureMandatory && !hasSignature && (
                     <span className="text-destructive ml-1">*</span>
                   )}
                 </Button>
