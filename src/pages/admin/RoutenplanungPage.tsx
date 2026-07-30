@@ -96,7 +96,12 @@ const RoutenplanungPage = () => {
 
   const load = async () => {
     const [r, d, v, dep, zonesRes] = await Promise.all([
-      supabase.from("routes").select("*, drivers(id,name), vehicles(id,kennzeichen)").order("datum", { ascending: false }),
+      supabase
+        .from("routes")
+        .select(
+          "id, name, driver_id, vehicle_id, datum, start_time, status, notizen, start_depot_id, end_depot_id, drivers(id,name), vehicles(id,kennzeichen)"
+        )
+        .order("datum", { ascending: false }),
       supabase.from("drivers").select("id, name").eq("status", "aktiv"),
       supabase.from("vehicles").select("id, kennzeichen").eq("status", "verfuegbar"),
       supabase.from("depots").select("id, name, is_default").eq("active", true).order("name"),
