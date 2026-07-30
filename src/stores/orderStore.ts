@@ -110,9 +110,6 @@ export function useOrderStore() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const ORDER_COLUMNS =
-    "id, user_id, auftrags_nr, absender_name, absender_adresse, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_email, empfaenger_telefon, pakete, gewicht, package_length_cm, package_width_cm, package_height_cm, status, notizen, created_at, updated_at, delivery_attempts, is_pickup, dhl_label_url, dhl_tracking_number, delivery_unconfirmed, signature_required";
-
   const fetchOrders = useCallback(async () => {
     if (!merchantId) { setOrders([]); setLoading(false); return; }
     const { data, error } = await supabase
