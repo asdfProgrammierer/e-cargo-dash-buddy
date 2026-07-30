@@ -118,6 +118,10 @@ const DriverRouteDetailPage = () => {
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const activeMode = deliveryModes.find((m) => m.key === deliveryMode) ?? null;
+  // Unterschrift ist Pflicht, wenn die Übergabe-Art es verlangt ODER der
+  // Händler beim Auftrag "Unterschrift erforderlich" gesetzt hat.
+  const orderRequiresSignature = deliverStop?.order?.signature_required === true;
+  const signatureMandatory = !!activeMode?.signature_required || orderRequiresSignature;
 
   const load = async () => {
     if (!id) return;
