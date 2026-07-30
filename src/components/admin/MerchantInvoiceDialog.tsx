@@ -208,7 +208,7 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
           </div>
 
           <div className="max-h-[420px] overflow-auto rounded-lg border">
-            <Table>
+            <Table className="min-w-[600px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Auftrag</TableHead>

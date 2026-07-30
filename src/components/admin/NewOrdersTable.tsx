@@ -183,7 +183,7 @@ export function NewOrdersTable({
 
   return (
     <Card className="shadow-card flex flex-col min-h-0 h-full">
-      <div className="flex items-center justify-between gap-2 px-4 h-11 border-b border-border/50">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-2 sm:h-11 border-b border-border/50">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-body font-medium">Neue Sendungen</span>
           <Badge variant="secondary" className="text-[10px] tabular-nums">{orders.length}</Badge>
@@ -198,7 +198,7 @@ export function NewOrdersTable({
             </Label>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-8">
@@ -265,13 +265,13 @@ export function NewOrdersTable({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-          <div className="relative">
+          <div className="relative flex-1 min-w-[120px] sm:flex-none">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Suche…"
-              className="h-8 pl-7 w-44 text-caption"
+              className="h-8 pl-7 w-full sm:w-44 text-caption"
             />
           </div>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onReload} title="Aktualisieren">
@@ -313,7 +313,7 @@ export function NewOrdersTable({
 
       <CardContent className="p-0 flex-1 min-h-0">
         <ScrollArea className="h-full">
-          <table className="w-full text-caption">
+          <table className="w-full min-w-[720px] text-caption">
             <thead className="sticky top-0 bg-card z-10">
               <tr className="border-b border-border/50 text-muted-foreground">
                 <th className="px-3 py-2 text-left w-8">

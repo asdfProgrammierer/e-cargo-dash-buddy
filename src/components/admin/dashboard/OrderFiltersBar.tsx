@@ -57,17 +57,17 @@ export function OrderFiltersBar({ filters, onChange, merchants }: Props) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="relative">
+      <div className="relative w-full sm:w-auto">
         <Search className="pointer-events-none absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
         <Input
           value={filters.search}
           onChange={(e) => set({ search: e.target.value })}
           placeholder="Suche Auftrag, Empfänger, Tracking…"
-          className="h-8 w-56 pl-7 text-xs"
+          className="h-8 w-full sm:w-56 pl-7 text-xs"
         />
       </div>
       <Select value={filters.range} onValueChange={(v) => set({ range: v as TimeRange })}>
-        <SelectTrigger className="h-8 w-[120px] text-xs"><SelectValue /></SelectTrigger>
+        <SelectTrigger className="h-8 w-[110px] sm:w-[120px] text-xs"><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="today">Heute</SelectItem>
           <SelectItem value="7">7 Tage</SelectItem>
@@ -76,7 +76,7 @@ export function OrderFiltersBar({ filters, onChange, merchants }: Props) {
         </SelectContent>
       </Select>
       <Select value={filters.merchant} onValueChange={(v) => set({ merchant: v })}>
-        <SelectTrigger className="h-8 w-[180px] text-xs"><SelectValue placeholder="Händler" /></SelectTrigger>
+        <SelectTrigger className="h-8 w-[150px] sm:w-[180px] text-xs"><SelectValue placeholder="Händler" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Alle Händler</SelectItem>
           {merchants.map((m) => (
@@ -88,7 +88,7 @@ export function OrderFiltersBar({ filters, onChange, merchants }: Props) {
         value={filters.city}
         onChange={(e) => set({ city: e.target.value })}
         placeholder="Stadt"
-        className="h-8 w-32 text-xs"
+        className="h-8 w-28 sm:w-32 text-xs"
       />
       {isActive && (
         <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => onChange(DEFAULT_FILTERS)}>

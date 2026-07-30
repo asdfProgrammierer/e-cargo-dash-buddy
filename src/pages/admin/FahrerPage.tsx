@@ -123,7 +123,7 @@ const FahrerPage = () => {
   return (
     <AdminLayout title="Fahrerverwaltung">
       <div className="space-y-4">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap gap-2 justify-between items-center">
           <p className="text-muted-foreground text-sm">{drivers.length} Fahrer</p>
           <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm(emptyForm); } }}>
             <DialogTrigger asChild>
@@ -133,11 +133,11 @@ const FahrerPage = () => {
               <DialogHeader><DialogTitle>{editId ? "Fahrer bearbeiten" : "Neuer Fahrer"}</DialogTitle></DialogHeader>
               <div className="space-y-3">
                 <div><Label>Name *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><Label>Telefon</Label><Input value={form.telefon} onChange={(e) => setForm({ ...form, telefon: e.target.value })} /></div>
                   <div><Label>E-Mail</Label><Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><Label>Führerscheinklasse</Label><Input value={form.fuehrerscheinklasse} onChange={(e) => setForm({ ...form, fuehrerscheinklasse: e.target.value })} /></div>
                   <div>
                     <Label>Status</Label>
@@ -157,8 +157,8 @@ const FahrerPage = () => {
           </Dialog>
         </div>
 
-        <div className="rounded-lg border">
-          <Table>
+        <div className="rounded-lg border overflow-x-auto">
+          <Table className="min-w-[800px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>

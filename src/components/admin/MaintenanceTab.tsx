@@ -149,8 +149,8 @@ export function MaintenanceTab({ vehicleId }: { vehicleId: string }) {
         </Dialog>
       </div>
 
-      <div className="rounded-lg border">
-        <Table>
+      <div className="rounded-lg border overflow-x-auto">
+        <Table className="min-w-[760px]">
           <TableHeader>
             <TableRow>
               <TableHead>Typ</TableHead>

@@ -565,7 +565,7 @@ const EmailTemplatesPage = () => {
                 ref={iframeRef}
                 title="E-Mail Live-Vorschau"
                 srcDoc={previewHtml}
-                className="h-[720px] w-full"
+                className="h-[420px] sm:h-[560px] lg:h-[720px] w-full"
               />
             </div>
             {previewLoading ? <p className="mt-2 text-xs text-muted-foreground">Lade Vorschau…</p> : null}

@@ -180,7 +180,7 @@ function HeatMap({ points }: { points: StatsResponse["heatmap"] }) {
     if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
   }, [points]);
 
-  return <div ref={containerRef} className="h-[520px] w-full rounded-md border" />;
+  return <div ref={containerRef} className="h-[320px] sm:h-[420px] lg:h-[520px] w-full rounded-md border" />;
 }
 
 export default function StatistikenPage() {
@@ -285,13 +285,13 @@ export default function StatistikenPage() {
                     setCustomTo(r?.to);
                     if (r?.from && r?.to) setPreset("custom");
                   }}
-                  numberOfMonths={2}
+                  numberOfMonths={1}
                   locale={de}
                   className={cn("p-3 pointer-events-auto")}
                 />
               </PopoverContent>
             </Popover>
-            <div className="ml-auto">
+            <div className="w-full sm:w-auto sm:ml-auto">
               <MerchantMultiSelect
                 merchants={merchantsQuery.data || []}
                 selected={selectedMerchants}

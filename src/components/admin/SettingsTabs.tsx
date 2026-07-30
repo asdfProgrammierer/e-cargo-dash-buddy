@@ -15,8 +15,8 @@ const tabs = [
 export function SettingsTabs() {
   const location = useLocation();
   return (
-    <div className="mb-6 border-b border-border">
-      <nav className="flex gap-1 -mb-px">
+    <div className="mb-6 border-b border-border overflow-x-auto">
+      <nav className="flex gap-1 -mb-px min-w-max">
         {tabs.map((tab) => {
           const active = location.pathname.startsWith(tab.to);
           const Icon = tab.icon;
@@ -25,7 +25,7 @@ export function SettingsTabs() {
               key={tab.to}
               to={tab.to}
               className={cn(
-                "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
+                "flex shrink-0 items-center gap-2 whitespace-nowrap px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
                 active
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground hover:border-border",

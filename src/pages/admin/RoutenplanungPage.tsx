@@ -429,10 +429,10 @@ const RoutenplanungPage = () => {
 
   return (
     <AdminLayout title="Routenplanung">
-      <div className="flex h-[calc(100vh-3.5rem-3rem)] flex-col gap-3 overflow-hidden">
+      <div className="flex min-h-[calc(100vh-3.5rem-3rem)] lg:h-[calc(100vh-3.5rem-3rem)] flex-col gap-3 lg:overflow-hidden">
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap">
           <Label className="text-caption text-muted-foreground">Datum</Label>
           <Input
             type="date"
@@ -444,7 +444,7 @@ const RoutenplanungPage = () => {
             {routesForDate.length} Routen
           </Badge>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
         <Button
           size="sm"
           variant="outline"
@@ -600,9 +600,9 @@ const RoutenplanungPage = () => {
       </Dialog>
 
       {/* 4-Quadrant Layout: Left (Routes + Stops) | Right (Map + New Orders) */}
-      <div className="grid grid-cols-1 lg:grid-cols-[520px_1fr] gap-3 flex-1 min-h-0 overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-[520px_1fr] gap-3 flex-1 min-h-0 lg:overflow-hidden">
         {/* LEFT COLUMN */}
-        <div className="flex flex-col gap-3 min-h-0 overflow-hidden">
+        <div className="flex flex-col gap-3 min-h-0 lg:overflow-hidden">
           {/* Routes (top) */}
           <Card className="shadow-card flex flex-col min-h-0 overflow-hidden" style={{ flex: "0 0 auto", maxHeight: "30%" }}>
             <div className="flex items-center justify-between px-4 h-10 border-b border-border/50">
