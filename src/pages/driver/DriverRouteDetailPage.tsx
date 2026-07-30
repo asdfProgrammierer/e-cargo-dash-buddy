@@ -38,6 +38,7 @@ interface Stop {
     notizen: string | null;
     lat: number | null;
     lng: number | null;
+    signature_required?: boolean | null;
   } | null;
 }
 
@@ -117,6 +118,10 @@ const DriverRouteDetailPage = () => {
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const activeMode = deliveryModes.find((m) => m.key === deliveryMode) ?? null;
+  // Unterschrift ist Pflicht, wenn die Übergabe-Art es verlangt ODER der
+  // Händler beim Auftrag "Unterschrift erforderlich" gesetzt hat.
+  const orderRequiresSignature = deliverStop?.order?.signature_required === true;
+  const signatureMandatory = !!activeMode?.signature_required || orderRequiresSignature;
 
   const load = async () => {
     if (!id) return;
@@ -152,7 +157,7 @@ const DriverRouteDetailPage = () => {
     const { data } = await supabase
       .from("route_stops")
       .select(
-        "id, position, status, eta, notiz, order_id, orders(id, auftrags_nr, absender_name, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, notizen, lat, lng)",
+        "id, position, status, eta, notiz, order_id, orders(id, auftrags_nr, absender_name, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, notizen, lat, lng, signature_required)",
       )
       .eq("route_id", id)
       .order("position", { ascending: true });
@@ -536,7 +541,7 @@ const DriverRouteDetailPage = () => {
       return;
     }
     const sig = signatureDataUrl ?? sigPadRef.current?.toDataURL() ?? null;
-    if (activeMode.signature_required && !sig) {
+    if (signatureMandatory && !sig) {
       toast.error("Unterschrift ist Pflicht");
       return;
     }
@@ -1033,7 +1038,7 @@ const DriverRouteDetailPage = () => {
               }}
             />
             <div className="grid grid-cols-2 gap-2">
-              {(activeMode?.signature_required || activeMode?.key === "persoenlich") && (
+              {(signatureMandatory || activeMode?.key === "persoenlich") && (
                 <Button
                   type="button"
                   variant={hasSignature ? "default" : "outline"}
@@ -1042,7 +1047,7 @@ const DriverRouteDetailPage = () => {
                 >
                   <PenLine className="h-4 w-4 mr-1.5 shrink-0" />
                   {hasSignature ? "Unterschrift ✓" : "Unterschrift"}
-                  {activeMode?.signature_required && !hasSignature && (
+                  {signatureMandatory && !hasSignature && (
                     <span className="text-destructive ml-1">*</span>
                   )}
                 </Button>

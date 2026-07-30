@@ -66,6 +66,7 @@ const emptyForm = {
   packageWidthCm: 0,
   packageHeightCm: 0,
   notizen: "",
+  signatureRequired: false,
   saveToAddressBook: false,
 };
 
@@ -372,6 +373,22 @@ export function CreateOrderDialog({ onSubmit }: CreateOrderDialogProps) {
           <div className="space-y-2">
             <Label>Notizen</Label>
             <Textarea value={form.notizen} onChange={(e) => update("notizen", e.target.value)} rows={2} />
+          </div>
+          <div className="flex items-start space-x-2 rounded-lg border border-border/60 bg-muted/40 p-3">
+            <Checkbox
+              id="signatureRequired"
+              checked={form.signatureRequired}
+              onCheckedChange={(checked) => update("signatureRequired", !!checked)}
+              className="mt-0.5"
+            />
+            <div className="space-y-0.5">
+              <Label htmlFor="signatureRequired" className="text-sm cursor-pointer">
+                Unterschrift erforderlich
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Der Fahrer muss bei der Übergabe zwingend eine Unterschrift einholen.
+              </p>
+            </div>
           </div>
           <Button type="submit" className="mt-2" disabled={submitting}>
             {submitting ? "Speichere…" : "Auftrag anlegen"}

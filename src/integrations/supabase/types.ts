@@ -858,6 +858,7 @@ export type Database = {
           shop_connection_id: string | null
           shopify_fulfilled_at: string | null
           shopify_fulfillment_id: string | null
+          signature_required: boolean
           source_system: string | null
           status: string
           tracking_token: string | null
@@ -903,6 +904,7 @@ export type Database = {
           shop_connection_id?: string | null
           shopify_fulfilled_at?: string | null
           shopify_fulfillment_id?: string | null
+          signature_required?: boolean
           source_system?: string | null
           status?: string
           tracking_token?: string | null
@@ -948,6 +950,7 @@ export type Database = {
           shop_connection_id?: string | null
           shopify_fulfilled_at?: string | null
           shopify_fulfillment_id?: string | null
+          signature_required?: boolean
           source_system?: string | null
           status?: string
           tracking_token?: string | null
@@ -1624,6 +1627,7 @@ export type Database = {
           shop_connection_id: string | null
           shopify_fulfilled_at: string | null
           shopify_fulfillment_id: string | null
+          signature_required: boolean
           source_system: string | null
           status: string
           tracking_token: string | null
@@ -1682,6 +1686,7 @@ export type Database = {
           shop_connection_id: string | null
           shopify_fulfilled_at: string | null
           shopify_fulfillment_id: string | null
+          signature_required: boolean
           source_system: string | null
           status: string
           tracking_token: string | null
