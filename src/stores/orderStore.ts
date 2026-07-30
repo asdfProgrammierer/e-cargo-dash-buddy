@@ -100,6 +100,7 @@ function dbToOrder(row: DbOrder): Order {
     dhlLabelUrl: row.dhl_label_url ?? undefined,
     dhlTrackingNumber: row.dhl_tracking_number ?? undefined,
     deliveryUnconfirmed: row.delivery_unconfirmed === true,
+    signatureRequired: (row as any).signature_required === true,
   };
 }
 
@@ -149,6 +150,7 @@ export function useOrderStore() {
         package_width_cm: order.packageWidthCm ?? null,
         package_height_cm: order.packageHeightCm ?? null,
         notizen: order.notizen || null,
+        signature_required: order.signatureRequired === true,
       })
       .select()
       .single();
@@ -199,6 +201,7 @@ export function useOrderStore() {
       package_width_cm: o.packageWidthCm ?? null,
       package_height_cm: o.packageHeightCm ?? null,
       notizen: o.notizen || null,
+      signature_required: o.signatureRequired === true,
     }));
     const { data, error } = await supabase.from("orders").insert(rows).select();
     if (error) {
@@ -264,6 +267,7 @@ export function useOrderStore() {
       package_width_cm?: number | null;
       package_height_cm?: number | null;
       notizen?: string | null;
+      signature_required?: boolean;
     } = {};
     if (updates.empfaengerName !== undefined) dbUpdates.empfaenger_name = updates.empfaengerName;
     if (updates.empfaengerAdresse !== undefined) dbUpdates.empfaenger_adresse = updates.empfaengerAdresse;
@@ -277,6 +281,7 @@ export function useOrderStore() {
     if (updates.packageWidthCm !== undefined) dbUpdates.package_width_cm = updates.packageWidthCm ?? null;
     if (updates.packageHeightCm !== undefined) dbUpdates.package_height_cm = updates.packageHeightCm ?? null;
     if (updates.notizen !== undefined) dbUpdates.notizen = updates.notizen || null;
+    if (updates.signatureRequired !== undefined) dbUpdates.signature_required = updates.signatureRequired === true;
     
     const { error } = await supabase.from("orders").update(dbUpdates).eq("id", id);
     if (error) { toast.error("Änderungen konnten nicht gespeichert werden"); return; }
