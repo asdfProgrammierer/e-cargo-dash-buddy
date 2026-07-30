@@ -153,7 +153,7 @@ const DriverRouteDetailPage = () => {
     const { data } = await supabase
       .from("route_stops")
       .select(
-        "id, position, status, eta, notiz, order_id, orders(id, auftrags_nr, absender_name, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, notizen, lat, lng)",
+        "id, position, status, eta, notiz, order_id, orders(id, auftrags_nr, absender_name, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, notizen, lat, lng, signature_required)",
       )
       .eq("route_id", id)
       .order("position", { ascending: true });
@@ -537,7 +537,7 @@ const DriverRouteDetailPage = () => {
       return;
     }
     const sig = signatureDataUrl ?? sigPadRef.current?.toDataURL() ?? null;
-    if (activeMode.signature_required && !sig) {
+    if (signatureMandatory && !sig) {
       toast.error("Unterschrift ist Pflicht");
       return;
     }
