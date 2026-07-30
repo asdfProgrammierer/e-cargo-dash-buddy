@@ -94,7 +94,7 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
     setOrders((data as InvoiceOrder[]) ?? []);
   };
 
-  const downloadPdf = () => {
+  const downloadPdf = async () => {
     if (!orders.length) {
       toast.error("Bitte zuerst eine Rechnungs-Vorschau erstellen");
       return;
@@ -133,7 +133,7 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
       headStyles: { fillColor: [31, 41, 55] },
     });
 
-    const finalY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 70;
+    const finalY = (doc as jsPDFType & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 70;
     doc.text(`Gelieferte Pakete: ${summary.totalPackages}`, 14, finalY + 12);
     doc.setFontSize(13);
     doc.text(`Gesamtbetrag: ${formatCurrency(summary.totalAmount)}`, 14, finalY + 22);
