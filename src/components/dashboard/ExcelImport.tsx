@@ -446,7 +446,7 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride, hide
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium text-muted-foreground">Erwartete Spalten</CardTitle>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => downloadTemplate(template === "auto" ? (detectedTemplate ?? "standard") : template)}>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => { void downloadTemplate(template === "auto" ? (detectedTemplate ?? "standard") : template); }}>
               <Download className="h-3.5 w-3.5" />
               Vorlage herunterladen
             </Button>
