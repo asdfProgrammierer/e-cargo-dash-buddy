@@ -323,7 +323,7 @@ const DepotsPage = () => {
                         onChange={(e) => setForm((f) => ({ ...f, strasse: e.target.value }))}
                       />
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="space-y-2">
                         <Label>PLZ *</Label>
                         <Input
