@@ -17,8 +17,7 @@ import { RoutesOverviewMap } from "@/components/admin/RoutesOverviewMap";
 import { NewOrdersTable, type NewOrderRow } from "@/components/admin/NewOrdersTable";
 import { AdminOrderQuickSheet } from "@/components/admin/AdminOrderQuickSheet";
 import { Switch } from "@/components/ui/switch";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import type jsPDFType from "jspdf";
 import { sendOrderStatusEmailsForIds } from "@/lib/orderEmail";
 import { buildPostcodeZoneMap, type ZoneInfo, type ZoneWithPostcodes } from "@/lib/deliveryZoneLookup";
 import { zoneInfoFor, NO_ZONE_ID } from "@/lib/deliveryZoneLookup";
@@ -96,7 +95,12 @@ const RoutenplanungPage = () => {
 
   const load = async () => {
     const [r, d, v, dep, zonesRes] = await Promise.all([
-      supabase.from("routes").select("*, drivers(id,name), vehicles(id,kennzeichen)").order("datum", { ascending: false }),
+      supabase
+        .from("routes")
+        .select(
+          "id, name, driver_id, vehicle_id, datum, start_time, status, notizen, start_depot_id, end_depot_id, drivers(id,name), vehicles(id,kennzeichen)"
+        )
+        .order("datum", { ascending: false }),
       supabase.from("drivers").select("id, name").eq("status", "aktiv"),
       supabase.from("vehicles").select("id, kennzeichen").eq("status", "verfuegbar"),
       supabase.from("depots").select("id, name, is_default").eq("active", true).order("name"),
@@ -336,7 +340,11 @@ const RoutenplanungPage = () => {
         ];
       });
 
-      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+      ]);
+      const doc: jsPDFType = new jsPDF({ unit: "mm", format: "a4" });
       const dateStr = new Date(route.datum).toLocaleDateString("de-DE");
       doc.setFontSize(16);
       doc.text(`Route: ${route.name}`, 14, 16);

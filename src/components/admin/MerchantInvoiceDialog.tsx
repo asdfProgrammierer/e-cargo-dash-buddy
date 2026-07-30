@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import type jsPDFType from "jspdf";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -95,12 +94,16 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
     setOrders((data as InvoiceOrder[]) ?? []);
   };
 
-  const downloadPdf = () => {
+  const downloadPdf = async () => {
     if (!orders.length) {
       toast.error("Bitte zuerst eine Rechnungs-Vorschau erstellen");
       return;
     }
 
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
     const doc = new jsPDF();
     const merchantName = merchant.firma_name || merchant.ansprechpartner || "Händler";
     const createdAt = new Date().toLocaleDateString("de-DE");
@@ -130,7 +133,7 @@ export function MerchantInvoiceDialog({ merchant }: MerchantInvoiceDialogProps) 
       headStyles: { fillColor: [31, 41, 55] },
     });
 
-    const finalY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 70;
+    const finalY = (doc as jsPDFType & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 70;
     doc.text(`Gelieferte Pakete: ${summary.totalPackages}`, 14, finalY + 12);
     doc.setFontSize(13);
     doc.text(`Gesamtbetrag: ${formatCurrency(summary.totalAmount)}`, 14, finalY + 22);

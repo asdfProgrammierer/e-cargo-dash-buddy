@@ -1,5 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
-import * as XLSX from "xlsx";
+type XlsxModule = typeof import("xlsx");
+let xlsxPromise: Promise<XlsxModule> | null = null;
+const loadXlsx = (): Promise<XlsxModule> => {
+  if (!xlsxPromise) xlsxPromise = import("xlsx");
+  return xlsxPromise;
+};
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -158,7 +163,8 @@ function normalizeHeader(s: string): string {
     .trim();
 }
 
-function downloadTemplate(template: TemplateKey) {
+async function downloadTemplate(template: TemplateKey) {
+  const XLSX = await loadXlsx();
   const wb = XLSX.utils.book_new();
   const headers = template === "grosskunde" ? GROSSKUNDE_HEADERS : TEMPLATE_HEADERS;
   const example = template === "grosskunde" ? GROSSKUNDE_EXAMPLE : TEMPLATE_EXAMPLE;
@@ -221,9 +227,10 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride, hide
   const handleFile = useCallback((file: File) => {
     setFileName(file.name);
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const XLSX = await loadXlsx();
         const workbook = XLSX.read(data, { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
@@ -439,7 +446,7 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride, hide
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium text-muted-foreground">Erwartete Spalten</CardTitle>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => downloadTemplate(template === "auto" ? (detectedTemplate ?? "standard") : template)}>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => { void downloadTemplate(template === "auto" ? (detectedTemplate ?? "standard") : template); }}>
               <Download className="h-3.5 w-3.5" />
               Vorlage herunterladen
             </Button>
