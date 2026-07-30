@@ -1,5 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
-import * as XLSX from "xlsx";
+type XlsxModule = typeof import("xlsx");
+let xlsxPromise: Promise<XlsxModule> | null = null;
+const loadXlsx = (): Promise<XlsxModule> => {
+  if (!xlsxPromise) xlsxPromise = import("xlsx");
+  return xlsxPromise;
+};
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -158,7 +163,8 @@ function normalizeHeader(s: string): string {
     .trim();
 }
 
-function downloadTemplate(template: TemplateKey) {
+async function downloadTemplate(template: TemplateKey) {
+  const XLSX = await loadXlsx();
   const wb = XLSX.utils.book_new();
   const headers = template === "grosskunde" ? GROSSKUNDE_HEADERS : TEMPLATE_HEADERS;
   const example = template === "grosskunde" ? GROSSKUNDE_EXAMPLE : TEMPLATE_EXAMPLE;
