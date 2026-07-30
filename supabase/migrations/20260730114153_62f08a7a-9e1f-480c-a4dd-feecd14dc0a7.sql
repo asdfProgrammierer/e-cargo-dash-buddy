@@ -1,0 +1,1 @@
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS signature_required boolean NOT NULL DEFAULT false;
