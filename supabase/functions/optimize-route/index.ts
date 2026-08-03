@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
         start: [sLng, sLat] as [number, number],
         end: [eLng, eLat] as [number, number],
       }];
-      const segRes = await fetch("https://api.openrouteservice.org/optimization", {
+      const segRes = await fetchOrsWithRetry("https://api.openrouteservice.org/optimization", {
         method: "POST",
         headers: {
           Authorization: apiKey,
@@ -148,11 +148,7 @@ Deno.serve(async (req) => {
           Accept: "application/json",
         },
         body: JSON.stringify({ jobs: segJobs, vehicles: segVehicles }),
-      });
-      if (!segRes.ok) {
-        const t = await segRes.text();
-        throw new Error(`Optimierung fehlgeschlagen: ${t}`);
-      }
+      }, "Optimierung");
       const segData = await segRes.json();
       const segRoute = segData?.routes?.[0];
       if (!segRoute) throw new Error("Keine Route von ORS (Segment)");
@@ -236,18 +232,19 @@ Deno.serve(async (req) => {
       [Number(endDepot.lng), Number(endDepot.lat)],
     ];
 
-    const dirRes = await fetch(`https://api.openrouteservice.org/v2/directions/${profile}/geojson`, {
-      method: "POST",
-      headers: {
-        Authorization: apiKey,
-        "Content-Type": "application/json",
-        Accept: "application/geo+json",
-      },
-      body: JSON.stringify({ coordinates: coords, instructions: false }),
-    });
-    if (!dirRes.ok) {
-      const t = await dirRes.text();
-      return json({ error: "Routing fehlgeschlagen", details: t }, 502);
+    let dirRes: Response;
+    try {
+      dirRes = await fetchOrsWithRetry(`https://api.openrouteservice.org/v2/directions/${profile}/geojson`, {
+        method: "POST",
+        headers: {
+          Authorization: apiKey,
+          "Content-Type": "application/json",
+          Accept: "application/geo+json",
+        },
+        body: JSON.stringify({ coordinates: coords, instructions: false }),
+      }, "Routing");
+    } catch (e) {
+      return json({ error: e instanceof Error ? e.message : "Routing fehlgeschlagen" }, 502);
     }
     const dirData = await dirRes.json();
     const feat = dirData?.features?.[0];
@@ -352,6 +349,42 @@ function json(body: unknown, status: number) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+// ORS is occasionally unavailable (502/503 from their proxy). Retry a few
+// times with backoff before giving up, and never leak raw HTML error pages.
+async function fetchOrsWithRetry(
+  url: string,
+  init: RequestInit,
+  label: string,
+  attempts = 4,
+): Promise<Response> {
+  let lastText = "";
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url, init);
+      if (res.ok) return res;
+      lastText = await res.text();
+      const retryable = res.status === 429 || res.status >= 500;
+      if (!retryable) throw new Error(`${label} fehlgeschlagen: ${shortenOrsError(lastText)}`);
+    } catch (e) {
+      if (i === attempts - 1) throw e;
+    }
+    await new Promise((r) => setTimeout(r, 800 * Math.pow(2, i)));
+  }
+  throw new Error(
+    `${label} fehlgeschlagen: Der Routing-Dienst (OpenRouteService) ist derzeit nicht erreichbar. Bitte in ein paar Minuten erneut versuchen. (${shortenOrsError(lastText)})`,
+  );
+}
+
+function shortenOrsError(text: string): string {
+  if (!text) return "keine Antwort";
+  if (text.trimStart().startsWith("<")) {
+    const title = text.match(/<title>([^<]*)<\/title>/i)?.[1];
+    const reason = text.match(/Reason:\s*<strong>([^<]*)<\/strong>/i)?.[1];
+    return [title, reason].filter(Boolean).join(" – ") || "Upstream-Fehler";
+  }
+  return text.slice(0, 300);
 }
 
 // Interpret a "YYYY-MM-DD" + "HH:mm" pair as Europe/Berlin local time and
