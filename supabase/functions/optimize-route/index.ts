@@ -354,6 +354,42 @@ function json(body: unknown, status: number) {
   });
 }
 
+// ORS is occasionally unavailable (502/503 from their proxy). Retry a few
+// times with backoff before giving up, and never leak raw HTML error pages.
+async function fetchOrsWithRetry(
+  url: string,
+  init: RequestInit,
+  label: string,
+  attempts = 4,
+): Promise<Response> {
+  let lastText = "";
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url, init);
+      if (res.ok) return res;
+      lastText = await res.text();
+      const retryable = res.status === 429 || res.status >= 500;
+      if (!retryable) throw new Error(`${label} fehlgeschlagen: ${shortenOrsError(lastText)}`);
+    } catch (e) {
+      if (i === attempts - 1) throw e;
+    }
+    await new Promise((r) => setTimeout(r, 800 * Math.pow(2, i)));
+  }
+  throw new Error(
+    `${label} fehlgeschlagen: Der Routing-Dienst (OpenRouteService) ist derzeit nicht erreichbar. Bitte in ein paar Minuten erneut versuchen. (${shortenOrsError(lastText)})`,
+  );
+}
+
+function shortenOrsError(text: string): string {
+  if (!text) return "keine Antwort";
+  if (text.trimStart().startsWith("<")) {
+    const title = text.match(/<title>([^<]*)<\/title>/i)?.[1];
+    const reason = text.match(/Reason:\s*<strong>([^<]*)<\/strong>/i)?.[1];
+    return [title, reason].filter(Boolean).join(" – ") || "Upstream-Fehler";
+  }
+  return text.slice(0, 300);
+}
+
 // Interpret a "YYYY-MM-DD" + "HH:mm" pair as Europe/Berlin local time and
 // return the corresponding UTC milliseconds. Handles CET/CEST automatically.
 function berlinLocalToUtcMs(dateStr: string, timeStr: string): number {
