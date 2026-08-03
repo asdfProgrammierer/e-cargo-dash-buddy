@@ -538,7 +538,16 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
       toast.error((data as { error?: string })?.error ?? "Optimierung fehlgeschlagen");
       return;
     }
-    toast.success(`Route optimiert: ${formatDistance((data as { total_distance_m: number }).total_distance_m)} · ${formatDuration((data as { total_duration_s: number }).total_duration_s)}`);
+    const result = data as { total_distance_m: number; total_duration_s: number; fallback?: boolean; fallback_reason?: string | null };
+    const summary = `${formatDistance(result.total_distance_m)} · ${formatDuration(result.total_duration_s)}`;
+    if (result.fallback) {
+      toast.warning(`Route geplant (Schätzung): ${summary}`, {
+        description: result.fallback_reason ??
+          "OpenRouteService war nicht erreichbar – Reihenfolge und Zeiten wurden lokal geschätzt.",
+      });
+    } else {
+      toast.success(`Route optimiert: ${summary}`);
+    }
     await load();
     onOptimized?.();
     // Validierung: gepinnte Stopps müssen ihre Position behalten
