@@ -486,16 +486,6 @@ function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): num
   return 2 * 6371000 * Math.asin(Math.sqrt(a));
 }
 
-function _unusedShortenOrsError(text: string): string {
-  if (!text) return "keine Antwort";
-  if (text.trimStart().startsWith("<")) {
-    const title = text.match(/<title>([^<]*)<\/title>/i)?.[1];
-    const reason = text.match(/Reason:\s*<strong>([^<]*)<\/strong>/i)?.[1];
-    return [title, reason].filter(Boolean).join(" – ") || "Upstream-Fehler";
-  }
-  return text.slice(0, 300);
-}
-
 // Interpret a "YYYY-MM-DD" + "HH:mm" pair as Europe/Berlin local time and
 // return the corresponding UTC milliseconds. Handles CET/CEST automatically.
 function berlinLocalToUtcMs(dateStr: string, timeStr: string): number {
