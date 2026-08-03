@@ -300,7 +300,7 @@ Deno.serve(async (req) => {
       [Number(endDepot.lng), Number(endDepot.lat)],
     ];
 
-    let dirRes: Response;
+    let dirRes: Response | null = null;
     try {
       dirRes = await fetchOrsWithRetry(`https://api.openrouteservice.org/v2/directions/${profile}/geojson`, {
         method: "POST",
@@ -312,11 +312,15 @@ Deno.serve(async (req) => {
         body: JSON.stringify({ coordinates: coords, instructions: false }),
       }, "Routing");
     } catch (e) {
-      return json({ error: e instanceof Error ? e.message : "Routing fehlgeschlagen" }, 502);
+      // Kein Routing verfügbar → Luftlinien-Schätzung statt Abbruch
+      console.warn("ORS-Routing fehlgeschlagen, nutze Luftlinien-Fallback", e);
+      fallbackUsed = true;
+      fallbackReasons.push(e instanceof Error ? e.message : String(e));
     }
-    const dirData = await dirRes.json();
+    const dirData = dirRes ? await dirRes.json() : null;
     const feat = dirData?.features?.[0];
-    const geometry = feat?.geometry ?? null;
+    const geometry = feat?.geometry ??
+      (fallbackUsed ? { type: "LineString", coordinates: coords } : null);
     const routeSegments = feat?.properties?.segments as Array<{ distance: number; duration: number }> | undefined;
 
     // Per-leg durations/distances aus Directions ableiten.
@@ -329,6 +333,18 @@ Deno.serve(async (req) => {
         legDistances[i] = routeSegments[i].distance ?? 0;
       }
     } else {
+      if (!dirRes) {
+        // Ohne ORS: Luftlinie × Umwegfaktor, Geschwindigkeit je Profil
+        const detour = 1.35;
+        const speedKmh = profile === "driving-car" ? 30 : profile === "cycling-electric" ? 18 : 15;
+        for (let i = 0; i < legCount; i++) {
+          const [aLng, aLat] = coords[i];
+          const [bLng, bLat] = coords[i + 1];
+          const dist = haversineM(aLat, aLng, bLat, bLng) * detour;
+          legDistances[i] = dist;
+          legDurations[i] = dist / (speedKmh * 1000 / 3600);
+        }
+      } else {
       console.warn("ORS segments mismatch", {
         expected: legCount,
         got: routeSegments?.length ?? 0,
@@ -360,6 +376,7 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.error("Leg fallback error", i, e);
         }
+      }
       }
     }
 
@@ -405,6 +422,11 @@ Deno.serve(async (req) => {
       total_duration_s: Math.round(totalDur),
       stops_optimized: free.length,
       pinned_count: pinned.length,
+      fallback: fallbackUsed,
+      fallback_reason: fallbackUsed
+        ? "OpenRouteService war nicht erreichbar – Reihenfolge und Zeiten wurden lokal per Luftlinie geschätzt."
+        : null,
+      fallback_details: fallbackUsed ? fallbackReasons.slice(0, 3) : undefined,
     }, 200);
   } catch (err) {
     console.error("optimize-route error", err);
