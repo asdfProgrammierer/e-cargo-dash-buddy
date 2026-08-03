@@ -125,8 +125,69 @@ Deno.serve(async (req) => {
     const anchorLngLat = (a: Anchor): [number, number] =>
       a.kind === "depot" ? [a.lng, a.lat] : [Number(a.stop.orders.lng), Number(a.stop.orders.lat)];
 
+    // Fallback-Marker: wird gesetzt, sobald ORS nicht erreichbar war.
+    let fallbackUsed = false;
+    const fallbackReasons: string[] = [];
+
+    // Lokale Optimierung ohne ORS: Nearest-Neighbour + 2-opt auf Luftlinie.
+    const localOptimizeSegment = (bucket: StopRow[], start: Anchor, end: Anchor): string[] => {
+      const [sLng, sLat] = anchorLngLat(start);
+      const [eLng, eLat] = anchorLngLat(end);
+      const pts = bucket.map((s) => ({
+        id: s.id,
+        lat: Number(s.orders.lat),
+        lng: Number(s.orders.lng),
+      }));
+      const remaining = pts.slice();
+      const order: typeof pts = [];
+      let curLat = sLat, curLng = sLng;
+      while (remaining.length > 0) {
+        let best = 0;
+        let bestD = Infinity;
+        remaining.forEach((p, i) => {
+          const d = haversineM(curLat, curLng, p.lat, p.lng);
+          if (d < bestD) { bestD = d; best = i; }
+        });
+        const [next] = remaining.splice(best, 1);
+        order.push(next);
+        curLat = next.lat; curLng = next.lng;
+      }
+      // 2-opt Verbesserung
+      const legLen = (i: number) => {
+        const a = i === 0 ? { lat: sLat, lng: sLng } : order[i - 1];
+        const b = i === order.length ? { lat: eLat, lng: eLng } : order[i];
+        return haversineM(a.lat, a.lng, b.lat, b.lng);
+      };
+      const totalLen = () => {
+        let t = 0;
+        for (let i = 0; i <= order.length; i++) t += legLen(i);
+        return t;
+      };
+      let improved = true;
+      let guard = 0;
+      while (improved && guard < 50) {
+        improved = false;
+        guard++;
+        for (let i = 0; i < order.length - 1; i++) {
+          for (let k = i + 1; k < order.length; k++) {
+            const before = totalLen();
+            const slice = order.slice(i, k + 1).reverse();
+            order.splice(i, k - i + 1, ...slice);
+            if (totalLen() < before - 1) {
+              improved = true;
+            } else {
+              const revert = order.slice(i, k + 1).reverse();
+              order.splice(i, k - i + 1, ...revert);
+            }
+          }
+        }
+      }
+      return order.map((p) => p.id);
+    };
+
     const optimizeSegment = async (bucket: StopRow[], start: Anchor, end: Anchor): Promise<string[]> => {
       if (bucket.length <= 1) return bucket.map((s) => s.id);
+      try {
       const [sLng, sLat] = anchorLngLat(start);
       const [eLng, eLat] = anchorLngLat(end);
       const segJobs = bucket.map((s, idx) => ({
@@ -163,6 +224,13 @@ Deno.serve(async (req) => {
         throw new Error("Optimierung unvollständig (Segment)");
       }
       return ids;
+      } catch (e) {
+        // ORS nicht verfügbar → lokale Reihenfolge-Optimierung als Fallback
+        console.warn("ORS-Optimierung fehlgeschlagen, nutze lokalen Fallback", e);
+        fallbackUsed = true;
+        fallbackReasons.push(e instanceof Error ? e.message : String(e));
+        return localOptimizeSegment(bucket, start, end);
+      }
     };
 
     type Segment = { startIdx: number; endIdx: number; start: Anchor; end: Anchor; bucket: StopRow[] };
