@@ -125,8 +125,69 @@ Deno.serve(async (req) => {
     const anchorLngLat = (a: Anchor): [number, number] =>
       a.kind === "depot" ? [a.lng, a.lat] : [Number(a.stop.orders.lng), Number(a.stop.orders.lat)];
 
+    // Fallback-Marker: wird gesetzt, sobald ORS nicht erreichbar war.
+    let fallbackUsed = false;
+    const fallbackReasons: string[] = [];
+
+    // Lokale Optimierung ohne ORS: Nearest-Neighbour + 2-opt auf Luftlinie.
+    const localOptimizeSegment = (bucket: StopRow[], start: Anchor, end: Anchor): string[] => {
+      const [sLng, sLat] = anchorLngLat(start);
+      const [eLng, eLat] = anchorLngLat(end);
+      const pts = bucket.map((s) => ({
+        id: s.id,
+        lat: Number(s.orders.lat),
+        lng: Number(s.orders.lng),
+      }));
+      const remaining = pts.slice();
+      const order: typeof pts = [];
+      let curLat = sLat, curLng = sLng;
+      while (remaining.length > 0) {
+        let best = 0;
+        let bestD = Infinity;
+        remaining.forEach((p, i) => {
+          const d = haversineM(curLat, curLng, p.lat, p.lng);
+          if (d < bestD) { bestD = d; best = i; }
+        });
+        const [next] = remaining.splice(best, 1);
+        order.push(next);
+        curLat = next.lat; curLng = next.lng;
+      }
+      // 2-opt Verbesserung
+      const legLen = (i: number) => {
+        const a = i === 0 ? { lat: sLat, lng: sLng } : order[i - 1];
+        const b = i === order.length ? { lat: eLat, lng: eLng } : order[i];
+        return haversineM(a.lat, a.lng, b.lat, b.lng);
+      };
+      const totalLen = () => {
+        let t = 0;
+        for (let i = 0; i <= order.length; i++) t += legLen(i);
+        return t;
+      };
+      let improved = true;
+      let guard = 0;
+      while (improved && guard < 50) {
+        improved = false;
+        guard++;
+        for (let i = 0; i < order.length - 1; i++) {
+          for (let k = i + 1; k < order.length; k++) {
+            const before = totalLen();
+            const slice = order.slice(i, k + 1).reverse();
+            order.splice(i, k - i + 1, ...slice);
+            if (totalLen() < before - 1) {
+              improved = true;
+            } else {
+              const revert = order.slice(i, k + 1).reverse();
+              order.splice(i, k - i + 1, ...revert);
+            }
+          }
+        }
+      }
+      return order.map((p) => p.id);
+    };
+
     const optimizeSegment = async (bucket: StopRow[], start: Anchor, end: Anchor): Promise<string[]> => {
       if (bucket.length <= 1) return bucket.map((s) => s.id);
+      try {
       const [sLng, sLat] = anchorLngLat(start);
       const [eLng, eLat] = anchorLngLat(end);
       const segJobs = bucket.map((s, idx) => ({
@@ -163,6 +224,13 @@ Deno.serve(async (req) => {
         throw new Error("Optimierung unvollständig (Segment)");
       }
       return ids;
+      } catch (e) {
+        // ORS nicht verfügbar → lokale Reihenfolge-Optimierung als Fallback
+        console.warn("ORS-Optimierung fehlgeschlagen, nutze lokalen Fallback", e);
+        fallbackUsed = true;
+        fallbackReasons.push(e instanceof Error ? e.message : String(e));
+        return localOptimizeSegment(bucket, start, end);
+      }
     };
 
     type Segment = { startIdx: number; endIdx: number; start: Anchor; end: Anchor; bucket: StopRow[] };
@@ -232,7 +300,7 @@ Deno.serve(async (req) => {
       [Number(endDepot.lng), Number(endDepot.lat)],
     ];
 
-    let dirRes: Response;
+    let dirRes: Response | null = null;
     try {
       dirRes = await fetchOrsWithRetry(`https://api.openrouteservice.org/v2/directions/${profile}/geojson`, {
         method: "POST",
@@ -244,11 +312,15 @@ Deno.serve(async (req) => {
         body: JSON.stringify({ coordinates: coords, instructions: false }),
       }, "Routing");
     } catch (e) {
-      return json({ error: e instanceof Error ? e.message : "Routing fehlgeschlagen" }, 502);
+      // Kein Routing verfügbar → Luftlinien-Schätzung statt Abbruch
+      console.warn("ORS-Routing fehlgeschlagen, nutze Luftlinien-Fallback", e);
+      fallbackUsed = true;
+      fallbackReasons.push(e instanceof Error ? e.message : String(e));
     }
-    const dirData = await dirRes.json();
+    const dirData = dirRes ? await dirRes.json() : null;
     const feat = dirData?.features?.[0];
-    const geometry = feat?.geometry ?? null;
+    const geometry = feat?.geometry ??
+      (fallbackUsed ? { type: "LineString", coordinates: coords } : null);
     const routeSegments = feat?.properties?.segments as Array<{ distance: number; duration: number }> | undefined;
 
     // Per-leg durations/distances aus Directions ableiten.
@@ -261,6 +333,18 @@ Deno.serve(async (req) => {
         legDistances[i] = routeSegments[i].distance ?? 0;
       }
     } else {
+      if (!dirRes) {
+        // Ohne ORS: Luftlinie × Umwegfaktor, Geschwindigkeit je Profil
+        const detour = 1.35;
+        const speedKmh = profile === "driving-car" ? 30 : profile === "cycling-electric" ? 18 : 15;
+        for (let i = 0; i < legCount; i++) {
+          const [aLng, aLat] = coords[i];
+          const [bLng, bLat] = coords[i + 1];
+          const dist = haversineM(aLat, aLng, bLat, bLng) * detour;
+          legDistances[i] = dist;
+          legDurations[i] = dist / (speedKmh * 1000 / 3600);
+        }
+      } else {
       console.warn("ORS segments mismatch", {
         expected: legCount,
         got: routeSegments?.length ?? 0,
@@ -292,6 +376,7 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.error("Leg fallback error", i, e);
         }
+      }
       }
     }
 
@@ -337,6 +422,11 @@ Deno.serve(async (req) => {
       total_duration_s: Math.round(totalDur),
       stops_optimized: free.length,
       pinned_count: pinned.length,
+      fallback: fallbackUsed,
+      fallback_reason: fallbackUsed
+        ? "OpenRouteService war nicht erreichbar – Reihenfolge und Zeiten wurden lokal per Luftlinie geschätzt."
+        : null,
+      fallback_details: fallbackUsed ? fallbackReasons.slice(0, 3) : undefined,
     }, 200);
   } catch (err) {
     console.error("optimize-route error", err);
@@ -385,6 +475,15 @@ function shortenOrsError(text: string): string {
     return [title, reason].filter(Boolean).join(" – ") || "Upstream-Fehler";
   }
   return text.slice(0, 300);
+}
+
+function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.sqrt(a));
 }
 
 // Interpret a "YYYY-MM-DD" + "HH:mm" pair as Europe/Berlin local time and
