@@ -95,7 +95,9 @@ type Payload = {
 function validatePayload(raw: any): { ok: true; value: Payload } | { ok: false; details: Record<string, string> } {
   const errors: Record<string, string> = {};
   const merchant_reference = normStr(raw?.merchant_reference).toUpperCase();
-  if (!/^[A-Z0-9]{3}$/.test(merchant_reference)) errors.merchant_reference = "muss 3-stelliger Händlercode sein (A-Z, 0-9)";
+  if (merchant_reference && !/^[A-Z0-9]{3}$/.test(merchant_reference)) {
+    errors.merchant_reference = "muss 3-stelliger Händlercode sein (A-Z, 0-9)";
+  }
 
   const external_order_ref = normStr(raw?.external_order_ref);
   if (!external_order_ref) errors.external_order_ref = "erforderlich";
