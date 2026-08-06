@@ -354,11 +354,39 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return jsonError("VALIDATION_ERROR", "Nur POST erlaubt", {}, 405);
 
-  // API-Key
+  const admin = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { persistSession: false } },
+  );
+
+  // API-Key: zuerst händlerspezifische Keys, dann globaler Fallback-Key
   const providedKey = req.headers.get("x-wms-api-key") ?? "";
-  const expectedKey = Deno.env.get("WMS_API_KEY") ?? "";
-  if (!expectedKey || !providedKey || !constantTimeEqual(providedKey, expectedKey)) {
+  if (!providedKey) {
     return jsonError("UNAUTHORIZED", "Ungültiger oder fehlender API-Schlüssel", {}, 401);
+  }
+
+  let keyMerchantCode: string | null = null;
+  let usedKeyId: string | null = null;
+
+  const providedHash = await sha256Hex(providedKey);
+  const { data: keyRow } = await admin
+    .from("wms_api_keys")
+    .select("id, merchant_code, active")
+    .eq("key_hash", providedHash)
+    .maybeSingle();
+
+  if (keyRow) {
+    if (!keyRow.active) {
+      return jsonError("UNAUTHORIZED", "API-Schlüssel ist deaktiviert", {}, 401);
+    }
+    keyMerchantCode = String(keyRow.merchant_code).toUpperCase();
+    usedKeyId = keyRow.id as string;
+  } else {
+    const expectedKey = Deno.env.get("WMS_API_KEY") ?? "";
+    if (!expectedKey || !constantTimeEqual(providedKey, expectedKey)) {
+      return jsonError("UNAUTHORIZED", "Ungültiger oder fehlender API-Schlüssel", {}, 401);
+    }
   }
 
   let raw: any;
@@ -374,11 +402,29 @@ Deno.serve(async (req) => {
   }
   const payload = parsed.value;
 
-  const admin = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    { auth: { persistSession: false } },
-  );
+  if (keyMerchantCode) {
+    if (payload.merchant_reference && payload.merchant_reference !== keyMerchantCode) {
+      return jsonError(
+        "UNAUTHORIZED",
+        "Händlercode passt nicht zum verwendeten API-Schlüssel",
+        { merchant_reference: payload.merchant_reference },
+        401,
+      );
+    }
+    payload.merchant_reference = keyMerchantCode;
+    void admin
+      .from("wms_api_keys")
+      .update({ last_used_at: new Date().toISOString() })
+      .eq("id", usedKeyId!)
+      .then(() => {});
+  } else if (!payload.merchant_reference) {
+    return jsonError(
+      "VALIDATION_ERROR",
+      "Eingabe ungültig",
+      { merchant_reference: "erforderlich beim globalen API-Schlüssel" },
+      400,
+    );
+  }
 
   // Merchant lookup
   const { data: merchant, error: merchantErr } = await admin
