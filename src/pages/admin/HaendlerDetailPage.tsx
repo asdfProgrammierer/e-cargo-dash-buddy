@@ -17,6 +17,7 @@ import { DhlPricingTable } from "@/components/admin/DhlPricingTable";
 import { AdminCreateOrderDialog } from "@/components/admin/AdminCreateOrderDialog";
 import { AdminExcelImportDialog } from "@/components/admin/AdminExcelImportDialog";
 import { AdminEditMerchantDialog } from "@/components/admin/AdminEditMerchantDialog";
+import { WmsApiKeysCard } from "@/components/admin/WmsApiKeysCard";
 
 import {
   ArrowLeft, Building2, User, MapPin, Phone, Mail, Globe, FileText,
@@ -588,6 +589,11 @@ const HaendlerDetailPage = () => {
 
           {/* Settings Tab */}
           <TabsContent value="settings" className="mt-6 space-y-4 max-w-2xl">
+            <WmsApiKeysCard
+              profileId={profile.id}
+              userId={profile.user_id}
+              merchantCode={profile.merchant_code}
+            />
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Zugangssteuerung</CardTitle>
