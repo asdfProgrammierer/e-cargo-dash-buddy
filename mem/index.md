@@ -26,3 +26,4 @@
 - [Notifications](mem://features/notifications) — Admin schickt Benachrichtigungen (alle/einzelner Händler), Glocke im Header mit rotem Punkt.
 - [Undelivered Confirmation](mem://features/undelivered-confirmation) — Jeder Fahrer-Skip braucht Admin-Freigabe via delivery_unconfirmed Flag + admin_resolve_undelivered_order RPC.
 - [Delivery Modes](mem://features/delivery-modes) — Admin-konfigurierbare Übergabe-Arten (Foto/Unterschrift/Name Pflicht) für die Fahrer-App.
+- [WMS API Keys](mem://features/wms-api-keys) — Händlerspezifische API-Schlüssel für die WMS-Schnittstelle inkl. Admin-Verwaltung.
