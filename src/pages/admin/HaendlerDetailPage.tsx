@@ -616,6 +616,57 @@ const HaendlerDetailPage = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {platform === "shopify" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Link2 className="h-5 w-5 text-primary" />
+                    Automatische Übernahme bei „fulfilled"
+                  </CardTitle>
+                  <CardDescription>
+                    Registriert den Shopify-Webhook <code>orders/fulfilled</code>. Ab Aktivierung werden
+                    ausschließlich Online-Bestellungen mit Lieferadresse übernommen – Kassenverkäufe (POS)
+                    und alle vorher bereits fulfillten Bestellungen werden verworfen.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>Shopify App-Secret (API secret key)</Label>
+                    <Input
+                      className="mt-1.5"
+                      type="password"
+                      placeholder="shpss_..."
+                      value={appSecret}
+                      onChange={(e) => setAppSecret(e.target.value)}
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Wird nur zur Prüfung der Webhook-Signatur genutzt. Zu finden im Shopify-Admin unter
+                      Apps → App-Entwicklung → API-Zugangsdaten.
+                    </p>
+                  </div>
+
+                  {hookInfo && (
+                    <div className="rounded-lg border border-border p-3 text-xs text-muted-foreground space-y-1">
+                      <p>Registrierte Webhooks für <code>orders/fulfilled</code>: {hookInfo.count ?? 0}</p>
+                      {hookInfo.callbackUrl && <p className="break-all">Ziel: {hookInfo.callbackUrl}</p>}
+                      {hookInfo.cutoff && (
+                        <p>Cutoff: {new Date(hookInfo.cutoff).toLocaleString("de-DE", { timeZone: "Europe/Berlin" })}</p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={registerWebhook} disabled={registeringHook || !shopConn}>
+                      {registeringHook ? "Aktiviere..." : "Webhook aktivieren / erneuern"}
+                    </Button>
+                    <Button variant="outline" onClick={loadWebhookStatus} disabled={!shopConn}>
+                      Status prüfen
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
 
