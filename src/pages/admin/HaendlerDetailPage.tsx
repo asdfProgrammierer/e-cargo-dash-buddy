@@ -92,6 +92,9 @@ const HaendlerDetailPage = () => {
   const [pickupNote, setPickupNote] = useState("");
   const [savingPickupNote, setSavingPickupNote] = useState(false);
   const [testingShop, setTestingShop] = useState(false);
+  const [appSecret, setAppSecret] = useState("");
+  const [registeringHook, setRegisteringHook] = useState(false);
+  const [hookInfo, setHookInfo] = useState<{ callbackUrl?: string; cutoff?: string; count?: number } | null>(null);
 
   useEffect(() => {
     if (!id) return;
