@@ -1290,9 +1290,12 @@ export type Database = {
           last_sync_status: string | null
           notizen: string | null
           platform: string
+          poll_sync_enabled: boolean
+          pos_source_names: string[]
           shop_domain: string | null
           updated_at: string
           user_id: string
+          webhook_cutoff_at: string | null
           webhook_secret: string | null
         }
         Insert: {
@@ -1308,9 +1311,12 @@ export type Database = {
           last_sync_status?: string | null
           notizen?: string | null
           platform?: string
+          poll_sync_enabled?: boolean
+          pos_source_names?: string[]
           shop_domain?: string | null
           updated_at?: string
           user_id: string
+          webhook_cutoff_at?: string | null
           webhook_secret?: string | null
         }
         Update: {
@@ -1326,12 +1332,69 @@ export type Database = {
           last_sync_status?: string | null
           notizen?: string | null
           platform?: string
+          poll_sync_enabled?: boolean
+          pos_source_names?: string[]
           shop_domain?: string | null
           updated_at?: string
           user_id?: string
+          webhook_cutoff_at?: string | null
           webhook_secret?: string | null
         }
         Relationships: []
+      }
+      shopify_webhook_log: {
+        Row: {
+          connection_id: string | null
+          created_at: string
+          decision: string
+          error: string | null
+          external_order_name: string | null
+          external_order_ref: string | null
+          id: string
+          reason: string | null
+          source_name: string | null
+          topic: string | null
+        }
+        Insert: {
+          connection_id?: string | null
+          created_at?: string
+          decision: string
+          error?: string | null
+          external_order_name?: string | null
+          external_order_ref?: string | null
+          id?: string
+          reason?: string | null
+          source_name?: string | null
+          topic?: string | null
+        }
+        Update: {
+          connection_id?: string | null
+          created_at?: string
+          decision?: string
+          error?: string | null
+          external_order_name?: string | null
+          external_order_ref?: string | null
+          id?: string
+          reason?: string | null
+          source_name?: string | null
+          topic?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_webhook_log_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "shop_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_webhook_log_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "shop_connections_safe"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       suppressed_emails: {
         Row: {
@@ -1616,9 +1679,12 @@ export type Database = {
           last_sync_status: string | null
           notizen: string | null
           platform: string
+          poll_sync_enabled: boolean
+          pos_source_names: string[]
           shop_domain: string | null
           updated_at: string
           user_id: string
+          webhook_cutoff_at: string | null
           webhook_secret: string | null
         }
         SetofOptions: {
@@ -1764,9 +1830,12 @@ export type Database = {
           last_sync_status: string | null
           notizen: string | null
           platform: string
+          poll_sync_enabled: boolean
+          pos_source_names: string[]
           shop_domain: string | null
           updated_at: string
           user_id: string
+          webhook_cutoff_at: string | null
           webhook_secret: string | null
         }
         SetofOptions: {
