@@ -328,6 +328,35 @@ const HaendlerDetailPage = () => {
     }
   };
 
+  const loadWebhookStatus = async () => {
+    if (!shopConn) return;
+    const { data } = await supabase.functions.invoke("shopify-webhook-setup", {
+      body: { connectionId: shopConn.id, action: "status" },
+    });
+    if (data?.ok) {
+      setHookInfo({ callbackUrl: data.callbackUrl, count: (data.webhooks ?? []).length });
+    }
+  };
+
+  const registerWebhook = async () => {
+    if (!shopConn) {
+      toast.error("Bitte zuerst die Verbindung speichern");
+      return;
+    }
+    setRegisteringHook(true);
+    const { data, error } = await supabase.functions.invoke("shopify-webhook-setup", {
+      body: { connectionId: shopConn.id, appSecret: appSecret || undefined },
+    });
+    setRegisteringHook(false);
+    if (error || !data?.ok) {
+      toast.error(`Aktivierung fehlgeschlagen: ${data?.details ?? data?.error ?? error?.message ?? "Unbekannter Fehler"}`);
+      return;
+    }
+    setAppSecret("");
+    setHookInfo({ callbackUrl: data.callbackUrl, cutoff: data.cutoff, count: 1 });
+    toast.success("Webhook aktiv – ab jetzt werden fulfillte Online-Bestellungen übernommen");
+  };
+
   if (loading) {
     return (
       <AdminLayout title="Händler laden...">
