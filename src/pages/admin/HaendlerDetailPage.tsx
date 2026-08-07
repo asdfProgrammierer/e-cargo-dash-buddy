@@ -92,6 +92,9 @@ const HaendlerDetailPage = () => {
   const [pickupNote, setPickupNote] = useState("");
   const [savingPickupNote, setSavingPickupNote] = useState(false);
   const [testingShop, setTestingShop] = useState(false);
+  const [appSecret, setAppSecret] = useState("");
+  const [registeringHook, setRegisteringHook] = useState(false);
+  const [hookInfo, setHookInfo] = useState<{ callbackUrl?: string; cutoff?: string; count?: number } | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -323,6 +326,35 @@ const HaendlerDetailPage = () => {
     } else {
       toast.error(`Verbindung fehlgeschlagen: ${data?.error ?? "Unbekannter Fehler"}`);
     }
+  };
+
+  const loadWebhookStatus = async () => {
+    if (!shopConn) return;
+    const { data } = await supabase.functions.invoke("shopify-webhook-setup", {
+      body: { connectionId: shopConn.id, action: "status" },
+    });
+    if (data?.ok) {
+      setHookInfo({ callbackUrl: data.callbackUrl, count: (data.webhooks ?? []).length });
+    }
+  };
+
+  const registerWebhook = async () => {
+    if (!shopConn) {
+      toast.error("Bitte zuerst die Verbindung speichern");
+      return;
+    }
+    setRegisteringHook(true);
+    const { data, error } = await supabase.functions.invoke("shopify-webhook-setup", {
+      body: { connectionId: shopConn.id, appSecret: appSecret || undefined },
+    });
+    setRegisteringHook(false);
+    if (error || !data?.ok) {
+      toast.error(`Aktivierung fehlgeschlagen: ${data?.details ?? data?.error ?? error?.message ?? "Unbekannter Fehler"}`);
+      return;
+    }
+    setAppSecret("");
+    setHookInfo({ callbackUrl: data.callbackUrl, cutoff: data.cutoff, count: 1 });
+    toast.success("Webhook aktiv – ab jetzt werden fulfillte Online-Bestellungen übernommen");
   };
 
   if (loading) {
@@ -584,6 +616,57 @@ const HaendlerDetailPage = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {platform === "shopify" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Link2 className="h-5 w-5 text-primary" />
+                    Automatische Übernahme bei „fulfilled"
+                  </CardTitle>
+                  <CardDescription>
+                    Registriert den Shopify-Webhook <code>orders/fulfilled</code>. Ab Aktivierung werden
+                    ausschließlich Online-Bestellungen mit Lieferadresse übernommen – Kassenverkäufe (POS)
+                    und alle vorher bereits fulfillten Bestellungen werden verworfen.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>Shopify App-Secret (API secret key)</Label>
+                    <Input
+                      className="mt-1.5"
+                      type="password"
+                      placeholder="shpss_..."
+                      value={appSecret}
+                      onChange={(e) => setAppSecret(e.target.value)}
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Wird nur zur Prüfung der Webhook-Signatur genutzt. Zu finden im Shopify-Admin unter
+                      Apps → App-Entwicklung → API-Zugangsdaten.
+                    </p>
+                  </div>
+
+                  {hookInfo && (
+                    <div className="rounded-lg border border-border p-3 text-xs text-muted-foreground space-y-1">
+                      <p>Registrierte Webhooks für <code>orders/fulfilled</code>: {hookInfo.count ?? 0}</p>
+                      {hookInfo.callbackUrl && <p className="break-all">Ziel: {hookInfo.callbackUrl}</p>}
+                      {hookInfo.cutoff && (
+                        <p>Cutoff: {new Date(hookInfo.cutoff).toLocaleString("de-DE", { timeZone: "Europe/Berlin" })}</p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={registerWebhook} disabled={registeringHook || !shopConn}>
+                      {registeringHook ? "Aktiviere..." : "Webhook aktivieren / erneuern"}
+                    </Button>
+                    <Button variant="outline" onClick={loadWebhookStatus} disabled={!shopConn}>
+                      Status prüfen
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
 
