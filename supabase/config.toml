@@ -31,3 +31,9 @@ verify_jwt = false
 
 [functions.wms-create-shipment]
 verify_jwt = false
+
+[functions.shopify-order-webhook]
+verify_jwt = false
+
+[functions.shopify-webhook-setup]
+verify_jwt = false
