@@ -223,7 +223,13 @@ Deno.serve(async (req) => {
       .select("id, user_id, platform, api_key, api_url, shop_domain, active, last_external_order_id")
       .eq("platform", "shopify")
       .eq("active", true);
-    if (body.connectionId) query = query.eq("id", body.connectionId);
+    if (body.connectionId) {
+      query = query.eq("id", body.connectionId);
+    } else {
+      // Legacy-Poll (unshipped orders) laeuft nur noch, wenn ausdruecklich aktiviert.
+      // Der Regelweg ist der Webhook auf `orders/fulfilled`.
+      query = query.eq("poll_sync_enabled", true);
+    }
 
     const { data: connections, error: connErr } = await query;
     if (connErr) throw connErr;
