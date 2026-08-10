@@ -230,7 +230,9 @@ Deno.serve(async (req) => {
 
   // Auth: service_role (Cron) oder Admin-JWT
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
-  let authorized = token !== "" && token === serviceKey;
+  const cronKey = req.headers.get("x-cron-key") ?? "";
+  let authorized = (token !== "" && token === serviceKey)
+    || (cronKey !== "" && cronKey === (Deno.env.get("WMS_API_KEY") ?? "\u0000"));
   if (!authorized && token) {
     // Cron nutzt den im Vault hinterlegten Service-Key
     try {
