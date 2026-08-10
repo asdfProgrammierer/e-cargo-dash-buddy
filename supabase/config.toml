@@ -37,3 +37,6 @@ verify_jwt = false
 
 [functions.shopify-webhook-setup]
 verify_jwt = false
+
+[functions.shopify-poll-fulfilled]
+verify_jwt = false

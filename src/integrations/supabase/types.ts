@@ -1291,6 +1291,7 @@ export type Database = {
           notizen: string | null
           platform: string
           poll_sync_enabled: boolean
+          poll_watermark_at: string | null
           pos_source_names: string[]
           shop_domain: string | null
           updated_at: string
@@ -1312,6 +1313,7 @@ export type Database = {
           notizen?: string | null
           platform?: string
           poll_sync_enabled?: boolean
+          poll_watermark_at?: string | null
           pos_source_names?: string[]
           shop_domain?: string | null
           updated_at?: string
@@ -1333,6 +1335,7 @@ export type Database = {
           notizen?: string | null
           platform?: string
           poll_sync_enabled?: boolean
+          poll_watermark_at?: string | null
           pos_source_names?: string[]
           shop_domain?: string | null
           updated_at?: string
@@ -1680,6 +1683,7 @@ export type Database = {
           notizen: string | null
           platform: string
           poll_sync_enabled: boolean
+          poll_watermark_at: string | null
           pos_source_names: string[]
           shop_domain: string | null
           updated_at: string
@@ -1831,6 +1835,7 @@ export type Database = {
           notizen: string | null
           platform: string
           poll_sync_enabled: boolean
+          poll_watermark_at: string | null
           pos_source_names: string[]
           shop_domain: string | null
           updated_at: string
@@ -1907,6 +1912,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      verify_shopify_poll_cron_key: { Args: { _key: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "driver"

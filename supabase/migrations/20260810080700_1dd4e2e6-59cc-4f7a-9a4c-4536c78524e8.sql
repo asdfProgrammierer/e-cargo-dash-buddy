@@ -1,0 +1,1 @@
+ALTER TABLE public.shop_connections ADD COLUMN IF NOT EXISTS poll_watermark_at timestamptz;
