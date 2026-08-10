@@ -1912,6 +1912,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      verify_shopify_poll_cron_key: { Args: { _key: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "driver"
