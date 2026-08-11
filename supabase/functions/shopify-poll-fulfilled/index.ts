@@ -97,10 +97,6 @@ async function importOrder(admin: any, conn: any, merchantCode: string, order: a
   if (!pakete || pakete < 1) pakete = 1;
   const gewicht = gramm > 0 ? Math.max(0.1, +(gramm / 1000).toFixed(2)) : 1;
 
-  const notesParts = [`[Shopify ${orderName}]`, `Kanal: ${sourceName ?? "unbekannt"}`];
-  if (!phone) notesParts.push("Hinweis: keine Telefonnummer im Shop hinterlegt");
-  if (order.note) notesParts.push(String(order.note));
-
   const payload = {
     merchant_reference: merchantCode,
     external_order_ref: `shopify:${conn.id}:${externalId}`,
@@ -116,7 +112,6 @@ async function importOrder(admin: any, conn: any, merchantCode: string, order: a
       phone: phone || undefined,
     },
     package: { count: pakete, weight_kg: gewicht },
-    notes: notesParts.join("\n"),
   };
 
   const apiRes = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/wms-create-shipment`, {

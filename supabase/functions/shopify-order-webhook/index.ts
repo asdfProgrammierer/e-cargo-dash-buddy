@@ -245,10 +245,6 @@ Deno.serve(async (req) => {
   if (!pakete || pakete < 1) pakete = 1;
   const gewicht = gramm > 0 ? Math.max(0.1, +(gramm / 1000).toFixed(2)) : 1;
 
-  const notesParts = [`[Shopify ${orderName}]`, `Kanal: ${sourceName ?? "unbekannt"}`];
-  if (!phone) notesParts.push("Hinweis: keine Telefonnummer im Shop hinterlegt");
-  if (order.note) notesParts.push(String(order.note));
-
   const wmsKey = Deno.env.get("WMS_API_KEY") ?? "";
   if (!wmsKey) {
     await logEvent(admin, { ...base, decision: "error", error: "WMS_API_KEY nicht konfiguriert" });
@@ -270,7 +266,6 @@ Deno.serve(async (req) => {
       phone: phone || undefined,
     },
     package: { count: pakete, weight_kg: gewicht },
-    notes: notesParts.join("\n"),
   };
 
   // 7. Übertragung an die Routenplanung über deren REST-API
