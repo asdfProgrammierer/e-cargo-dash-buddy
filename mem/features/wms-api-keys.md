@@ -8,3 +8,4 @@ type: feature
 - Verwaltung im Admin unter Händler-Detail → Tab „Einstellungen" (`WmsApiKeysCard`).
 - `wms-create-shipment`: Header `x-wms-api-key` wird gehasht und in `wms_api_keys` gesucht; Händlercode kommt aus dem Key, `merchant_reference` im Payload optional (muss bei Angabe passen).
 - Globaler Secret `WMS_API_KEY` bleibt Fallback — dann ist `merchant_reference` Pflicht.
+- API-Doku zum Weitergeben an WMS-Anbieter: `wms-api-spezifikation.md` im Projektroot.
