@@ -150,8 +150,8 @@ function HeatMap({ points }: { points: StatsResponse["heatmap"] }) {
     if (!containerRef.current || mapRef.current) return;
     // Startzentrum Ruhrgebiet
     const map = L.map(containerRef.current, { scrollWheelZoom: true }).setView([51.5, 7.2], 10);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors",
+    L.tileLayer("https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
       maxZoom: 19,
     }).addTo(map);
     mapRef.current = map;
