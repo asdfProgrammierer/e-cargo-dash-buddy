@@ -359,13 +359,10 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
         sources: {
           basemap: {
             type: "raster",
-            tiles: [
-              "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-              "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-              "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-            ],
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
             tileSize: 256,
-            attribution: "© OpenStreetMap contributors © CARTO",
+            maxzoom: 19,
+            attribution: "© OpenStreetMap contributors",
           },
         },
         layers: [{ id: "basemap", type: "raster", source: "basemap" }],
