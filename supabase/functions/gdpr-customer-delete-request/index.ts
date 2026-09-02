@@ -121,9 +121,8 @@ Deno.serve(async (req) => {
 
   const confirmUrl = `${getPublicSiteUrl(req)}/gdpr/confirm-delete?token=${rawToken}`
 
-  const { error: mailErr } = await supabase.rpc('enqueue_email', {
-    queue_name: 'transactional_emails',
-    payload: {
+  const { error: mailErr } = await supabase.functions.invoke('send-app-email', {
+    body: {
       templateName: 'gdpr-delete-confirm',
       recipientEmail: email,
       idempotencyKey: `gdpr-delete-${tokenHash}`,
@@ -135,11 +134,12 @@ Deno.serve(async (req) => {
     },
   })
   if (mailErr) {
-    console.error('enqueue_email failed', mailErr)
+    console.error('gdpr-delete-confirm mail failed', mailErr)
     return new Response(JSON.stringify({ error: 'mail_failed' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
+
 
   return new Response(JSON.stringify({ ok: true, expiresInHours: TOKEN_TTL_HOURS }), {
     status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -95,7 +95,7 @@ export async function sendOrderStatusEmail(payload: OrderEmailPayload): Promise<
       templateData.reason = payload.reason.trim();
     }
 
-    const { error } = await supabase.functions.invoke("send-transactional-email", {
+    const { error } = await supabase.functions.invoke("send-app-email", {
       body: {
         templateName,
         recipientEmail: email,

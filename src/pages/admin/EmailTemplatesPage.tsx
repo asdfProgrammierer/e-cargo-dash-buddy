@@ -262,7 +262,7 @@ const EmailTemplatesPage = () => {
       return;
     }
     if (dirty) await save();
-    const { error } = await supabase.functions.invoke("send-transactional-email", {
+    const { error } = await supabase.functions.invoke("send-app-email", {
       body: {
         templateName: active,
         recipientEmail: testEmail,
@@ -326,7 +326,7 @@ const EmailTemplatesPage = () => {
         .join(", ");
       const trackingUrl = buildTrackingUrl(order.tracking_token);
 
-      const { error } = await supabase.functions.invoke("send-transactional-email", {
+      const { error } = await supabase.functions.invoke("send-app-email", {
         body: {
           templateName: active,
           recipientEmail: recipient,
@@ -404,7 +404,7 @@ const EmailTemplatesPage = () => {
 
     try {
       for (const [i, step] of steps.entries()) {
-        const { error } = await supabase.functions.invoke("send-transactional-email", {
+        const { error } = await supabase.functions.invoke("send-app-email", {
           body: {
             templateName: step.template,
             recipientEmail: recipient,
