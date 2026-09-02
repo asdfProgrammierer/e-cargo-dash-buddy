@@ -362,7 +362,7 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
             tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
             tileSize: 256,
             maxzoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
           },
         },
         layers: [{ id: "basemap", type: "raster", source: "basemap" }],
