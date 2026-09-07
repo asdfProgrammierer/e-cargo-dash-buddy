@@ -233,7 +233,8 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrd
         variant="ghost"
         size="icon"
         onClick={() => onRemove(stop.id)}
-        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity duration-fast"
+        className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-fast"
+        aria-label="Stop entfernen"
       >
         <Trash2 className="h-3.5 w-3.5 text-destructive" />
       </Button>
