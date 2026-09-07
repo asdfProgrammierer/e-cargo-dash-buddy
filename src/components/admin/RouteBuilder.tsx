@@ -657,15 +657,33 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
                 Noch keine Stops. Wähle unten rechts Bestellungen aus und füge sie hinzu.
               </div>
             ) : (
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-                  <ScrollArea className="flex-1 min-h-0">
-                    <div className="border-y border-border/50">
-                      {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} onTogglePin={togglePin} onOrderClick={onOrderClick} />)}
-                    </div>
-                  </ScrollArea>
-                </SortableContext>
-              </DndContext>
+              <>
+                <div className="px-4 pb-1 flex items-center justify-between gap-2 shrink-0">
+                  <label className="flex items-center gap-2 text-caption text-muted-foreground cursor-pointer">
+                    <Checkbox
+                      checked={selectedIds.size > 0 && selectedIds.size === stops.length}
+                      onCheckedChange={(c) => toggleSelectAll(c === true)}
+                      aria-label="Alle Stops auswählen"
+                    />
+                    {selectedIds.size > 0 ? `${selectedIds.size} ausgewählt` : "Alle auswählen"}
+                  </label>
+                  {selectedIds.size > 0 && (
+                    <Button size="sm" variant="destructive" onClick={removeSelected} disabled={bulkRemoving}>
+                      <Trash2 className="mr-1 h-3.5 w-3.5" />
+                      {bulkRemoving ? "Entferne…" : `Entfernen (${selectedIds.size})`}
+                    </Button>
+                  )}
+                </div>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                    <ScrollArea className="flex-1 min-h-0">
+                      <div className="border-y border-border/50">
+                        {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} onTogglePin={togglePin} onOrderClick={onOrderClick} selected={selectedIds.has(s.id)} onToggleSelect={toggleSelect} />)}
+                      </div>
+                    </ScrollArea>
+                  </SortableContext>
+                </DndContext>
+              </>
             )}
           </CardContent>
         </Card>
