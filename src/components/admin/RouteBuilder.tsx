@@ -119,12 +119,14 @@ const STATUS_DOT: Record<StopRow["status"], string> = {
   uebersprungen: "bg-destructive shadow-[0_0_8px_hsl(var(--destructive)/0.4)]",
 };
 
-function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrderClick }: {
+function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrderClick, selected, onToggleSelect }: {
   stop: StopRow; index: number;
   onRemove: (id: string) => void;
   onCycleStatus: (id: string, current: StopRow["status"]) => void;
   onTogglePin: (id: string, current: boolean) => void;
   onOrderClick?: (orderId: string) => void;
+  selected: boolean;
+  onToggleSelect: (id: string, checked: boolean) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stop.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -132,12 +134,18 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrd
     <div
       ref={setNodeRef}
       style={style}
-      className={`group flex items-center gap-3 px-3 py-2 hover:bg-surface-muted transition-colors duration-fast ease-fast-out border-b border-border/50 last:border-b-0 ${stop.pinned ? "bg-primary/5" : "bg-card"}`}
+      className={`group flex items-center gap-2 px-3 py-2 hover:bg-surface-muted transition-colors duration-fast ease-fast-out border-b border-border/50 last:border-b-0 ${selected ? "bg-primary/5" : stop.pinned ? "bg-primary/5" : "bg-card"}`}
     >
+      <Checkbox
+        checked={selected}
+        onCheckedChange={(c) => onToggleSelect(stop.id, c === true)}
+        aria-label="Stop auswählen"
+        className="shrink-0"
+      />
       <button
         {...attributes}
         {...listeners}
-        className="cursor-grab text-muted-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-fast"
+        className="cursor-grab text-muted-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-fast shrink-0"
         aria-label="Verschieben"
       >
         <GripVertical className="h-3.5 w-3.5" />
