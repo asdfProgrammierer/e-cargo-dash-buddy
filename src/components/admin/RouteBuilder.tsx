@@ -510,6 +510,38 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
       await supabase.from("orders").update({ status: "neu" }).eq("id", stop.order_id);
     }
     setStops((prev) => prev.filter((s) => s.id !== stopId));
+    setSelectedIds((prev) => { const next = new Set(prev); next.delete(stopId); return next; });
+  };
+
+  const toggleSelect = (stopId: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(stopId); else next.delete(stopId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (checked: boolean) => {
+    setSelectedIds(checked ? new Set(stops.map((s) => s.id)) : new Set());
+  };
+
+  const removeSelected = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkRemoving(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const orderIds = stops.filter((s) => selectedIds.has(s.id)).map((s) => s.order_id).filter(Boolean);
+      const { error } = await supabase.from("route_stops").delete().in("id", ids);
+      if (error) { toast.error("Stops konnten nicht entfernt werden"); return; }
+      if (orderIds.length > 0) {
+        await supabase.from("orders").update({ status: "neu" }).in("id", orderIds);
+      }
+      setStops((prev) => prev.filter((s) => !selectedIds.has(s.id)));
+      setSelectedIds(new Set());
+      toast.success(`${ids.length} Stop(s) entfernt`);
+    } finally {
+      setBulkRemoving(false);
+    }
   };
 
   const cycleStatus = async (stopId: string, current: StopRow["status"]) => {
