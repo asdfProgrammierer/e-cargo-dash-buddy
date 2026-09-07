@@ -261,6 +261,8 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
   const [optimizing, setOptimizing] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [stopDurationMin, setStopDurationMin] = useState<number>(4);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkRemoving, setBulkRemoving] = useState(false);
 
   const mapRef = useRef<maplibregl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
