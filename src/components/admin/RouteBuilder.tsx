@@ -119,12 +119,14 @@ const STATUS_DOT: Record<StopRow["status"], string> = {
   uebersprungen: "bg-destructive shadow-[0_0_8px_hsl(var(--destructive)/0.4)]",
 };
 
-function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrderClick }: {
+function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrderClick, selected, onToggleSelect }: {
   stop: StopRow; index: number;
   onRemove: (id: string) => void;
   onCycleStatus: (id: string, current: StopRow["status"]) => void;
   onTogglePin: (id: string, current: boolean) => void;
   onOrderClick?: (orderId: string) => void;
+  selected: boolean;
+  onToggleSelect: (id: string, checked: boolean) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stop.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -132,12 +134,18 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrd
     <div
       ref={setNodeRef}
       style={style}
-      className={`group flex items-center gap-3 px-3 py-2 hover:bg-surface-muted transition-colors duration-fast ease-fast-out border-b border-border/50 last:border-b-0 ${stop.pinned ? "bg-primary/5" : "bg-card"}`}
+      className={`group flex items-center gap-2 px-3 py-2 hover:bg-surface-muted transition-colors duration-fast ease-fast-out border-b border-border/50 last:border-b-0 ${selected ? "bg-primary/5" : stop.pinned ? "bg-primary/5" : "bg-card"}`}
     >
+      <Checkbox
+        checked={selected}
+        onCheckedChange={(c) => onToggleSelect(stop.id, c === true)}
+        aria-label="Stop auswählen"
+        className="shrink-0"
+      />
       <button
         {...attributes}
         {...listeners}
-        className="cursor-grab text-muted-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-fast"
+        className="cursor-grab text-muted-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-fast shrink-0"
         aria-label="Verschieben"
       >
         <GripVertical className="h-3.5 w-3.5" />
@@ -225,7 +233,8 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrd
         variant="ghost"
         size="icon"
         onClick={() => onRemove(stop.id)}
-        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity duration-fast"
+        className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-fast"
+        aria-label="Stop entfernen"
       >
         <Trash2 className="h-3.5 w-3.5 text-destructive" />
       </Button>
@@ -252,6 +261,8 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
   const [optimizing, setOptimizing] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [stopDurationMin, setStopDurationMin] = useState<number>(4);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkRemoving, setBulkRemoving] = useState(false);
 
   const mapRef = useRef<maplibregl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -499,6 +510,38 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
       await supabase.from("orders").update({ status: "neu" }).eq("id", stop.order_id);
     }
     setStops((prev) => prev.filter((s) => s.id !== stopId));
+    setSelectedIds((prev) => { const next = new Set(prev); next.delete(stopId); return next; });
+  };
+
+  const toggleSelect = (stopId: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(stopId); else next.delete(stopId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (checked: boolean) => {
+    setSelectedIds(checked ? new Set(stops.map((s) => s.id)) : new Set());
+  };
+
+  const removeSelected = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkRemoving(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const orderIds = stops.filter((s) => selectedIds.has(s.id)).map((s) => s.order_id).filter(Boolean);
+      const { error } = await supabase.from("route_stops").delete().in("id", ids);
+      if (error) { toast.error("Stops konnten nicht entfernt werden"); return; }
+      if (orderIds.length > 0) {
+        await supabase.from("orders").update({ status: "neu" }).in("id", orderIds);
+      }
+      setStops((prev) => prev.filter((s) => !selectedIds.has(s.id)));
+      setSelectedIds(new Set());
+      toast.success(`${ids.length} Stop(s) entfernt`);
+    } finally {
+      setBulkRemoving(false);
+    }
   };
 
   const cycleStatus = async (stopId: string, current: StopRow["status"]) => {
@@ -614,15 +657,33 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
                 Noch keine Stops. Wähle unten rechts Bestellungen aus und füge sie hinzu.
               </div>
             ) : (
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-                  <ScrollArea className="flex-1 min-h-0">
-                    <div className="border-y border-border/50">
-                      {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} onTogglePin={togglePin} onOrderClick={onOrderClick} />)}
-                    </div>
-                  </ScrollArea>
-                </SortableContext>
-              </DndContext>
+              <>
+                <div className="px-4 pb-1 flex items-center justify-between gap-2 shrink-0">
+                  <label className="flex items-center gap-2 text-caption text-muted-foreground cursor-pointer">
+                    <Checkbox
+                      checked={selectedIds.size > 0 && selectedIds.size === stops.length}
+                      onCheckedChange={(c) => toggleSelectAll(c === true)}
+                      aria-label="Alle Stops auswählen"
+                    />
+                    {selectedIds.size > 0 ? `${selectedIds.size} ausgewählt` : "Alle auswählen"}
+                  </label>
+                  {selectedIds.size > 0 && (
+                    <Button size="sm" variant="destructive" onClick={removeSelected} disabled={bulkRemoving}>
+                      <Trash2 className="mr-1 h-3.5 w-3.5" />
+                      {bulkRemoving ? "Entferne…" : `Entfernen (${selectedIds.size})`}
+                    </Button>
+                  )}
+                </div>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                    <ScrollArea className="flex-1 min-h-0">
+                      <div className="border-y border-border/50">
+                        {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} onTogglePin={togglePin} onOrderClick={onOrderClick} selected={selectedIds.has(s.id)} onToggleSelect={toggleSelect} />)}
+                      </div>
+                    </ScrollArea>
+                  </SortableContext>
+                </DndContext>
+              </>
             )}
           </CardContent>
         </Card>
@@ -699,13 +760,31 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
                 Noch keine Stops. Füge Bestellungen hinzu.
               </div>
             ) : (
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-                  <div className="border-y border-border/50">
-                    {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} onTogglePin={togglePin} onOrderClick={onOrderClick} />)}
-                  </div>
-                </SortableContext>
-              </DndContext>
+              <>
+                <div className="px-4 pb-1 flex items-center justify-between gap-2">
+                  <label className="flex items-center gap-2 text-caption text-muted-foreground cursor-pointer">
+                    <Checkbox
+                      checked={selectedIds.size > 0 && selectedIds.size === stops.length}
+                      onCheckedChange={(c) => toggleSelectAll(c === true)}
+                      aria-label="Alle Stops auswählen"
+                    />
+                    {selectedIds.size > 0 ? `${selectedIds.size} ausgewählt` : "Alle auswählen"}
+                  </label>
+                  {selectedIds.size > 0 && (
+                    <Button size="sm" variant="destructive" onClick={removeSelected} disabled={bulkRemoving}>
+                      <Trash2 className="mr-1 h-3.5 w-3.5" />
+                      {bulkRemoving ? "Entferne…" : `Entfernen (${selectedIds.size})`}
+                    </Button>
+                  )}
+                </div>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                    <div className="border-y border-border/50">
+                      {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} onTogglePin={togglePin} onOrderClick={onOrderClick} selected={selectedIds.has(s.id)} onToggleSelect={toggleSelect} />)}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              </>
             )}
             {stops.length > 0 && (
               <div className="mt-2 px-4 text-caption text-muted-foreground">
