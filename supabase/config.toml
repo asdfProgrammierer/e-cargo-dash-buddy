@@ -33,3 +33,6 @@ verify_jwt = false
 
 [functions.shopify-poll-fulfilled]
 verify_jwt = false
+
+[functions.driver-abort-route]
+verify_jwt = true
