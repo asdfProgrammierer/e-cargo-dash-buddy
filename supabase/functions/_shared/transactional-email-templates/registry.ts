@@ -15,6 +15,7 @@ import { template as orderUnterwegs } from './order-unterwegs.tsx'
 import { template as orderZugestellt } from './order-zugestellt.tsx'
 import { template as orderNichtZugestellt } from './order-nicht-zugestellt.tsx'
 import { template as orderZustellversuchFehlgeschlagen } from './order-zustellversuch-fehlgeschlagen.tsx'
+import { template as orderTourAbgebrochen } from './order-tour-abgebrochen.tsx'
 import { template as gdprDeleteConfirm } from './gdpr-delete-confirm.tsx'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
@@ -24,5 +25,6 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'order-zugestellt': orderZugestellt,
   'order-nicht-zugestellt': orderNichtZugestellt,
   'order-zustellversuch-fehlgeschlagen': orderZustellversuchFehlgeschlagen,
+  'order-tour-abgebrochen': orderTourAbgebrochen,
   'gdpr-delete-confirm': gdprDeleteConfirm,
 }
