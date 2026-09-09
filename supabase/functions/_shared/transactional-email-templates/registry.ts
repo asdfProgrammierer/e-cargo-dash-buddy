@@ -25,5 +25,6 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'order-zugestellt': orderZugestellt,
   'order-nicht-zugestellt': orderNichtZugestellt,
   'order-zustellversuch-fehlgeschlagen': orderZustellversuchFehlgeschlagen,
+  'order-tour-abgebrochen': orderTourAbgebrochen,
   'gdpr-delete-confirm': gdprDeleteConfirm,
 }
