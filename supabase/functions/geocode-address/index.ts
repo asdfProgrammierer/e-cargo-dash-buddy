@@ -96,7 +96,10 @@ Deno.serve(async (req) => {
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
           const r = await fetchWithTimeout(u, 8000);
-          if (!r.ok) return null;
+          if (!r.ok) {
+            console.warn(`[geocode] ORS ${r.status}: ${(await r.text()).slice(0, 200)}`);
+            return null;
+          }
           const j = await r.json();
           return (j?.features ?? []) as any[];
         } catch (e) {
@@ -157,6 +160,7 @@ Deno.serve(async (req) => {
         },
         signal: ctrl.signal,
       }).finally(() => clearTimeout(t));
+      if (nomRes && !nomRes.ok) console.warn(`[geocode] nominatim ${nomRes.status}`);
       if (nomRes && nomRes.ok) {
         const arr = (await nomRes.json()) as any[];
         // Prefer hit with matching housenumber when one was requested
@@ -182,6 +186,56 @@ Deno.serve(async (req) => {
     } catch (e) {
       console.warn("[geocode] nominatim fallback failed", e);
     }
+
+    // Second fallback: Photon (komoot, OSM-based, no key).
+    try {
+      const pUrl = new URL("https://photon.komoot.io/api/");
+      pUrl.searchParams.set("q", text);
+      pUrl.searchParams.set("limit", "5");
+      pUrl.searchParams.set("lang", "de");
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 8000);
+      const pRes = await fetch(pUrl.toString(), {
+        headers: { Accept: "application/json", "User-Agent": "e-cargo-logistik/1.0" },
+        signal: ctrl.signal,
+      }).finally(() => clearTimeout(t));
+      if (!pRes.ok) console.warn(`[geocode] photon ${pRes.status}`);
+      if (pRes.ok) {
+        const j = await pRes.json();
+        const feats = ((j?.features ?? []) as any[]).filter(
+          (f) => (f?.properties?.countrycode ?? "").toUpperCase() === "DE",
+        );
+        const wantedNum = (body.strasse ?? "").match(/\d+\s?\w?/)?.[0]?.replace(/\s/g, "").toLowerCase();
+        const pick =
+          (wantedNum &&
+            feats.find(
+              (f) =>
+                (f.properties.housenumber ?? "").replace(/\s/g, "").toLowerCase() === wantedNum &&
+                (!body.plz || f.properties.postcode === body.plz),
+            )) ||
+          feats.find((f) => f.properties.housenumber && (!body.plz || f.properties.postcode === body.plz)) ||
+          feats.find((f) => !body.plz || f.properties.postcode === body.plz);
+        if (pick) {
+          const [lng, lat] = pick.geometry.coordinates;
+          const p = pick.properties;
+          return new Response(
+            JSON.stringify({
+              lat,
+              lng,
+              formatted: [p.street && `${p.street} ${p.housenumber ?? ""}`.trim(), [p.postcode, p.city].filter(Boolean).join(" ")].filter(Boolean).join(", ") || text,
+              confidence: null,
+              matchType: p.housenumber ? "exact" : "interpolated",
+              layer: p.type ?? null,
+              provider: "photon",
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
+    } catch (e) {
+      console.warn("[geocode] photon fallback failed", e);
+    }
+
 
     return new Response(JSON.stringify({ error: "Keine Treffer für Adresse" }), {
       status: 404,
