@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, Search, RefreshCw, AlertCircle, MapPin, Loader2 } from "lucide-react";
+import { Plus, Search, RefreshCw, AlertCircle, AlertTriangle, MapPin, Loader2 } from "lucide-react";
 import { sendOrderStatusEmailsForIds } from "@/lib/orderEmail";
+import { geocodeAndSaveOrder } from "@/lib/geocodeOrder";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +32,8 @@ export interface NewOrderRow {
   lat: number | null; lng: number | null;
   created_at: string;
   is_pickup?: boolean | null;
+  geocode_quality?: string | null;
+  geocode_note?: string | null;
 }
 
 export interface RouteOption {
@@ -86,33 +89,36 @@ export function NewOrdersTable({
   const geocodeOne = async (o: NewOrderRow) => {
     setGeocodingId(o.id);
     try {
-      const { data, error } = await supabase.functions.invoke("geocode-address", {
-        body: {
-          strasse: o.empfaenger_adresse ?? "",
-          plz: o.empfaenger_plz ?? "",
-          stadt: o.empfaenger_stadt ?? "",
-        },
+      const res = await geocodeAndSaveOrder(o.id, {
+        strasse: o.empfaenger_adresse,
+        plz: o.empfaenger_plz,
+        stadt: o.empfaenger_stadt,
       });
-      if (error || !data?.lat || !data?.lng) {
+      if (!res) {
         toast.error(
           "Adresse konnte nicht gefunden werden – bitte Straße/PLZ/Stadt im Auftrag prüfen.",
         );
         return;
       }
-      const { error: upErr } = await supabase
-        .from("orders")
-        .update({ lat: data.lat, lng: data.lng })
-        .eq("id", o.id);
-      if (upErr) {
-        toast.error("Koordinaten konnten nicht gespeichert werden");
-        return;
+      if (res.quality === "approximate") {
+        toast.warning(
+          `Adresse von ${o.empfaenger_name} nur ungefähr gefunden${res.note ? `: ${res.note}` : ""}. Bitte Adresse im Auftrag prüfen.`,
+        );
+      } else {
+        toast.success(`Adresse von ${o.empfaenger_name} exakt gefunden`);
       }
-      toast.success(`Adresse von ${o.empfaenger_name} erfolgreich geocodiert`);
       onReload();
+    } catch {
+      toast.error("Koordinaten konnten nicht gespeichert werden");
     } finally {
       setGeocodingId(null);
     }
   };
+
+  const approxCount = useMemo(
+    () => orders.filter((o) => o.lat != null && o.geocode_quality === "approximate").length,
+    [orders],
+  );
 
   useEffect(() => {
     if (!focusedOrderId) return;
@@ -187,6 +193,16 @@ export function NewOrdersTable({
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-body font-medium">Neue Sendungen</span>
           <Badge variant="secondary" className="text-[10px] tabular-nums">{orders.length}</Badge>
+          {approxCount > 0 && (
+            <Badge
+              variant="outline"
+              className="border-warning text-warning text-[10px] tabular-nums gap-1"
+              title="Bei diesen Sendungen wurde die Hausnummer nicht exakt gefunden. Bitte Adressen prüfen."
+            >
+              <AlertTriangle className="h-3 w-3" />
+              {approxCount} ungenau
+            </Badge>
+          )}
           <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-border/50">
             <Switch
               id="new-orders-show-map"
@@ -341,13 +357,14 @@ export function NewOrdersTable({
               ) : (
                 filtered.map((o) => {
                   const noGeo = o.lat == null || o.lng == null;
+                  const isApprox = !noGeo && o.geocode_quality === "approximate";
                   const isSelected = selected.has(o.id);
                   const isFocused = focusedOrderId === o.id;
                   return (
                     <tr
                       key={o.id}
                       id={`new-order-row-${o.id}`}
-                      className={`border-b border-border/40 transition-colors duration-fast ease-fast-out hover:bg-surface-muted ${isSelected ? "bg-active-surface" : ""} ${isFocused ? "ring-2 ring-primary/60 ring-inset" : ""}`}
+                      className={`border-b border-border/40 transition-colors duration-fast ease-fast-out hover:bg-surface-muted ${isSelected ? "bg-active-surface" : isApprox ? "bg-warning/10" : ""} ${isApprox ? "border-l-2 border-l-warning" : ""} ${isFocused ? "ring-2 ring-primary/60 ring-inset" : ""}`}
                     >
                       <td className="px-3 py-2">
                         <Checkbox
@@ -438,6 +455,24 @@ export function NewOrdersTable({
                               {geocodingId === o.id ? "Suche…" : "Adresse prüfen"}
                             </span>
                           </Button>
+                        ) : isApprox ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 gap-1 border-warning bg-warning/15 text-warning hover:bg-warning/25 hover:text-warning"
+                            disabled={geocodingId === o.id}
+                            onClick={() => geocodeOne(o)}
+                            title={`Position ungenau${o.geocode_note ? `: ${o.geocode_note}` : ""}. Bitte Adresse im Auftrag prüfen/korrigieren. Klick sucht erneut.`}
+                          >
+                            {geocodingId === o.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                            )}
+                            <span className="text-[11px] font-medium">
+                              {geocodingId === o.id ? "Suche…" : "Ungenau"}
+                            </span>
+                          </Button>
                         ) : (
                           <Button
                             variant="ghost"
@@ -445,7 +480,11 @@ export function NewOrdersTable({
                             className="h-7 gap-1 px-2 text-success hover:bg-success/10 hover:text-success"
                             disabled={geocodingId === o.id}
                             onClick={() => geocodeOne(o)}
-                            title="Adresse ist geocodiert. Klick zum Neu-Berechnen, falls der Pin auf der Karte falsch ist."
+                            title={
+                              o.geocode_quality === "exact"
+                                ? "Hausnummer exakt gefunden. Klick zum Neu-Berechnen."
+                                : "Adresse ist geocodiert (noch nicht auf Genauigkeit geprüft). Klick zum Prüfen."
+                            }
                           >
                             {geocodingId === o.id ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -456,6 +495,11 @@ export function NewOrdersTable({
                               {geocodingId === o.id ? "Suche…" : "OK"}
                             </span>
                           </Button>
+                        )}
+                        {isApprox && o.geocode_note && (
+                          <div className="mt-0.5 text-[10px] leading-tight text-warning max-w-[200px]">
+                            {o.geocode_note}
+                          </div>
                         )}
                       </td>
                     </tr>

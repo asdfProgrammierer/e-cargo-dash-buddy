@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Building2, BookUser, Star } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { geocodeAndSaveOrder } from "@/lib/geocodeOrder";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -271,25 +272,11 @@ export function AdminCreateOrderDialog({
         haendlerUserId: effectiveMerchantId,
       });
       // Auto-geocode so the new order is immediately usable on the map.
-      void (async () => {
-        try {
-          const { data, error } = await supabase.functions.invoke("geocode-address", {
-            body: {
-              strasse: form.empfaengerAdresse ?? "",
-              plz: form.empfaengerPlz ?? "",
-              stadt: form.empfaengerStadt ?? "",
-            },
-          });
-          if (!error && data?.lat && data?.lng) {
-            await supabase
-              .from("orders")
-              .update({ lat: data.lat, lng: data.lng, geocoded_at: new Date().toISOString() })
-              .eq("id", inserted.id);
-          }
-        } catch (e) {
-          console.warn("auto-geocode after create failed", e);
-        }
-      })();
+      void geocodeAndSaveOrder(inserted.id, {
+        strasse: form.empfaengerAdresse,
+        plz: form.empfaengerPlz,
+        stadt: form.empfaengerStadt,
+      }).catch((e) => console.warn("auto-geocode after create failed", e));
     }
     toast.success("Auftrag erfolgreich angelegt");
     setForm(emptyForm);

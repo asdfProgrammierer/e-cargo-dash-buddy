@@ -844,6 +844,8 @@ export type Database = {
           external_order_ref: string | null
           external_source_hash: string | null
           external_source_ref: string | null
+          geocode_note: string | null
+          geocode_quality: string | null
           geocoded_at: string | null
           gewicht: number
           id: string
@@ -890,6 +892,8 @@ export type Database = {
           external_order_ref?: string | null
           external_source_hash?: string | null
           external_source_ref?: string | null
+          geocode_note?: string | null
+          geocode_quality?: string | null
           geocoded_at?: string | null
           gewicht?: number
           id?: string
@@ -936,6 +940,8 @@ export type Database = {
           external_order_ref?: string | null
           external_source_hash?: string | null
           external_source_ref?: string | null
+          geocode_note?: string | null
+          geocode_quality?: string | null
           geocoded_at?: string | null
           gewicht?: number
           id?: string
@@ -1725,6 +1731,8 @@ export type Database = {
           external_order_ref: string | null
           external_source_hash: string | null
           external_source_ref: string | null
+          geocode_note: string | null
+          geocode_quality: string | null
           geocoded_at: string | null
           gewicht: number
           id: string
@@ -1784,6 +1792,8 @@ export type Database = {
           external_order_ref: string | null
           external_source_hash: string | null
           external_source_ref: string | null
+          geocode_note: string | null
+          geocode_quality: string | null
           geocoded_at: string | null
           gewicht: number
           id: string

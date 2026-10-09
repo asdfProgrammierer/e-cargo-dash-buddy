@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Order, OrderStatus } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
+import { geocodeAndSaveOrder } from "@/lib/geocodeOrder";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { sendOrderStatusEmail } from "@/lib/orderEmail";
@@ -30,18 +31,11 @@ async function maybeCreateDhlLabel(order: Order, merchantId: string, covered: Se
 async function geocodeOrder(order: Order) {
   if (!order.empfaengerStadt) return;
   try {
-    const { data, error } = await supabase.functions.invoke("geocode-address", {
-      body: {
-        strasse: order.empfaengerAdresse ?? "",
-        plz: order.empfaengerPlz ?? "",
-        stadt: order.empfaengerStadt,
-      },
+    await geocodeAndSaveOrder(order.id, {
+      strasse: order.empfaengerAdresse,
+      plz: order.empfaengerPlz,
+      stadt: order.empfaengerStadt,
     });
-    if (error || !data || data.error) return;
-    await supabase
-      .from("orders")
-      .update({ lat: data.lat, lng: data.lng, geocoded_at: new Date().toISOString() })
-      .eq("id", order.id);
   } catch (err) {
     console.warn("Geocoding failed for order", order.id, err);
   }

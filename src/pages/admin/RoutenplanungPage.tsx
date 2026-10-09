@@ -142,8 +142,15 @@ const RoutenplanungPage = () => {
         const { data } = await supabase.functions.invoke("regeocode-pickup-orders");
         if (cancelled) return;
         const updated = (data as any)?.updated ?? 0;
+        const approximate = (data as any)?.approximate ?? 0;
         if (updated > 0) {
-          toast.success(`${updated} Adresse(n) automatisch geocodiert`);
+          if (approximate > 0) {
+            toast.warning(
+              `${updated} Adresse(n) geprüft – ${approximate} davon nur ungefähr gefunden (gelb markiert)`,
+            );
+          } else {
+            toast.success(`${updated} Adresse(n) automatisch geocodiert`);
+          }
           bumpRefresh();
         }
       } catch (e) {
@@ -158,7 +165,7 @@ const RoutenplanungPage = () => {
     setNewOrdersLoading(true);
     const { data, error } = await supabase
       .from("orders")
-      .select("id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, pakete, gewicht, lat, lng, created_at, is_pickup")
+      .select("id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, pakete, gewicht, lat, lng, created_at, is_pickup, geocode_quality, geocode_note")
       .eq("status", "neu")
       .order("created_at", { ascending: false })
       .limit(500);

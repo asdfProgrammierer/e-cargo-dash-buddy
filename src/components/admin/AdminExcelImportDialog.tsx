@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { geocodeAndSaveOrder } from "@/lib/geocodeOrder";
 import { ExcelImport } from "@/components/dashboard/ExcelImport";
 import type { Order } from "@/types/order";
 import { sendOrderStatusEmailsForIds } from "@/lib/orderEmail";
@@ -66,20 +67,11 @@ export function AdminExcelImportDialog({
     }
     // Trigger geocoding in background
     for (const row of created) {
-      void supabase.functions.invoke("geocode-address", {
-        body: {
-          strasse: row.empfaenger_adresse ?? "",
-          plz: row.empfaenger_plz ?? "",
-          stadt: row.empfaenger_stadt ?? "",
-        },
-      }).then(({ data: geo, error: gErr }) => {
-        if (gErr || !geo || (geo as { error?: string }).error) return;
-        const g = geo as { lat: number; lng: number };
-        void supabase
-          .from("orders")
-          .update({ lat: g.lat, lng: g.lng, geocoded_at: new Date().toISOString() })
-          .eq("id", row.id);
-      });
+      void geocodeAndSaveOrder(row.id as string, {
+        strasse: row.empfaenger_adresse as string | null,
+        plz: row.empfaenger_plz as string | null,
+        stadt: row.empfaenger_stadt as string | null,
+      }).catch(() => undefined);
     }
     onCreated?.(created.length);
     setOpen(false);

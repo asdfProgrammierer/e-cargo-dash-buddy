@@ -84,7 +84,7 @@ interface Props {
   /** Bumped by parent to force a reload. */
   refreshKey?: number;
   /** Optional new orders to also render on the map. */
-  newOrders?: Array<{ id: string; auftrags_nr: string; empfaenger_name: string; empfaenger_adresse?: string | null; empfaenger_plz?: string | null; empfaenger_stadt: string; lat: number | null; lng: number | null; }>;
+  newOrders?: Array<{ id: string; auftrags_nr: string; empfaenger_name: string; empfaenger_adresse?: string | null; empfaenger_plz?: string | null; empfaenger_stadt: string; lat: number | null; lng: number | null; geocode_quality?: string | null; geocode_note?: string | null; }>;
   /** Selected new order ids (highlighted). */
   selectedNewOrderIds?: Set<string>;
   /** Called when a new-order pin is clicked. */
@@ -452,7 +452,12 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
       newOrders.forEach((o) => {
         if (o.lat == null || o.lng == null) return;
         const isSel = selectedNewOrderIds?.has(o.id);
-        const fill = isSel ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))";
+        const isApprox = o.geocode_quality === "approximate";
+        const fill = isSel
+          ? "hsl(var(--primary))"
+          : isApprox
+            ? "hsl(var(--warning))"
+            : "hsl(var(--muted-foreground))";
         const stroke = "hsl(var(--background))";
         const size = isSel ? 32 : 26;
         const el = document.createElement("div");
@@ -461,12 +466,14 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
         el.style.filter = isSel
           ? "drop-shadow(0 3px 5px hsl(var(--primary) / 0.45))"
           : "drop-shadow(0 2px 3px rgba(0,0,0,0.25))";
-        // Classic teardrop map pin (anchor: bottom tip)
+        // Classic teardrop map pin (anchor: bottom tip); "!" for imprecise positions
         el.innerHTML = `
           <svg width="${size}" height="${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 1.5c-4.42 0-8 3.58-8 8 0 5.5 8 13 8 13s8-7.5 8-13c0-4.42-3.58-8-8-8z"
                   fill="${fill}" stroke="${stroke}" stroke-width="1.5" stroke-linejoin="round"/>
-            <circle cx="12" cy="9.5" r="3" fill="${stroke}"/>
+            ${isApprox
+              ? `<text x="12" y="13" text-anchor="middle" font-size="10" font-weight="700" fill="${stroke}">!</text>`
+              : `<circle cx="12" cy="9.5" r="3" fill="${stroke}"/>`}
           </svg>`;
         const m = new maplibregl.Marker({ element: el, anchor: "bottom" })
           .setLngLat([Number(o.lng), Number(o.lat)])
@@ -477,7 +484,9 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
             <div style="font-weight: 600; margin-top: 2px;">${escapeHtml(o.auftrags_nr)}</div>
             <div style="margin-top: 2px;">${escapeHtml(o.empfaenger_name)}</div>
             <div style="font-size: 11px; color: hsl(var(--muted-foreground)); margin-top: 2px;">${o.empfaenger_adresse ? `${escapeHtml(o.empfaenger_adresse)}, ` : ""}${escapeHtml(`${o.empfaenger_plz ?? ""} ${o.empfaenger_stadt}`.trim())}</div>
-            <div style="display: inline-block; margin-top: 6px; padding: 1px 6px; border-radius: 4px; font-size: 10px; background: hsl(var(--primary) / 0.15); color: hsl(var(--primary));">Neu</div>
+            ${isApprox
+              ? `<div style="margin-top: 6px; padding: 3px 6px; border-radius: 4px; font-size: 10px; background: hsl(var(--warning) / 0.15); color: hsl(var(--warning));">⚠ Position ungenau${o.geocode_note ? `: ${escapeHtml(o.geocode_note)}` : ""}</div>`
+              : `<div style="display: inline-block; margin-top: 6px; padding: 1px 6px; border-radius: 4px; font-size: 10px; background: hsl(var(--primary) / 0.15); color: hsl(var(--primary));">Neu</div>`}
           </div>`;
         el.addEventListener("mouseenter", () => { showPopup([Number(o.lng), Number(o.lat)], newHtml); });
         el.addEventListener("mouseleave", () => { hidePopupIfNotPinned(); });
