@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Pencil, Plus, Trash2, Star, MapPin, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { geocodeAndSaveOrder } from "@/lib/geocodeOrder";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { SettingsTabs } from "@/components/admin/SettingsTabs";
 import { Badge } from "@/components/ui/badge";
@@ -250,21 +251,15 @@ const DepotsPage = () => {
       let failed = 0;
       for (const o of orders) {
         try {
-          const { data, error: gErr } = await supabase.functions.invoke("geocode-address", {
-            body: {
-              strasse: o.empfaenger_adresse ?? "",
-              plz: o.empfaenger_plz ?? "",
-              stadt: o.empfaenger_stadt,
-            },
+          const res = await geocodeAndSaveOrder(o.id, {
+            strasse: o.empfaenger_adresse,
+            plz: o.empfaenger_plz,
+            stadt: o.empfaenger_stadt,
           });
-          if (gErr || !data || data.error) {
+          if (!res) {
             failed++;
             continue;
           }
-          await supabase
-            .from("orders")
-            .update({ lat: data.lat, lng: data.lng, geocoded_at: new Date().toISOString() })
-            .eq("id", o.id);
           success++;
           await new Promise((r) => setTimeout(r, 250));
         } catch {

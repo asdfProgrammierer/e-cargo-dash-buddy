@@ -34,6 +34,7 @@ interface OrderRow {
   pakete: number; gewicht: number;
   lat: number | null; lng: number | null;
   status: string; notizen: string | null;
+  geocode_quality?: string | null; geocode_note?: string | null;
 }
 interface StopRow {
   id: string; route_id: string; order_id: string; position: number;
@@ -165,6 +166,14 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrd
         </p>
         <div className="flex items-center gap-2 text-caption text-muted-foreground tabular-nums truncate">
           <span className="truncate">{stop.orders.auftrags_nr}</span>
+          {stop.orders.geocode_quality === "approximate" && (
+            <span
+              className="shrink-0 rounded border border-warning bg-warning/15 px-1 text-[10px] font-medium text-warning"
+              title={`Position ungenau${stop.orders.geocode_note ? `: ${stop.orders.geocode_note}` : ""}. Bitte Adresse prüfen.`}
+            >
+              ⚠ Ungenau
+            </span>
+          )}
         </div>
         <div className="text-caption text-muted-foreground truncate">
           {stop.orders.empfaenger_adresse ? `${stop.orders.empfaenger_adresse} · ` : ""}
