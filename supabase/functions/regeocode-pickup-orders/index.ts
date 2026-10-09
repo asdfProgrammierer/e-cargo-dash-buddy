@@ -11,7 +11,8 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-const BATCH_LIMIT = 25;
+const BATCH_LIMIT = 100;
+const CONCURRENCY = 5;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -64,7 +65,7 @@ Deno.serve(async (req) => {
     let approximate = 0;
     let failed = 0;
 
-    for (const o of orders) {
+    const processOne = async (o: typeof orders[number]) => {
       try {
         // Reuse the single geocoding engine (incl. precision check).
         const r = await fetch(`${supabaseUrl}/functions/v1/geocode-address`, {
@@ -79,7 +80,7 @@ Deno.serve(async (req) => {
         const geo = await r.json().catch(() => null);
         if (!r.ok || !geo || geo.lat == null || geo.lng == null) {
           failed++;
-          continue;
+          return;
         }
         const quality = geo.quality === "exact" ? "exact" : "approximate";
         const { error: uErr } = await supabase
@@ -101,9 +102,20 @@ Deno.serve(async (req) => {
         console.warn("regeocode failed", o.id, e);
         failed++;
       }
-    }
+    };
 
-    return json({ total: orders.length, updated, approximate, failed });
+    // Small worker pool so a full batch fits within the function time limit.
+    let cursor = 0;
+    await Promise.all(
+      Array.from({ length: CONCURRENCY }, async () => {
+        while (cursor < orders.length) {
+          const o = orders[cursor++];
+          await processOne(o);
+        }
+      }),
+    );
+
+    return json({ total: orders.length, updated, approximate, failed, more: orders.length >= BATCH_LIMIT });
   } catch (e) {
     console.error("regeocode-pickup-orders error", e);
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);
