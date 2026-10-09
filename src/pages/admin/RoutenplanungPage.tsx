@@ -139,10 +139,18 @@ const RoutenplanungPage = () => {
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await supabase.functions.invoke("regeocode-pickup-orders");
-        if (cancelled) return;
-        const updated = (data as any)?.updated ?? 0;
-        const approximate = (data as any)?.approximate ?? 0;
+        let updated = 0;
+        let approximate = 0;
+        // Process in batches (max. 3 rounds per page visit).
+        for (let round = 0; round < 3; round++) {
+          const { data } = await supabase.functions.invoke("regeocode-pickup-orders");
+          if (cancelled) return;
+          const d = (data ?? {}) as { updated?: number; approximate?: number; more?: boolean };
+          updated += d.updated ?? 0;
+          approximate += d.approximate ?? 0;
+          if ((d.updated ?? 0) > 0) bumpRefresh();
+          if (!d.more || (d.updated ?? 0) === 0) break;
+        }
         if (updated > 0) {
           if (approximate > 0) {
             toast.warning(
@@ -151,7 +159,6 @@ const RoutenplanungPage = () => {
           } else {
             toast.success(`${updated} Adresse(n) automatisch geocodiert`);
           }
-          bumpRefresh();
         }
       } catch (e) {
         console.warn("auto-geocode failed", e);
