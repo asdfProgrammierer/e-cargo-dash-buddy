@@ -9,9 +9,9 @@ import { buildTrackingUrl } from '../_shared/site-url.ts'
 // Configuration baked in at scaffold time — do NOT change these manually.
 const SITE_NAME = 'e-cargo Connect'
 // SENDER_DOMAIN is the verified sender subdomain FQDN.
-const SENDER_DOMAIN = 'notify.ecargo-logistik.de'
+const SENDER_DOMAIN = 'notify.ecargo-logistic.de'
 // FROM_DOMAIN is the domain shown in the From: header.
-const FROM_DOMAIN = 'ecargo-logistik.de'
+const FROM_DOMAIN = 'ecargo-logistic.de'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
