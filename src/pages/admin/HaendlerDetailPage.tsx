@@ -144,6 +144,30 @@ const HaendlerDetailPage = () => {
     load();
   }, [id, navigate]);
 
+  const [emailConfirmed, setEmailConfirmed] = useState<boolean | null>(null);
+  const [confirmingEmail, setConfirmingEmail] = useState(false);
+  useEffect(() => {
+    if (!profile?.user_id) return;
+    supabase.functions
+      .invoke("admin-confirm-email", { body: { action: "status", user_id: profile.user_id } })
+      .then(({ data }) => setEmailConfirmed(data?.confirmed ?? null));
+  }, [profile?.user_id]);
+
+  const confirmEmail = async () => {
+    if (!profile) return;
+    setConfirmingEmail(true);
+    const { data, error } = await supabase.functions.invoke("admin-confirm-email", {
+      body: { action: "confirm", user_id: profile.user_id },
+    });
+    setConfirmingEmail(false);
+    if (error || data?.error) {
+      toast.error(data?.error ?? "E-Mail konnte nicht bestätigt werden");
+      return;
+    }
+    setEmailConfirmed(true);
+    toast.success("E-Mail bestätigt – der Händler kann sich jetzt anmelden");
+  };
+
   const toggleApproval = async () => {
     if (!profile) return;
     const newVal = !profile.approved;
@@ -410,6 +434,11 @@ const HaendlerDetailPage = () => {
                 senderAddress={[profile.strasse, profile.plz, profile.stadt].filter(Boolean).join(", ")}
                 onCreated={(count) => setOrderCount((c) => c + count)}
               />
+              {emailConfirmed === false && !profile.is_virtual && (
+                <Button size="sm" variant="outline" disabled={confirmingEmail} onClick={confirmEmail}>
+                  E-Mail manuell bestätigen
+                </Button>
+              )}
               <AdminCreateOrderDialog
                 merchantUserId={profile.user_id}
                 merchantLabel={profile.firma_name || profile.ansprechpartner || undefined}
