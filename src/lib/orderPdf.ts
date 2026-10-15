@@ -434,7 +434,7 @@ export async function buildOrderPdf(order: Order, overrides: BuildOrderPdfOverri
 
   const cells: Array<[string, string]> = [
     ["Pakete", String(order.pakete)],
-    ["Gewicht", `${order.gewicht} kg`],
+    ["Gewicht", `${order.gewicht ? `${order.gewicht} kg` : "—"}`],
     ["Maße (L×B×H)", dims],
     ["Volumen", volumeL],
     ["CO₂ gespart", co2],
@@ -584,7 +584,7 @@ export async function buildOrderPdf(order: Order, overrides: BuildOrderPdfOverri
 
   const liefercells: Array<[string, string]> = [
     ["Pakete", String(order.pakete)],
-    ["Gewicht", `${order.gewicht} kg`],
+    ["Gewicht", `${order.gewicht ? `${order.gewicht} kg` : "—"}`],
     ["Maße", dims],
   ];
   const lcellW = contentW / liefercells.length;
