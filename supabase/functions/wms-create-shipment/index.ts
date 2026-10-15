@@ -84,10 +84,10 @@ type Payload = {
   };
   package: {
     count: number;
-    weight_kg: number;
-    length_cm?: number;
-    width_cm?: number;
-    height_cm?: number;
+    weight_kg: number | null;
+    length_cm: number | null;
+    width_cm: number | null;
+    height_cm: number | null;
   };
   notes?: string;
 };
@@ -119,11 +119,32 @@ function validatePayload(raw: any): { ok: true; value: Payload } | { ok: false; 
   if (!recipient.city) errors["recipient.city"] = "erforderlich";
   if (recipient.email && !isEmail(recipient.email)) errors["recipient.email"] = "ungültige E-Mail";
 
-  const p = raw?.package ?? {};
-  const count = normNum(p.count);
-  const weight = normNum(p.weight_kg);
-  if (count === null || count < 1 || count > 99) errors["package.count"] = "1-99 erforderlich";
-  if (weight === null || weight < 0 || weight > 1000) errors["package.weight_kg"] = "0-1000 kg";
+  const rawPkg = raw?.package;
+  if (rawPkg !== undefined && rawPkg !== null && (typeof rawPkg !== "object" || Array.isArray(rawPkg))) {
+    errors["package"] = "muss ein Objekt sein";
+  }
+  const p = rawPkg && typeof rawPkg === "object" ? rawPkg : {};
+  const has = (v: unknown) => v !== undefined && v !== null && v !== "";
+  let count = 1;
+  if (has(p.count)) {
+    const c = normNum(p.count);
+    if (c === null || !Number.isInteger(c) || c < 1 || c > 99) errors["package.count"] = "Ganzzahl 1-99";
+    else count = c;
+  }
+  let weight: number | null = null;
+  if (has(p.weight_kg)) {
+    const w = normNum(p.weight_kg);
+    if (w === null || w <= 0 || w > 1000) errors["package.weight_kg"] = "Zahl > 0 (max. 1000 kg)";
+    else weight = w;
+  }
+  const dims: Record<string, number | undefined> = {};
+  for (const k of ["length_cm", "width_cm", "height_cm"]) {
+    if (has(p[k])) {
+      const d = normNum(p[k]);
+      if (d === null || d <= 0) errors[`package.${k}`] = "Zahl > 0";
+      else dims[k] = d;
+    }
+  }
 
   const s = raw?.sender ?? {};
   const sender = {
@@ -147,11 +168,11 @@ function validatePayload(raw: any): { ok: true; value: Payload } | { ok: false; 
       },
       sender: sender.name || sender.street ? sender : undefined,
       package: {
-        count: Math.round(count!),
-        weight_kg: weight!,
-        length_cm: normNum(p.length_cm) ?? undefined,
-        width_cm: normNum(p.width_cm) ?? undefined,
-        height_cm: normNum(p.height_cm) ?? undefined,
+        count,
+        weight_kg: weight,
+        length_cm: dims.length_cm ?? null,
+        width_cm: dims.width_cm ?? null,
+        height_cm: dims.height_cm ?? null,
       },
       notes: normStr(raw?.notes) || undefined,
     },
