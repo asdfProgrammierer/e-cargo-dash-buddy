@@ -1,0 +1,2 @@
+ALTER TABLE public.orders ALTER COLUMN gewicht DROP NOT NULL;
+ALTER TABLE public.orders ALTER COLUMN gewicht DROP DEFAULT;

@@ -847,7 +847,7 @@ export type Database = {
           geocode_note: string | null
           geocode_quality: string | null
           geocoded_at: string | null
-          gewicht: number
+          gewicht: number | null
           id: string
           is_pickup: boolean
           lat: number | null
@@ -895,7 +895,7 @@ export type Database = {
           geocode_note?: string | null
           geocode_quality?: string | null
           geocoded_at?: string | null
-          gewicht?: number
+          gewicht?: number | null
           id?: string
           is_pickup?: boolean
           lat?: number | null
@@ -943,7 +943,7 @@ export type Database = {
           geocode_note?: string | null
           geocode_quality?: string | null
           geocoded_at?: string | null
-          gewicht?: number
+          gewicht?: number | null
           id?: string
           is_pickup?: boolean
           lat?: number | null
@@ -1734,7 +1734,7 @@ export type Database = {
           geocode_note: string | null
           geocode_quality: string | null
           geocoded_at: string | null
-          gewicht: number
+          gewicht: number | null
           id: string
           is_pickup: boolean
           lat: number | null
@@ -1795,7 +1795,7 @@ export type Database = {
           geocode_note: string | null
           geocode_quality: string | null
           geocoded_at: string | null
-          gewicht: number
+          gewicht: number | null
           id: string
           is_pickup: boolean
           lat: number | null
