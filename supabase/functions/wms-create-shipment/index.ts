@@ -185,7 +185,7 @@ async function buildLabelPdf(params: {
   recipient: Payload["recipient"];
   sender: { name: string; street: string; postal_code: string; city: string };
   packageCount: number;
-  weightKg: number;
+  weightKg: number | null;
   createdAt: string;
   zoneLabel: string | null;
 }): Promise<Uint8Array> {
@@ -333,7 +333,7 @@ async function buildLabelPdf(params: {
   const metaH = 10 * mm;
   const metas = [
     ["PAKETE", String(params.packageCount)],
-    ["GEWICHT", `${params.weightKg} kg`],
+    ["GEWICHT", params.weightKg != null && params.weightKg > 0 ? `${params.weightKg} kg` : "—"],
     ["DATUM", params.createdAt],
   ];
   metas.forEach(([lbl, val], i) => {
