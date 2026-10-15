@@ -582,7 +582,7 @@ export function OrderDetailSheet({
                   onChange={(e) => update("gewicht", parseFloat(e.target.value) || 0)}
                 />
               ) : (
-                <p className="text-2xl font-bold mt-1">{order.gewicht} kg</p>
+                <p className="text-2xl font-bold mt-1">{order.gewicht ? `${order.gewicht} kg` : "—"}</p>
               )}
             </div>
           </div>

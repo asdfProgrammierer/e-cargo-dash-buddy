@@ -174,7 +174,7 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
                 <p className="text-xs text-muted-foreground truncate">{order.empfaengerStadt}</p>
               </div>
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{order.pakete} Paket{order.pakete === 1 ? "" : "e"} · {order.gewicht} kg</span>
+                <span>{order.pakete} Paket{order.pakete === 1 ? "" : "e"} · {order.gewicht ? `${order.gewicht} kg` : "—"}</span>
                 <span>{order.erstelltAm}</span>
               </div>
               <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
@@ -271,7 +271,7 @@ export function OrderTable({ orders, onDelete, onSelect, onCancel }: OrderTableP
                 <TableCell>{order.empfaengerName}</TableCell>
                 <TableCell>{order.empfaengerStadt}</TableCell>
                 <TableCell className="text-center">{order.pakete}</TableCell>
-                <TableCell className="text-right">{order.gewicht} kg</TableCell>
+                <TableCell className="text-right">{order.gewicht ? `${order.gewicht} kg` : "—"}</TableCell>
                 <TableCell>
                   {order.dhlTrackingNumber ? (
                     <Badge variant="secondary" className="border-0 text-xs bg-yellow-400 text-yellow-950 hover:bg-yellow-400">
