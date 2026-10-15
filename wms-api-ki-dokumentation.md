@@ -20,7 +20,7 @@ und sollen im WMS zur Bestellung gespeichert werden.
 ## 2. Endpoint & Authentifizierung
 
 ```
-POST https://quvxpnftdwwvhcdvuegw.supabase.co/functions/v1/wms-create-shipment
+POST https://api.ecargo-logistik.de/functions/v1/wms-create-shipment
 ```
 
 | Header | Wert |
@@ -191,7 +191,7 @@ def ship_order(order):
         },
     }
     resp = http_post(
-        "https://quvxpnftdwwvhcdvuegw.supabase.co/functions/v1/wms-create-shipment",
+        "https://api.ecargo-logistik.de/functions/v1/wms-create-shipment",
         headers={"Content-Type": "application/json",
                  "x-wms-api-key": settings.ecargo_api_key},
         json=payload, timeout=30)
@@ -214,7 +214,7 @@ def ship_order(order):
 ### curl-Test
 
 ```bash
-curl -X POST "https://quvxpnftdwwvhcdvuegw.supabase.co/functions/v1/wms-create-shipment" \
+curl -X POST "https://api.ecargo-logistik.de/functions/v1/wms-create-shipment" \
   -H "Content-Type: application/json" \
   -H "x-wms-api-key: wms_live_XXXX" \
   -d '{
