@@ -10,7 +10,7 @@ Tracking-Link und Versandlabel (PDF) zurück.
 ## 1. Endpoint
 
 ```
-POST https://quvxpnftdwwvhcdvuegw.supabase.co/functions/v1/wms-create-shipment
+POST https://api.ecargo-logistik.de/functions/v1/wms-create-shipment
 ```
 
 | Header | Wert |
@@ -127,7 +127,7 @@ Fehler kommen als JSON: `{ "error": { "code": "…", "message": "…", "details"
 ## 5. Beispiel mit curl
 
 ```bash
-curl -X POST "https://quvxpnftdwwvhcdvuegw.supabase.co/functions/v1/wms-create-shipment" \
+curl -X POST "https://api.ecargo-logistik.de/functions/v1/wms-create-shipment" \
   -H "Content-Type: application/json" \
   -H "x-wms-api-key: wms_live_XXXX" \
   -d '{

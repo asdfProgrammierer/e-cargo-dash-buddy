@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { WMS_CREATE_SHIPMENT_ENDPOINT } from "@/lib/publicApi";
 import { Copy, KeyRound, Trash2, Plus } from "lucide-react";
 import {
   AlertDialog,
@@ -35,7 +36,7 @@ interface Props {
   merchantCode: string | null;
 }
 
-const ENDPOINT = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wms-create-shipment`;
+const ENDPOINT = WMS_CREATE_SHIPMENT_ENDPOINT;
 
 export function WmsApiKeysCard({ profileId, userId, merchantCode }: Props) {
   const [keys, setKeys] = useState<WmsKey[]>([]);
