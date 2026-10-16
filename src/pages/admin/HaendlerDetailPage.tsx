@@ -93,6 +93,10 @@ const HaendlerDetailPage = () => {
   const [savingPickupNote, setSavingPickupNote] = useState(false);
   const [testingShop, setTestingShop] = useState(false);
   const [appSecret, setAppSecret] = useState("");
+  const [shopDomain, setShopDomain] = useState("");
+  const [secretConfigured, setSecretConfigured] = useState<boolean | null>(null);
+  const [savingHookSettings, setSavingHookSettings] = useState(false);
+  const [checkingHook, setCheckingHook] = useState(false);
   const [registeringHook, setRegisteringHook] = useState(false);
   const [hookInfo, setHookInfo] = useState<{ callbackUrl?: string; cutoff?: string; count?: number } | null>(null);
 
@@ -128,6 +132,7 @@ const HaendlerDetailPage = () => {
           setPlatform(s.platform);
           setApiUrl(s.api_url);
           setApiKey(s.api_key);
+          setShopDomain((s as ShopConnection & { shop_domain?: string }).shop_domain || s.api_url);
           setShopActive(s.active);
           setShopNotizen(s.notizen || "");
         }
@@ -272,17 +277,7 @@ const HaendlerDetailPage = () => {
       return;
     }
     setSavingShop(true);
-    const payload = {
-      user_id: profile.user_id,
-      platform,
-      api_url: apiUrl,
-      api_key: apiKey,
-      active: shopActive,
-      notizen: shopNotizen || null,
-    };
-
-    let error;
-    if (shopConn) {
+    try {
       const res = await (supabase as any).rpc("admin_upsert_shop_connection", {
         _user_id: profile.user_id,
         _platform: platform,
@@ -291,25 +286,13 @@ const HaendlerDetailPage = () => {
         _active: shopActive,
         _notizen: shopNotizen || null,
       });
-      error = res.error;
-      if (res.data) setShopConn(res.data as ShopConnection);
-    } else {
-      const res = await (supabase as any).rpc("admin_upsert_shop_connection", {
-        _user_id: profile.user_id,
-        _platform: platform,
-        _api_url: apiUrl,
-        _api_key: apiKey,
-        _active: shopActive,
-        _notizen: shopNotizen || null,
-      });
-      error = res.error;
-      if (res.data) setShopConn(res.data as ShopConnection);
-    }
-    setSavingShop(false);
-    if (error) {
-      toast.error("Fehler beim Speichern der Shop-Verbindung");
-    } else {
+      if (res.error || !res.data?.id) throw new Error("Speichern fehlgeschlagen");
+      setShopConn(res.data as ShopConnection);
       toast.success("Shop-Verbindung gespeichert");
+    } catch {
+      toast.error("Fehler beim Speichern der Shop-Verbindung");
+    } finally {
+      setSavingShop(false);
     }
   };
 
@@ -327,6 +310,10 @@ const HaendlerDetailPage = () => {
       setApiKey("");
       setShopActive(false);
       setShopNotizen("");
+      setAppSecret("");
+      setShopDomain("");
+      setSecretConfigured(null);
+      setHookInfo(null);
       toast.success("Shop-Verbindung gelöscht");
     }
   };
@@ -352,14 +339,52 @@ const HaendlerDetailPage = () => {
     }
   };
 
+  useEffect(() => {
+    if (shopConn?.platform !== "shopify") return;
+    let cancelled = false;
+    setSecretConfigured(null);
+    void supabase.functions.invoke("shopify-webhook-setup", {
+      body: { connectionId: shopConn.id, action: "status" },
+    }).then(({ data }) => {
+      if (cancelled || !data) return;
+      if (typeof data.secretConfigured === "boolean") setSecretConfigured(data.secretConfigured);
+      if (data.shopDomain) setShopDomain(data.shopDomain);
+      setHookInfo({ callbackUrl: data.callbackUrl, cutoff: data.cutoff, count: data.ok ? (data.webhooks ?? []).filter((w: { address: string }) => w.address === data.callbackUrl).length : undefined });
+    });
+    return () => { cancelled = true; };
+  }, [shopConn?.id, shopConn?.platform]);
+
   const loadWebhookStatus = async () => {
     if (!shopConn) return;
-    const { data } = await supabase.functions.invoke("shopify-webhook-setup", {
-      body: { connectionId: shopConn.id, action: "status" },
-    });
-    if (data?.ok) {
-      setHookInfo({ callbackUrl: data.callbackUrl, count: (data.webhooks ?? []).length });
-    }
+    setCheckingHook(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("shopify-webhook-setup", {
+        body: { connectionId: shopConn.id, action: "status" },
+      });
+      if (typeof data?.secretConfigured === "boolean") setSecretConfigured(data.secretConfigured);
+      if (error || !data?.ok) throw new Error(data?.error || "Status konnte nicht geprüft werden");
+      setHookInfo({ callbackUrl: data.callbackUrl, cutoff: data.cutoff, count: (data.webhooks ?? []).filter((w: { address: string }) => w.address === data.callbackUrl).length });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Status konnte nicht geprüft werden");
+    } finally { setCheckingHook(false); }
+  };
+
+  const saveWebhookSettings = async (): Promise<boolean> => {
+    if (!shopConn) return false;
+    setSavingHookSettings(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("shopify-webhook-setup", {
+        body: { connectionId: shopConn.id, action: "save", shopDomain, appSecret: appSecret || undefined },
+      });
+      if (error || !data?.ok) throw new Error(data?.error || "Shopify-Einstellungen konnten nicht gespeichert werden");
+      setShopDomain(data.shopDomain);
+      setSecretConfigured(data.secretConfigured);
+      setAppSecret("");
+      return true;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Speichern fehlgeschlagen");
+      return false;
+    } finally { setSavingHookSettings(false); }
   };
 
   const registerWebhook = async () => {
@@ -368,17 +393,22 @@ const HaendlerDetailPage = () => {
       return;
     }
     setRegisteringHook(true);
+    try {
+    if (!await saveWebhookSettings()) return;
     const { data, error } = await supabase.functions.invoke("shopify-webhook-setup", {
-      body: { connectionId: shopConn.id, appSecret: appSecret || undefined },
+      body: { connectionId: shopConn.id, action: "register" },
     });
-    setRegisteringHook(false);
     if (error || !data?.ok) {
       toast.error(`Aktivierung fehlgeschlagen: ${data?.details ?? data?.error ?? error?.message ?? "Unbekannter Fehler"}`);
       return;
     }
     setAppSecret("");
+    setSecretConfigured(true);
     setHookInfo({ callbackUrl: data.callbackUrl, cutoff: data.cutoff, count: 1 });
     toast.success("Webhook aktiv – ab jetzt werden fulfillte Online-Bestellungen übernommen");
+    } catch {
+      toast.error("Aktivierung fehlgeschlagen – gespeicherte Einstellungen bleiben erhalten");
+    } finally { setRegisteringHook(false); }
   };
 
   if (loading) {
@@ -661,14 +691,24 @@ const HaendlerDetailPage = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label>Shopify App-Secret (API secret key)</Label>
+                    <Label htmlFor="shopify-domain">Shopify-Shop-URL</Label>
+                    <Input id="shopify-domain" className="mt-1.5" placeholder="https://mein-shop.myshopify.com" value={shopDomain} onChange={(e) => setShopDomain(e.target.value)} disabled={savingHookSettings || registeringHook} />
+                  </div>
+                  <div>
+                    <Label htmlFor="shopify-app-secret">Shopify App-Secret (API secret key)</Label>
                     <Input
+                      id="shopify-app-secret"
                       className="mt-1.5"
                       type="password"
-                      placeholder="shpss_..."
+                      autoComplete="new-password"
+                      disabled={savingHookSettings || registeringHook}
+                      placeholder={secretConfigured ? "Gespeichert – nur zum Ersetzen neu eingeben" : "API secret key eingeben"}
                       value={appSecret}
                       onChange={(e) => setAppSecret(e.target.value)}
                     />
+                    <p role="status" className="mt-2 text-sm text-muted-foreground">
+                      {secretConfigured === null ? "Speicherstatus wird geprüft…" : secretConfigured ? "✓ App-Secret sicher gespeichert" : "Noch kein App-Secret gespeichert"}
+                    </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       Wird nur zur Prüfung der Webhook-Signatur genutzt. Zu finden im Shopify-Admin unter
                       Apps → App-Entwicklung → API-Zugangsdaten.
@@ -677,7 +717,7 @@ const HaendlerDetailPage = () => {
 
                   {hookInfo && (
                     <div className="rounded-lg border border-border p-3 text-xs text-muted-foreground space-y-1">
-                      <p>Registrierte Webhooks für <code>orders/fulfilled</code>: {hookInfo.count ?? 0}</p>
+                      <p>Registrierte Webhooks für <code>orders/fulfilled</code>: {hookInfo.count ?? "Nicht geprüft"}</p>
                       {hookInfo.callbackUrl && <p className="break-all">Ziel: {hookInfo.callbackUrl}</p>}
                       {hookInfo.cutoff && (
                         <p>Cutoff: {new Date(hookInfo.cutoff).toLocaleString("de-DE", { timeZone: "Europe/Berlin" })}</p>
@@ -686,11 +726,14 @@ const HaendlerDetailPage = () => {
                   )}
 
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={registerWebhook} disabled={registeringHook || !shopConn}>
+                    <Button variant="outline" onClick={async () => { if (await saveWebhookSettings()) toast.success("Shopify-Einstellungen gespeichert"); }} disabled={savingHookSettings || registeringHook || !shopConn}>
+                      {savingHookSettings ? "Speichere…" : "URL / Secret speichern"}
+                    </Button>
+                    <Button onClick={registerWebhook} disabled={savingHookSettings || registeringHook || !shopConn}>
                       {registeringHook ? "Aktiviere..." : "Webhook aktivieren / erneuern"}
                     </Button>
-                    <Button variant="outline" onClick={loadWebhookStatus} disabled={!shopConn}>
-                      Status prüfen
+                    <Button variant="outline" onClick={loadWebhookStatus} disabled={checkingHook || savingHookSettings || registeringHook || !shopConn}>
+                      {checkingHook ? "Prüfe…" : "Status prüfen"}
                     </Button>
                   </div>
                 </CardContent>
