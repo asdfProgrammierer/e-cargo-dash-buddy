@@ -1206,6 +1206,7 @@ export type Database = {
           id: string
           name: string
           notizen: string | null
+          optimization_hash: string | null
           optimized_at: string | null
           start_depot_id: string | null
           start_time: string
@@ -1224,6 +1225,7 @@ export type Database = {
           id?: string
           name: string
           notizen?: string | null
+          optimization_hash?: string | null
           optimized_at?: string | null
           start_depot_id?: string | null
           start_time?: string
@@ -1242,6 +1244,7 @@ export type Database = {
           id?: string
           name?: string
           notizen?: string | null
+          optimization_hash?: string | null
           optimized_at?: string | null
           start_depot_id?: string | null
           start_time?: string
