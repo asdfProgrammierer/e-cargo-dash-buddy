@@ -112,6 +112,33 @@ Deno.serve(async (req) => {
       s.position = idx + 1;
     });
 
+    // Unveränderte Route nicht erneut berechnen (spart ORS-Kontingent).
+    // Der Fingerabdruck wird nur nach einer vollständigen ORS-Berechnung gespeichert.
+    const fpSource = JSON.stringify({
+      profile,
+      start: [startDepot.id, startDepot.lat, startDepot.lng],
+      end: [endDepot.id, endDepot.lat, endDepot.lng],
+      time: route.start_time ?? null,
+      datum: route.datum ?? null,
+      stopDur: stopDurationSec,
+      stops: valid
+        .map((s) => [s.id, s.pinned ? s.position : 0, s.orders.lat, s.orders.lng])
+        .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+    });
+    const fpBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(fpSource));
+    const fingerprint = Array.from(new Uint8Array(fpBuf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+    if (route.optimization_hash && route.optimization_hash === fingerprint && route.optimized_at) {
+      return json({
+        ok: true,
+        unchanged: true,
+        total_distance_m: route.total_distance_m ?? 0,
+        total_duration_s: route.total_duration_s ?? 0,
+        stops_optimized: 0,
+        pinned_count: valid.filter((s) => s.pinned).length,
+        fallback: false,
+      }, 200);
+    }
+
     // ----- Positionsbasierte Segment-Optimierung mit fixierten Stopps -----
     // Fixierte Stopps bleiben exakt auf ihrer position. Nur freie Slots vor,
     // zwischen und nach fixierten Stopps werden segmentweise optimiert.
@@ -414,8 +441,10 @@ Deno.serve(async (req) => {
       total_duration_s: Math.round(totalDur),
       geometry,
       optimized_at: new Date().toISOString(),
+      optimization_hash: fallbackUsed ? null : fingerprint,
     }).eq("id", body.routeId);
 
+    const quotaHit = fallbackReasons.some((r) => /quota|limit|429/i.test(r));
     return json({
       ok: true,
       total_distance_m: Math.round(totalDist),
@@ -424,7 +453,9 @@ Deno.serve(async (req) => {
       pinned_count: pinned.length,
       fallback: fallbackUsed,
       fallback_reason: fallbackUsed
-        ? "OpenRouteService war nicht erreichbar – Reihenfolge und Zeiten wurden lokal per Luftlinie geschätzt."
+        ? quotaHit
+          ? "Das Tageskontingent von OpenRouteService ist aufgebraucht (Zurücksetzung ca. 02:00 Uhr). Reihenfolge und Zeiten wurden lokal per Luftlinie geschätzt."
+          : "OpenRouteService war nicht erreichbar – Reihenfolge und Zeiten wurden lokal per Luftlinie geschätzt."
         : null,
       fallback_details: fallbackUsed ? fallbackReasons.slice(0, 3) : undefined,
     }, 200);
