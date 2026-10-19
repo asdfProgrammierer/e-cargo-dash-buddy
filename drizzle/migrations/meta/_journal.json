@@ -15,6 +15,13 @@
       "when": 1792057323233,
       "tag": "0001_orders_gewicht_nullable",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792416637796,
+      "tag": "0002_routes_optimization_hash",
+      "breakpoints": true
     }
   ]
 }

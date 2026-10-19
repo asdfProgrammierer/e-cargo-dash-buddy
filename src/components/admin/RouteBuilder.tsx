@@ -587,9 +587,13 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
       toast.error((data as { error?: string })?.error ?? "Optimierung fehlgeschlagen");
       return;
     }
-    const result = data as { total_distance_m: number; total_duration_s: number; fallback?: boolean; fallback_reason?: string | null };
+    const result = data as { total_distance_m: number; total_duration_s: number; fallback?: boolean; fallback_reason?: string | null; unchanged?: boolean };
     const summary = `${formatDistance(result.total_distance_m)} · ${formatDuration(result.total_duration_s)}`;
-    if (result.fallback) {
+    if (result.unchanged) {
+      toast.info(`Route ist bereits optimiert: ${summary}`, {
+        description: "Seit der letzten Optimierung hat sich nichts geändert – keine Neuberechnung nötig.",
+      });
+    } else if (result.fallback) {
       toast.warning(`Route geplant (Schätzung): ${summary}`, {
         description: result.fallback_reason ??
           "OpenRouteService war nicht erreichbar – Reihenfolge und Zeiten wurden lokal geschätzt.",
