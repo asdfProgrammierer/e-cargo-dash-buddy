@@ -69,52 +69,39 @@ Deno.serve(async (req) => {
   const subUserIds = (subs ?? []).map((s: any) => s.user_id);
   const allUserIds = [ownerId, ...subUserIds];
 
-  // Collect order IDs so we can clear child rows that FK to orders (route_stops, etc.)
-  const { data: ownerOrders } = await admin
-    .from("orders")
-    .select("id, tracking_token, dhl_label_url")
-    .eq("user_id", ownerId);
-  const orderIds = (ownerOrders ?? []).map((o: any) => o.id);
+  // Child rows of orders (route_stops, history, delivery_instructions, gdpr tokens) cascade in the DB.
+  // Storage artefacts are removed by the 2-month GDPR cleanup job; skip per-order loops (timeouts).
+  const step = async (label: string, p: PromiseLike<{ error: any }>) => {
+    const { error } = await p;
+    if (error) throw new Error(`${label}: ${error.message}`);
+  };
 
-  // Storage cleanup: delivery-signatures / delivery-notes / delivery-photos are keyed by order id
-  const buckets = ["delivery-signatures", "delivery-notes", "delivery-photos"];
-  for (const bucket of buckets) {
-    for (const orderId of orderIds) {
-      const { data: files } = await admin.storage.from(bucket).list(orderId, { limit: 1000 });
-      if (files && files.length > 0) {
-        await admin.storage.from(bucket).remove(files.map((f) => `${orderId}/${f.name}`));
-      }
-    }
+  try {
+    await step("Push-Abos", admin.from("push_subscriptions").delete().in("user_id", allUserIds));
+    await step("Benachrichtigungen gelesen", admin.from("notification_reads").delete().in("user_id", allUserIds));
+    await step("Benachrichtigungen", admin.from("notifications").delete().in("target_user_id", allUserIds));
+    await step("Adressbuch", admin.from("address_book").delete().in("user_id", allUserIds));
+    await step("WMS-API-Keys", admin.from("wms_api_keys").delete().in("user_id", allUserIds));
+    await step("DHL-Preise", admin.from("dhl_price_tiers").delete().in("user_id", allUserIds));
+    await step("Aufträge", admin.from("orders").delete().in("user_id", allUserIds));
+    await step("Shop-Verbindungen", admin.from("shop_connections").delete().in("user_id", allUserIds));
+    await step("Rollen", admin.from("user_roles").delete().in("user_id", allUserIds));
+    await step("Sub-Profile", admin.from("profiles").delete().in("user_id", subUserIds.length ? subUserIds : ["00000000-0000-0000-0000-000000000000"]));
+    await step("Profil", admin.from("profiles").delete().eq("user_id", ownerId));
+  } catch (e) {
+    return json({ error: `Löschen fehlgeschlagen (${(e as Error).message})` }, 500);
   }
 
-  // Push subscriptions and notification reads for owner + sub-accounts
-  await admin.from("push_subscriptions").delete().in("user_id", allUserIds);
-  await admin.from("email_unsubscribe_tokens").delete().in("user_id", allUserIds).catch(() => {});
-
-  // Route stops that reference this merchant's orders
-  if (orderIds.length > 0) {
-    await admin.from("route_stops").delete().in("order_id", orderIds);
-  }
-
-  // Delete dependent data owned by merchant
-  await admin.from("address_book").delete().eq("user_id", ownerId);
-  await admin.from("shop_connections").delete().eq("user_id", ownerId);
-  await admin.from("order_status_history").delete().eq("user_id", ownerId);
-  await admin.from("orders").delete().eq("user_id", ownerId);
-  await admin.from("notifications").delete().eq("target_user_id", ownerId);
-  await admin.from("notification_reads").delete().in("user_id", allUserIds);
-  await admin.from("user_roles").delete().in("user_id", allUserIds);
-
-  // Delete sub-account profiles + auth users
   for (const subId of subUserIds) {
-    await admin.from("profiles").delete().eq("user_id", subId);
-    await admin.auth.admin.deleteUser(subId).catch(() => {});
+    await admin.auth.admin.deleteUser(subId);
   }
-
-  // Delete main profile + auth user
-  await admin.from("profiles").delete().eq("user_id", ownerId);
   const { error: delErr } = await admin.auth.admin.deleteUser(ownerId);
-  if (delErr) return json({ error: delErr.message }, 500);
+  if (delErr) return json({ error: `Login konnte nicht gelöscht werden: ${delErr.message}` }, 500);
+
+  await admin.from("admin_audit_log").insert({
+    actor_user_id: userData.user.id, actor_role: "admin", entity_type: "profile",
+    entity_id: ownerId, action: "merchant_deleted", metadata: { sub_accounts: subUserIds.length },
+  });
 
   return json({ ok: true });
 });

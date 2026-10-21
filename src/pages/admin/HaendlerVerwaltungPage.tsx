@@ -126,7 +126,11 @@ const HaendlerVerwaltungPage = () => {
     });
     setDeletingId(null);
     if (error || (data as any)?.error) {
-      toast.error((data as any)?.error ?? error?.message ?? "Löschen fehlgeschlagen");
+      let msg = (data as any)?.error as string | undefined;
+      if (!msg && error && (error as any).context?.json) {
+        try { msg = (await (error as any).context.json())?.error; } catch { /* ignore */ }
+      }
+      toast.error(msg ?? error?.message ?? "Löschen fehlgeschlagen");
       return;
     }
     setMerchants((prev) => prev.filter((m) => m.id !== profile.id));
