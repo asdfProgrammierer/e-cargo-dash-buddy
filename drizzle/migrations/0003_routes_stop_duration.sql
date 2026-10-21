@@ -1,0 +1,1 @@
+ALTER TABLE public.routes ADD COLUMN stop_duration_minutes integer CHECK (stop_duration_minutes IS NULL OR (stop_duration_minutes >= 0 AND stop_duration_minutes <= 120));
