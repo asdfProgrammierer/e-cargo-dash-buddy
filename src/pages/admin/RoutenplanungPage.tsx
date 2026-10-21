@@ -36,6 +36,7 @@ interface Route {
   notizen: string | null;
   start_depot_id: string | null;
   end_depot_id: string | null;
+  stop_duration_minutes?: number | null;
   drivers?: Driver | null;
   vehicles?: Vehicle | null;
 }
@@ -220,17 +221,19 @@ const RoutenplanungPage = () => {
     const defaultDepot = depots.find((x) => x.is_default)?.id ?? depots[0]?.id ?? null;
     const startDepot = form.start_depot_id || defaultDepot;
     const endDepot = form.end_depot_id || startDepot;
+    const sdRaw = String(form.stop_duration ?? "").trim();
+    const stopDur = sdRaw === "" ? null : Math.round(Number(sdRaw));
+    if (stopDur !== null && (!Number.isFinite(stopDur) || stopDur < 0 || stopDur > 120)) {
+      toast.error("Stopp-Dauer muss zwischen 0 und 120 Minuten liegen"); return;
+    }
     const payload = {
       name: form.name,
       driver_id: form.driver_id || null,
       vehicle_id: form.vehicle_id || null,
       datum: form.datum,
       start_time: form.start_time || "09:00",
-      status: form.status,
-      notizen: form.notizen || null,
-      start_depot_id: startDepot,
-      end_depot_id: endDepot,
-    };
+      stop_duration_minutes: stopDur,
+...
     if (editId) {
       const { error } = await supabase.from("routes").update(payload).eq("id", editId);
       if (error) { toast.error("Fehler beim Speichern"); return; }
@@ -282,7 +285,7 @@ const RoutenplanungPage = () => {
       end_depot_id: r.end_depot_id ?? "",
       datum: r.datum,
       start_time: (r.start_time ?? "09:00").slice(0, 5),
-      status: r.status,
+      stop_duration: r.stop_duration_minutes != null ? String(r.stop_duration_minutes) : "",
       notizen: r.notizen ?? "",
     });
     setOpen(true);
@@ -563,18 +566,18 @@ const RoutenplanungPage = () => {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-1 gap-3">
-                <div>
-                  <Label>Status</Label>
-                  <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Route["status"] })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="geplant">Geplant</SelectItem>
-                      <SelectItem value="aktiv">Aktiv</SelectItem>
-                      <SelectItem value="abgeschlossen">Abgeschlossen</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <Label>Stopp-Dauer (Minuten)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={120}
+                  inputMode="numeric"
+                  value={form.stop_duration}
+                  onChange={(e) => setForm({ ...form, stop_duration: e.target.value })}
+                  placeholder={`Grundeinstellung: ${defaultStopDuration}`}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">Leer lassen = Grundeinstellung ({defaultStopDuration} Min.)</p>
               </div>
               <div><Label>Notizen</Label><Input value={form.notizen} onChange={(e) => setForm({ ...form, notizen: e.target.value })} /></div>
               <Button className="w-full" onClick={handleSave}>{editId ? "Speichern" : "Erstellen"}</Button>
