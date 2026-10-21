@@ -1211,6 +1211,7 @@ export type Database = {
           start_depot_id: string | null
           start_time: string
           status: Database["public"]["Enums"]["route_status"]
+          stop_duration_minutes: number | null
           total_distance_m: number | null
           total_duration_s: number | null
           updated_at: string
@@ -1230,6 +1231,7 @@ export type Database = {
           start_depot_id?: string | null
           start_time?: string
           status?: Database["public"]["Enums"]["route_status"]
+          stop_duration_minutes?: number | null
           total_distance_m?: number | null
           total_duration_s?: number | null
           updated_at?: string
@@ -1249,6 +1251,7 @@ export type Database = {
           start_depot_id?: string | null
           start_time?: string
           status?: Database["public"]["Enums"]["route_status"]
+          stop_duration_minutes?: number | null
           total_distance_m?: number | null
           total_duration_s?: number | null
           updated_at?: string

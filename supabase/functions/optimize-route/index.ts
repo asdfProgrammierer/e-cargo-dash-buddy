@@ -63,7 +63,8 @@ Deno.serve(async (req) => {
       .select("stop_duration_minutes")
       .eq("id", 1)
       .maybeSingle();
-    const stopDurationSec = ((settings?.stop_duration_minutes as number | undefined) ?? 4) * 60;
+    const routeStopMin = route.stop_duration_minutes as number | null | undefined;
+    const stopDurationSec = ((routeStopMin ?? (settings?.stop_duration_minutes as number | undefined)) ?? 4) * 60;
 
     // Resolve start/end depot (fallback: default depot)
     let startDepotId = route.start_depot_id as string | null;

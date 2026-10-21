@@ -26,6 +26,7 @@ interface RouteRow {
   total_distance_m: number | null; total_duration_s: number | null;
   geometry: GeoJSON.Geometry | null; optimized_at: string | null;
   start_time: string | null;
+  stop_duration_minutes?: number | null;
 }
 interface OrderRow {
   id: string; auftrags_nr: string; empfaenger_name: string; empfaenger_adresse: string | null;
@@ -300,7 +301,7 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
       .select("stop_duration_minutes")
       .eq("id", 1)
       .maybeSingle();
-    setStopDurationMin(settings?.stop_duration_minutes ?? 4);
+    setStopDurationMin(routeData?.stop_duration_minutes ?? settings?.stop_duration_minutes ?? 4);
     if (routeData?.vehicle_id) {
       const { data: v } = await supabase.from("vehicles").select("id, kennzeichen, kapazitaet_kg, typ").eq("id", routeData.vehicle_id).maybeSingle();
       setVehicle(v as Vehicle | null);
