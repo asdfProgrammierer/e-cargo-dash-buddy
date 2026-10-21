@@ -60,7 +60,8 @@ const DriverLoginPage = () => {
             <Input
               id="pin"
               type="password"
-              inputMode="text"
+              inputMode="numeric"
+              autoComplete="current-password"
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
