@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
 
     // Arbeitszeit-Session beenden
     try {
-      await userClient.rpc("driver_end_work_session", { _reason: "route_abgebrochen" });
+      await userClient.rpc("driver_end_work_session", { _reason: "manual" });
     } catch (e) {
       console.error("end work session failed", e);
     }
