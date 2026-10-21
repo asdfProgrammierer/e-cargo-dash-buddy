@@ -372,9 +372,19 @@ Deno.serve(async (req) => {
 
         const { data: routeRow } = await admin
           .from("routes")
-          .select("end_depot_id, start_depot_id")
+          .select("end_depot_id, start_depot_id, driver_id")
           .eq("id", stop.route_id)
           .maybeSingle();
+
+        // Arbeitszeit endet mit dem Abschluss des letzten Stopps.
+        if (routeRow?.driver_id) {
+          const { error: sessErr } = await admin
+            .from("driver_work_sessions")
+            .update({ ended_at: new Date().toISOString(), end_reason: "route_completed" })
+            .eq("driver_id", routeRow.driver_id)
+            .is("ended_at", null);
+          if (sessErr) console.error("end work session failed", sessErr);
+        }
 
         let depotId = routeRow?.end_depot_id ?? routeRow?.start_depot_id ?? null;
         if (!depotId) {
