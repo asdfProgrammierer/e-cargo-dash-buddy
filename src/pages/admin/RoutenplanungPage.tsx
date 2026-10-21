@@ -86,11 +86,17 @@ const RoutenplanungPage = () => {
   const selectedId = searchParams.get("route");
 
   const defaultDepotId = useMemo(() => depots.find((x) => x.is_default)?.id ?? depots[0]?.id ?? "", [depots]);
+  const [defaultStopDuration, setDefaultStopDuration] = useState<number>(4);
+  useEffect(() => {
+    supabase.from("route_settings").select("stop_duration_minutes").eq("id", 1).maybeSingle()
+      .then(({ data }) => { if (data) setDefaultStopDuration(data.stop_duration_minutes); });
+  }, []);
   const buildEmptyForm = (datum: string) => ({
     ...emptyForm,
     datum,
     start_depot_id: defaultDepotId,
     end_depot_id: defaultDepotId,
+    stop_duration: String(defaultStopDuration),
   });
 
   const load = async () => {
@@ -98,7 +104,7 @@ const RoutenplanungPage = () => {
       supabase
         .from("routes")
         .select(
-          "id, name, driver_id, vehicle_id, datum, start_time, status, notizen, start_depot_id, end_depot_id, drivers(id,name), vehicles(id,kennzeichen)"
+          "id, name, driver_id, vehicle_id, datum, start_time, status, notizen, start_depot_id, end_depot_id, stop_duration_minutes, drivers(id,name), vehicles(id,kennzeichen)"
         )
         .order("datum", { ascending: false }),
       supabase.from("drivers").select("id, name").eq("status", "aktiv"),
