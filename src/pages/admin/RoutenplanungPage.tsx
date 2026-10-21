@@ -233,7 +233,10 @@ const RoutenplanungPage = () => {
       datum: form.datum,
       start_time: form.start_time || "09:00",
       stop_duration_minutes: stopDur,
-...
+      notizen: form.notizen || null,
+      start_depot_id: startDepot,
+      end_depot_id: endDepot,
+    };
     if (editId) {
       const { error } = await supabase.from("routes").update(payload).eq("id", editId);
       if (error) { toast.error("Fehler beim Speichern"); return; }
