@@ -42,7 +42,7 @@ interface Route {
 
 const statusLabels: Record<string, string> = { geplant: "Geplant", aktiv: "Aktiv", abgeschlossen: "Abgeschlossen" };
 const statusVariant: Record<string, "default" | "secondary" | "outline"> = { geplant: "secondary", aktiv: "default", abgeschlossen: "outline" };
-const emptyForm = { name: "", driver_id: "", vehicle_id: "", start_depot_id: "", end_depot_id: "", datum: new Date().toISOString().slice(0, 10), start_time: "09:00", status: "geplant" as Route["status"], notizen: "" };
+const emptyForm = { name: "", driver_id: "", vehicle_id: "", start_depot_id: "", end_depot_id: "", datum: new Date().toISOString().slice(0, 10), start_time: "09:00", stop_duration: "", notizen: "" };
 
 const RoutenplanungPage = () => {
   const navigate = useNavigate();
