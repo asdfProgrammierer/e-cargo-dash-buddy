@@ -239,7 +239,7 @@ const RoutenplanungPage = () => {
       if (error) { toast.error("Fehler beim Speichern"); return; }
       toast.success("Route aktualisiert");
     } else {
-      const { data, error } = await supabase.from("routes").insert(payload).select().single();
+      const { data, error } = await supabase.from("routes").insert({ ...payload, status: "geplant" }).select().single();
       if (error) { toast.error("Fehler beim Erstellen"); return; }
       toast.success("Route erstellt");
       const newRoute = data as Route | null;
