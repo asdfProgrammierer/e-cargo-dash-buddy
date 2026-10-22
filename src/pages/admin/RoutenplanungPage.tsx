@@ -63,12 +63,18 @@ const RoutenplanungPage = () => {
   const { statuses: scheduleStatuses } = useScheduleStatuses();
   const scheduleLabel = (k?: string) => scheduleStatuses.find((x) => x.key === k)?.label ?? k ?? "";
   const onDuty = (k?: string) => !!scheduleStatuses.find((x) => x.key === k)?.is_duty;
+  const [dayStart, setDayStart] = useState<Record<string, string>>({});
   useEffect(() => {
     if (!open || !form.datum) return;
-    supabase.from("driver_schedules").select("driver_id, status").eq("datum", form.datum).then(({ data }) => {
+    supabase.from("driver_schedules").select("driver_id, status, start_time").eq("datum", form.datum).then(({ data }) => {
       const m: Record<string, string> = {};
-      (data ?? []).forEach((r: { driver_id: string; status: string }) => { m[r.driver_id] = r.status; });
+      const s: Record<string, string> = {};
+      (data ?? []).forEach((r: { driver_id: string; status: string; start_time: string | null }) => {
+        m[r.driver_id] = r.status;
+        if (r.start_time) s[r.driver_id] = r.start_time.slice(0, 5);
+      });
       setDaySchedule(m);
+      setDayStart(s);
     });
   }, [open, form.datum]);
   const [routeProgress, setRouteProgress] = useState<Record<string, { total: number; done: number }>>({});
@@ -414,7 +420,7 @@ const RoutenplanungPage = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Fahrer</Label>
-                  <Select value={form.driver_id} onValueChange={(v) => setForm({ ...form, driver_id: v })}>
+                  <Select value={form.driver_id} onValueChange={(v) => setForm({ ...form, driver_id: v, start_time: dayStart[v] ?? form.start_time })}>
                     <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
                     <SelectContent>
                       {[...drivers]
@@ -483,7 +489,7 @@ const RoutenplanungPage = () => {
                     >
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {["00", "15", "30", "45"].map((m) => (
+                        {Array.from(new Set(["00", "15", "30", "45", (form.start_time || "09:00").split(":")[1] ?? "00"])).sort().map((m) => (
                           <SelectItem key={m} value={m}>{m}</SelectItem>
                         ))}
                       </SelectContent>
