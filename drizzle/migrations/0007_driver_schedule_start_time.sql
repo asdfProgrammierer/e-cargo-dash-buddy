@@ -1,0 +1,2 @@
+ALTER TABLE public.driver_schedules ADD COLUMN start_time time without time zone;
+COMMENT ON COLUMN public.driver_schedules.start_time IS 'Optional planned duty start time in local Europe/Berlin wall-clock time; not an actual work-session start.';

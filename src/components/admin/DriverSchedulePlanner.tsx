@@ -10,9 +10,10 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { SCHEDULE_STATUSES, type ScheduleStatus } from "@/lib/driverSchedule";
+import { scheduleDates, scheduleStartTime } from "@/lib/driverScheduleDates";
 
 interface Driver { id: string; name: string }
-interface Entry { driver_id: string; datum: string; status: ScheduleStatus; notiz: string | null }
+interface Entry { driver_id: string; datum: string; status: ScheduleStatus; notiz: string | null; start_time: string | null }
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 interface DayStat { routes: number; stops: number; done: number; km: number; sec: number }
@@ -23,7 +24,7 @@ const hm = (sec: number) => roundUpQuarterHours(sec).toLocaleString("de-DE", { m
 export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [entries, setEntries] = useState<Record<string, Entry>>({});
-  const [edit, setEdit] = useState<{ driverId: string; from: string; to: string; status: ScheduleStatus | "leer"; notiz: string; weekdays?: number[] } | null>(null);
+  const [edit, setEdit] = useState<{ driverId: string; from: string; to: string; status: ScheduleStatus | "leer"; notiz: string; startTime: string; weekdays?: number[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [stats, setStats] = useState<Record<string, DayStat>>({});
   const [monthSec, setMonthSec] = useState<Record<string, number>>({});
@@ -35,7 +36,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
 
   const load = async () => {
     const { data, error } = await supabase.from("driver_schedules")
-      .select("driver_id, datum, status, notiz")
+      .select("driver_id, datum, status, notiz, start_time")
       .gte("datum", ymd(days[0])).lte("datum", ymd(days[days.length - 1]));
     if (error) { toast.error("Plan konnte nicht geladen werden"); return; }
     const map: Record<string, Entry> = {};
@@ -93,30 +94,41 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
 
   const open = (driverId: string, datum: string) => {
     const e = entries[`${driverId}_${datum}`];
-    setEdit({ driverId, from: datum, to: datum, status: e?.status ?? "dienst", notiz: e?.notiz ?? "" });
+    setEdit({ driverId, from: datum, to: datum, status: e?.status ?? "dienst", notiz: e?.notiz ?? "", startTime: e?.start_time?.slice(0, 5) ?? "" });
   };
 
   const save = async () => {
-    if (!edit) return;
-    if (edit.to < edit.from) { toast.error("Enddatum liegt vor Startdatum"); return; }
-    const dates: string[] = [];
-    const wd = edit.weekdays ?? [];
-    for (let d = new Date(edit.from + "T12:00:00"); ymd(d) <= edit.to; d.setDate(d.getDate() + 1)) {
-      if (wd.length === 0 || wd.includes(d.getDay())) dates.push(ymd(d));
+    if (!edit || busy) return;
+    let dates: string[];
+    let startTime: string | null;
+    try {
+      dates = scheduleDates(edit.from, edit.to, edit.weekdays);
+      startTime = edit.status === "leer" ? null : scheduleStartTime(edit.startTime);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Bitte Eingaben prüfen.");
+      return;
     }
-    if (!dates.length) { toast.error("Im Zeitraum liegt keiner der gewählten Wochentage"); return; }
-    if (dates.length > 366) { toast.error("Maximal ein Jahr auf einmal"); return; }
     setBusy(true);
+    try {
     const { error } = edit.status === "leer"
       ? await supabase.from("driver_schedules").delete().eq("driver_id", edit.driverId).in("datum", dates)
       : await supabase.from("driver_schedules").upsert(
-          dates.map((datum) => ({ driver_id: edit.driverId, datum, status: edit.status, notiz: edit.notiz.trim() || null })),
+          dates.map((datum) => ({ driver_id: edit.driverId, datum, status: edit.status, notiz: edit.notiz.trim() || null, start_time: startTime })),
           { onConflict: "driver_id,datum" });
-    setBusy(false);
-    if (error) { toast.error("Speichern fehlgeschlagen: " + error.message); return; }
+    if (error) throw error;
     toast.success("Plan gespeichert");
     setEdit(null);
-    load();
+    const savedMonth = new Date(`${dates[0]}T12:00:00`);
+    if (savedMonth.getMonth() !== month.getMonth() || savedMonth.getFullYear() !== month.getFullYear()) {
+      setMonth(new Date(savedMonth.getFullYear(), savedMonth.getMonth(), 1));
+    } else {
+      await load();
+    }
+    } catch (error) {
+      toast.error("Speichern fehlgeschlagen: " + (error instanceof Error ? error.message : (error as { message?: string })?.message ?? "Unbekannter Fehler"));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const today = ymd(new Date());
@@ -125,7 +137,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
   const printPlan = () => {
     const w = window.open("", "_blank");
     if (!w) { toast.error("Pop-up wurde blockiert"); return; }
-    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] ?? c));
     const head = drivers.map((d) => `<th>${esc(d.name)}</th>`).join("");
     const rows = days.map((d) => {
       const we = d.getDay() === 0 || d.getDay() === 6;
@@ -167,7 +179,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
         </div>
         <div className="flex gap-2">
         <Button size="sm" variant="outline" disabled={!drivers.length} onClick={printPlan}><Printer className="h-4 w-4 mr-1" /> Drucken</Button>
-        <Button size="sm" disabled={!drivers.length} onClick={() => drivers[0] && setEdit({ driverId: drivers[0].id, from: today, to: today, status: "urlaub", notiz: "" })}>
+        <Button size="sm" disabled={!drivers.length} onClick={() => drivers[0] && setEdit({ driverId: drivers[0].id, from: ymd(days[0]), to: ymd(days[days.length - 1]), status: "dienst", notiz: "", startTime: "" })}>
           <CalendarRange className="h-4 w-4 mr-1" /> Zeitraum eintragen
         </Button>
         </div>
@@ -213,23 +225,25 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
                     return (
                       <td key={key} className={cn("border-b border-l p-0.5", we && "bg-muted/50")}>
                         {(() => { const st = stats[`${dr.id}_${key}`]; const btn = (
-                        <button
+                        <Button variant="ghost"
                           onClick={() => open(dr.id, key)}
-                          title={st ? undefined : meta ? `${meta.label}${e?.notiz ? ` – ${e.notiz}` : ""}` : "Eintragen"}
-                          className={cn("h-7 w-7 rounded-sm text-[10px] font-semibold hover:ring-2 hover:ring-ring", meta?.cls ?? "hover:bg-accent")}
+                          aria-label={`${dr.name}, ${d.toLocaleDateString("de-DE")}`}
+                          className={cn("relative h-7 w-7 p-0 rounded-sm text-[10px] font-semibold hover:ring-2 hover:ring-ring", meta?.cls ?? "hover:bg-accent")}
                         >
                           {meta?.short ?? (st ? "•" : "")}
-                        </button>);
-                          if (!st) return btn;
+                          {e?.notiz && <span className="absolute top-0.5 right-0.5 h-1 w-1 rounded-full bg-current" />}
+                        </Button>);
+                          if (!st && !e) return btn;
                           return (
                             <Tooltip delayDuration={100}>
                               <TooltipTrigger asChild>{btn}</TooltipTrigger>
                               <TooltipContent className="text-xs space-y-0.5">
                                 <div className="font-semibold">{d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })} · {dr.name}</div>
                                 {meta && <div>{meta.label}{e?.notiz ? ` – ${e.notiz}` : ""}</div>}
-                                {st.routes > 0 && <div>{st.stops} Stopps ({st.done} zugestellt){st.routes > 1 ? ` · ${st.routes} Routen` : ""}</div>}
-                                {st.km > 0 && <div>{st.km.toLocaleString("de-DE", { maximumFractionDigits: 1 })} km</div>}
-                                <div>Arbeitszeit: {st.sec > 0 ? `${hm(st.sec)} h` : "—"}</div>
+                                {e?.start_time && <div>Startzeit: {e.start_time.slice(0, 5)} Uhr</div>}
+                                {st && st.routes > 0 && <div>{st.stops} Stopps ({st.done} zugestellt){st.routes > 1 ? ` · ${st.routes} Routen` : ""}</div>}
+                                {st && st.km > 0 && <div>{st.km.toLocaleString("de-DE", { maximumFractionDigits: 1 })} km</div>}
+                                {st && <div>Arbeitszeit: {st.sec > 0 ? `${hm(st.sec)} h` : "—"}</div>}
                               </TooltipContent>
                             </Tooltip>
                           ); })()}
@@ -255,11 +269,11 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
       </div></TooltipProvider>
       {!drivers.length && <p className="text-sm text-muted-foreground">Keine aktiven Fahrer vorhanden.</p>}
 
-      <Dialog open={!!edit} onOpenChange={(v) => !v && setEdit(null)}>
+      <Dialog open={!!edit} onOpenChange={(v) => !v && !busy && setEdit(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Verfügbarkeit eintragen</DialogTitle></DialogHeader>
           {edit && (
-            <div className="space-y-3">
+            <fieldset disabled={busy} className="space-y-3">
               <div>
                 <Label>Fahrer</Label>
                 <Select value={edit.driverId} onValueChange={(v) => setEdit({ ...edit, driverId: v })}>
@@ -268,8 +282,8 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
                 </Select>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><Label>Von</Label><Input type="date" value={edit.from} onChange={(e) => setEdit({ ...edit, from: e.target.value, to: e.target.value > edit.to ? e.target.value : edit.to })} /></div>
-                <div><Label>Bis</Label><Input type="date" value={edit.to} min={edit.from} onChange={(e) => setEdit({ ...edit, to: e.target.value })} /></div>
+                <div><Label htmlFor="schedule-from">Von</Label><Input id="schedule-from" type="date" value={edit.from} onChange={(e) => setEdit({ ...edit, from: e.target.value })} /></div>
+                <div><Label htmlFor="schedule-to">Bis</Label><Input id="schedule-to" type="date" value={edit.to} onChange={(e) => setEdit({ ...edit, to: e.target.value })} /></div>
               </div>
               <div>
                 <Label>Nur an diesen Wochentagen (optional)</Label>
@@ -297,10 +311,13 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
                 </Select>
               </div>
               {edit.status !== "leer" && (
-                <div><Label>Notiz (optional)</Label><Input value={edit.notiz} onChange={(e) => setEdit({ ...edit, notiz: e.target.value })} placeholder="z. B. ab 12 Uhr" /></div>
+                <>
+                  <div><Label htmlFor="schedule-start">Startzeit (optional)</Label><Input id="schedule-start" type="time" value={edit.startTime} onChange={(e) => setEdit({ ...edit, startTime: e.target.value })} /></div>
+                  <div><Label htmlFor="schedule-note">Notiz (optional)</Label><Input id="schedule-note" value={edit.notiz} onChange={(e) => setEdit({ ...edit, notiz: e.target.value })} placeholder="z. B. Treffpunkt am Depot" /></div>
+                </>
               )}
               <Button className="w-full" onClick={save} disabled={busy}>Speichern</Button>
-            </div>
+            </fieldset>
           )}
         </DialogContent>
       </Dialog>
