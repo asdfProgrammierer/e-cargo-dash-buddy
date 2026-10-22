@@ -16,7 +16,9 @@ interface Entry { driver_id: string; datum: string; status: ScheduleStatus; noti
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 interface DayStat { routes: number; stops: number; done: number; km: number; sec: number }
-const hm = (sec: number) => { const m = Math.round(sec / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`; };
+/** Rundet auf die nächste Viertelstunde auf und gibt Dezimalstunden aus (z. B. 3,75). */
+export const roundUpQuarterHours = (sec: number) => (sec <= 0 ? 0 : Math.ceil(sec / 900) / 4);
+const hm = (sec: number) => roundUpQuarterHours(sec).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
@@ -50,7 +52,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
     const [{ data: routes }, { data: sessions }] = await Promise.all([
       supabase.from("routes").select("id, driver_id, datum, total_distance_m, route_stops(status)")
         .gte("datum", from).lte("datum", to).not("driver_id", "is", null),
-      supabase.from("driver_work_sessions").select("driver_id, route_id, started_at, ended_at")
+      supabase.from("driver_work_sessions").select("driver_id, route_id, started_at, ended_at, end_reason")
         .gte("started_at", start.toISOString()).lt("started_at", end.toISOString()),
     ]);
     const map: Record<string, DayStat> = {};
@@ -63,12 +65,18 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
     }
     const monthly: Record<string, number> = {};
     for (const w of (sessions ?? []) as any[]) {
+      if (w.end_reason === "auto_depot") continue; // altes Verfahren (Depot-Rückkehr)
       const st = new Date(w.started_at);
       const sec = Math.max(0, ((w.ended_at ? new Date(w.ended_at).getTime() : Date.now()) - st.getTime()) / 1000);
       const day = st.toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
       if (day < from || day > to) continue;
       get(`${w.driver_id}_${day}`).sec += sec;
-      monthly[w.driver_id] = (monthly[w.driver_id] ?? 0) + sec;
+    }
+    // Monatssumme = Summe der pro Tag aufgerundeten Zeiten
+    for (const [k, v] of Object.entries(map)) {
+      if (v.sec <= 0) continue;
+      const id = k.slice(0, k.lastIndexOf("_"));
+      monthly[id] = (monthly[id] ?? 0) + Math.ceil(v.sec / 900) * 900;
     }
     setStats(map); setMonthSec(monthly);
   };
@@ -207,7 +215,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
                                 {meta && <div>{meta.label}{e?.notiz ? ` – ${e.notiz}` : ""}</div>}
                                 {st.routes > 0 && <div>{st.stops} Stopps ({st.done} zugestellt){st.routes > 1 ? ` · ${st.routes} Routen` : ""}</div>}
                                 {st.km > 0 && <div>{st.km.toLocaleString("de-DE", { maximumFractionDigits: 1 })} km</div>}
-                                <div>Arbeitszeit: {st.sec > 0 ? `${hm(st.sec)} Std.` : "—"}</div>
+                                <div>Arbeitszeit: {st.sec > 0 ? `${hm(st.sec)} h` : "—"}</div>
                               </TooltipContent>
                             </Tooltip>
                           ); })()}
@@ -215,7 +223,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
                     );
                   })}
                   <td className="sticky right-0 z-10 bg-card p-2 text-right border-b border-l font-semibold tabular-nums">
-                    {monthSec[dr.id] ? `${hm(monthSec[dr.id])} Std.` : <span className="text-muted-foreground font-normal">—</span>}
+                    {monthSec[dr.id] ? `${hm(monthSec[dr.id])} h` : <span className="text-muted-foreground font-normal">—</span>}
                   </td>
                 </tr>
               );
@@ -226,7 +234,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
                 const n = drivers.filter((dr) => entries[`${dr.id}_${ymd(d)}`]?.status === "dienst").length;
                 return <td key={ymd(d)} className={cn("text-center font-semibold border-l", n === 0 ? "text-destructive" : "text-primary")}>{n}</td>;
               })}
-              <td className="sticky right-0 z-10 bg-card p-2 text-right border-l font-semibold tabular-nums">{hm(Object.values(monthSec).reduce((a, b) => a + b, 0))} Std.</td>
+              <td className="sticky right-0 z-10 bg-card p-2 text-right border-l font-semibold tabular-nums">{hm(Object.values(monthSec).reduce((a, b) => a + b, 0))} h</td>
             </tr>
           </tbody>
         </table>
