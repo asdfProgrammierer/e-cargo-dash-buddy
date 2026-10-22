@@ -24,7 +24,7 @@ const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, __override
         <Text style={text}>
           {pick(
             o?.intro,
-            `es tut uns sehr leid: Ihre Sendung von ${haendlerName ?? 'unserem Händler'} kann heute leider nicht mehr zugestellt werden. Unsere Tour musste aus einem unvorhergesehenen Grund vorzeitig beendet werden.`,
+            'Aufgrund des hohen Paket- und Verkehrsaufkommens schaffen wir es heute leider nicht, Ihr Paket zuzustellen. Wir bitten um Entschuldigung.',
             'intro',
           )}
         </Text>
@@ -47,7 +47,7 @@ const Email = ({ kundenname, haendlerName, auftragsNr, lieferadresse, __override
           </div>
         ) : null}
         <Text style={text}>{pick(o?.outro, 'Vielen Dank für Ihr Verständnis.', 'outro')}</Text>
-        <Text style={footer}>{pickText(o?.footer, 'e-cargo – nachhaltige Logistik im Ruhrgebiet')}</Text>
+        <Text style={footer}>{pickText(o?.footer, 'Ihr e-cargo-Team – 100% elektrische Logistik aus Bochum')}</Text>
       </Container>
     </Body>
   </Html>
