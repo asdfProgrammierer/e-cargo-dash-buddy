@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChevronLeft, ChevronRight, CalendarRange, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { SCHEDULE_STATUSES, type ScheduleStatus } from "@/lib/driverSchedule";
 
 interface Driver { id: string; name: string }
@@ -156,7 +157,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
         ))}
       </div>
 
-      <div className="rounded-lg border overflow-x-auto">
+      <TooltipProvider><div className="rounded-lg border overflow-x-auto">
         <table className="text-xs border-collapse">
           <thead>
             <tr>
@@ -170,6 +171,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
                   </th>
                 );
               })}
+              <th className="sticky right-0 z-10 bg-card p-2 text-right min-w-24 border-b border-l">Arbeitszeit<div className="font-normal text-muted-foreground">Monat</div></th>
             </tr>
           </thead>
           <tbody>
@@ -188,16 +190,33 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
                     const we = d.getDay() === 0 || d.getDay() === 6;
                     return (
                       <td key={key} className={cn("border-b border-l p-0.5", we && "bg-muted/50")}>
+                        {(() => { const st = stats[`${dr.id}_${key}`]; const btn = (
                         <button
                           onClick={() => open(dr.id, key)}
-                          title={meta ? `${meta.label}${e?.notiz ? ` – ${e.notiz}` : ""}` : "Eintragen"}
+                          title={st ? undefined : meta ? `${meta.label}${e?.notiz ? ` – ${e.notiz}` : ""}` : "Eintragen"}
                           className={cn("h-7 w-7 rounded-sm text-[10px] font-semibold hover:ring-2 hover:ring-ring", meta?.cls ?? "hover:bg-accent")}
                         >
-                          {meta?.short ?? ""}
-                        </button>
+                          {meta?.short ?? (st ? "•" : "")}
+                        </button>);
+                          if (!st) return btn;
+                          return (
+                            <Tooltip delayDuration={100}>
+                              <TooltipTrigger asChild>{btn}</TooltipTrigger>
+                              <TooltipContent className="text-xs space-y-0.5">
+                                <div className="font-semibold">{d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })} · {dr.name}</div>
+                                {meta && <div>{meta.label}{e?.notiz ? ` – ${e.notiz}` : ""}</div>}
+                                {st.routes > 0 && <div>{st.stops} Stopps ({st.done} zugestellt){st.routes > 1 ? ` · ${st.routes} Routen` : ""}</div>}
+                                {st.km > 0 && <div>{st.km.toLocaleString("de-DE", { maximumFractionDigits: 1 })} km</div>}
+                                <div>Arbeitszeit: {st.sec > 0 ? `${hm(st.sec)} Std.` : "—"}</div>
+                              </TooltipContent>
+                            </Tooltip>
+                          ); })()}
                       </td>
                     );
                   })}
+                  <td className="sticky right-0 z-10 bg-card p-2 text-right border-b border-l font-semibold tabular-nums">
+                    {monthSec[dr.id] ? `${hm(monthSec[dr.id])} Std.` : <span className="text-muted-foreground font-normal">—</span>}
+                  </td>
                 </tr>
               );
             })}
@@ -207,10 +226,11 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
                 const n = drivers.filter((dr) => entries[`${dr.id}_${ymd(d)}`]?.status === "dienst").length;
                 return <td key={ymd(d)} className={cn("text-center font-semibold border-l", n === 0 ? "text-destructive" : "text-primary")}>{n}</td>;
               })}
+              <td className="sticky right-0 z-10 bg-card p-2 text-right border-l font-semibold tabular-nums">{hm(Object.values(monthSec).reduce((a, b) => a + b, 0))} Std.</td>
             </tr>
           </tbody>
         </table>
-      </div>
+      </div></TooltipProvider>
       {!drivers.length && <p className="text-sm text-muted-foreground">Keine aktiven Fahrer vorhanden.</p>}
 
       <Dialog open={!!edit} onOpenChange={(v) => !v && setEdit(null)}>
