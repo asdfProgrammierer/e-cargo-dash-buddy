@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { scheduleLabel } from "@/lib/driverSchedule";
+import { useScheduleStatuses } from "@/lib/driverSchedule";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -60,6 +60,9 @@ const RoutenplanungPage = () => {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [refreshKey, setRefreshKey] = useState(0);
   const [daySchedule, setDaySchedule] = useState<Record<string, string>>({});
+  const { statuses: scheduleStatuses } = useScheduleStatuses();
+  const scheduleLabel = (k?: string) => scheduleStatuses.find((x) => x.key === k)?.label ?? k ?? "";
+  const onDuty = (k?: string) => !!scheduleStatuses.find((x) => x.key === k)?.is_duty;
   useEffect(() => {
     if (!open || !form.datum) return;
     supabase.from("driver_schedules").select("driver_id, status").eq("datum", form.datum).then(({ data }) => {
@@ -415,16 +418,16 @@ const RoutenplanungPage = () => {
                     <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
                     <SelectContent>
                       {[...drivers]
-                        .sort((a, b) => Number(daySchedule[b.id] === "dienst") - Number(daySchedule[a.id] === "dienst"))
+                        .sort((a, b) => Number(onDuty(daySchedule[b.id])) - Number(onDuty(daySchedule[a.id])))
                         .map((d) => {
                           const s = daySchedule[d.id];
-                          const prefix = s === "dienst" ? "● " : s ? "⚠ " : "";
-                          const suffix = s && s !== "dienst" ? ` (${scheduleLabel(s)})` : "";
+                          const prefix = onDuty(s) ? "● " : s ? "⚠ " : "";
+                          const suffix = s ? ` (${scheduleLabel(s)})` : "";
                           return <SelectItem key={d.id} value={d.id}>{prefix}{d.name}{suffix}</SelectItem>;
                         })}
                     </SelectContent>
                   </Select>
-                  {form.driver_id && daySchedule[form.driver_id] && daySchedule[form.driver_id] !== "dienst" && (
+                  {form.driver_id && daySchedule[form.driver_id] && !onDuty(daySchedule[form.driver_id]) && (
                     <p className="text-xs text-destructive mt-1">⚠ Laut Einsatzplan an diesem Tag: {scheduleLabel(daySchedule[form.driver_id])}</p>
                   )}
                 </div>

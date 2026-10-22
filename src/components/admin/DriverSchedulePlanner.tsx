@@ -9,7 +9,7 @@ import { ChevronLeft, ChevronRight, CalendarRange, Printer } from "lucide-react"
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { SCHEDULE_STATUSES, type ScheduleStatus } from "@/lib/driverSchedule";
+import { colorOf, useScheduleStatuses, type ScheduleStatus } from "@/lib/driverSchedule";
 import { scheduleDates, scheduleStartTime } from "@/lib/driverScheduleDates";
 
 interface Driver { id: string; name: string }
@@ -29,12 +29,13 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
   const [stats, setStats] = useState<Record<string, DayStat>>({});
   const [monthSec, setMonthSec] = useState<Record<string, number>>({});
   const [defaultStart, setDefaultStart] = useState("");
-  const [enabled, setEnabled] = useState<string[]>(SCHEDULE_STATUSES.map((s) => s.key));
+  const { statuses } = useScheduleStatuses();
+  const metaOf = (k?: string) => statuses.find((s) => s.key === k);
+  const isDuty = (k?: string) => !!metaOf(k)?.is_duty;
+  const firstStatus = () => statuses.find((s) => s.active)?.key ?? "leer";
   useEffect(() => {
-    supabase.from("driver_schedule_settings").select("default_start_time, enabled_statuses").eq("id", 1).maybeSingle().then(({ data }) => {
-      if (!data) return;
-      setDefaultStart(data.default_start_time?.slice(0, 5) ?? "");
-      setEnabled(data.enabled_statuses ?? []);
+    supabase.from("driver_schedule_settings").select("default_start_time").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data) setDefaultStart(data.default_start_time?.slice(0, 5) ?? "");
     });
   }, []);
 
@@ -103,7 +104,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
 
   const open = (driverId: string, datum: string) => {
     const e = entries[`${driverId}_${datum}`];
-    setEdit({ driverId, from: datum, to: datum, status: e?.status ?? "dienst", notiz: e?.notiz ?? "", startTime: e ? (e.start_time?.slice(0, 5) ?? "") : defaultStart });
+    setEdit({ driverId, from: datum, to: datum, status: e?.status ?? firstStatus(), notiz: e?.notiz ?? "", startTime: e ? (e.start_time?.slice(0, 5) ?? "") : defaultStart });
   };
 
   const save = async () => {
@@ -152,8 +153,9 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
       const we = d.getDay() === 0 || d.getDay() === 6;
       const cells = drivers.map((dr) => {
         const e = entries[`${dr.id}_${ymd(d)}`];
-        const meta = e && SCHEDULE_STATUSES.find((s) => s.key === e.status);
-        return `<td class="${e?.status ?? ""}">${meta ? esc(meta.label) : ""}${e?.notiz ? `<div class="n">${esc(e.notiz)}</div>` : ""}</td>`;
+        const meta = e && metaOf(e.status);
+        const c = meta && colorOf(meta.color);
+        return `<td style="${c ? `background:${c.bg};color:${c.fg};font-weight:600` : ""}">${meta ? esc(meta.label) : ""}${e?.notiz ? `<div class="n">${esc(e.notiz)}</div>` : ""}</td>`;
       }).join("");
       return `<tr class="${we ? "we" : ""}"><th class="d">${d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })}</th>${cells}</tr>`;
     }).join("");
@@ -166,11 +168,6 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
       th, td { border: 1px solid #999; padding: 2px 4px; text-align: center; height: 17px; }
       th.d { text-align: left; width: 70px; white-space: nowrap; }
       tr.we { background: #eee; }
-      td.dienst { background: #cdebd6; font-weight: 600; }
-      td.frei { background: #f8a30d; color: #fff; font-weight: 600; }
-      td.urlaub { background: #e57070; color: #fff; }
-      td.krank { background: #d92f2f; color: #fff; font-weight: 600; }
-      td.nicht_verfuegbar { background: #f7d2d2; color: #8a1c1c; }
       .n { font-size: 8px; color: #444; }
     </style></head><body><h1>e-cargo Einsatzplan – ${esc(monthLabel)}</h1>
     <table><thead><tr><th class="d">Datum</th>${head}</tr></thead><tbody>${rows}</tbody></table>
@@ -188,15 +185,15 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
         </div>
         <div className="flex gap-2">
         <Button size="sm" variant="outline" disabled={!drivers.length} onClick={printPlan}><Printer className="h-4 w-4 mr-1" /> Drucken</Button>
-        <Button size="sm" disabled={!drivers.length} onClick={() => drivers[0] && setEdit({ driverId: drivers[0].id, from: ymd(days[0]), to: ymd(days[days.length - 1]), status: "dienst", notiz: "", startTime: defaultStart })}>
+        <Button size="sm" disabled={!drivers.length} onClick={() => drivers[0] && setEdit({ driverId: drivers[0].id, from: ymd(days[0]), to: ymd(days[days.length - 1]), status: firstStatus(), notiz: "", startTime: defaultStart })}>
           <CalendarRange className="h-4 w-4 mr-1" /> Zeitraum eintragen
         </Button>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-3 text-xs">
-        {SCHEDULE_STATUSES.map((s) => (
-          <span key={s.key} className="flex items-center gap-1"><span className={cn("h-3 w-3 rounded-sm", s.cls)} />{s.label}</span>
+        {statuses.filter((s) => s.active).map((s) => (
+          <span key={s.key} className="flex items-center gap-1"><span className={cn("h-3 w-3 rounded-sm", colorOf(s.color).cls)} />{s.label}</span>
         ))}
       </div>
 
@@ -219,7 +216,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
           </thead>
           <tbody>
             {drivers.map((dr) => {
-              const count = days.filter((d) => entries[`${dr.id}_${ymd(d)}`]?.status === "dienst").length;
+              const count = days.filter((d) => isDuty(entries[`${dr.id}_${ymd(d)}`]?.status)).length;
               return (
                 <tr key={dr.id}>
                   <td className="sticky left-0 z-10 bg-card p-2 border-b">
@@ -229,7 +226,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
                   {days.map((d) => {
                     const key = ymd(d);
                     const e = entries[`${dr.id}_${key}`];
-                    const meta = e && SCHEDULE_STATUSES.find((s) => s.key === e.status);
+                    const meta = e && metaOf(e.status);
                     const we = d.getDay() === 0 || d.getDay() === 6;
                     return (
                       <td key={key} className={cn("border-b border-l p-0.5", we && "bg-muted/50")}>
@@ -237,7 +234,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
                         <Button variant="ghost"
                           onClick={() => open(dr.id, key)}
                           aria-label={`${dr.name}, ${d.toLocaleDateString("de-DE")}`}
-                          className={cn("relative h-7 w-7 p-0 rounded-sm text-[10px] font-semibold hover:ring-2 hover:ring-ring", meta?.cls ?? "hover:bg-accent")}
+                          className={cn("relative h-7 w-7 p-0 rounded-sm text-[10px] font-semibold hover:ring-2 hover:ring-ring", meta ? colorOf(meta.color).cls : "hover:bg-accent")}
                         >
                           {meta?.short ?? (st ? "•" : "")}
                           {e?.notiz && <span className="absolute top-0.5 right-0.5 h-1 w-1 rounded-full bg-current" />}
@@ -268,7 +265,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
             <tr>
               <td className="sticky left-0 z-10 bg-card p-2 font-semibold">Verfügbar</td>
               {days.map((d) => {
-                const n = drivers.filter((dr) => entries[`${dr.id}_${ymd(d)}`]?.status === "dienst").length;
+                const n = drivers.filter((dr) => isDuty(entries[`${dr.id}_${ymd(d)}`]?.status)).length;
                 return <td key={ymd(d)} className={cn("text-center font-semibold border-l", n === 0 ? "text-destructive" : "text-primary")}>{n}</td>;
               })}
               <td className="sticky right-0 z-10 bg-card p-2 text-right border-l font-semibold tabular-nums">{hm(Object.values(monthSec).reduce((a, b) => a + b, 0))} h</td>
@@ -314,7 +311,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
                 <Select value={edit.status} onValueChange={(v) => setEdit({ ...edit, status: v as ScheduleStatus | "leer" })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {SCHEDULE_STATUSES.filter((s) => s.key === "dienst" || s.key === edit.status || enabled.includes(s.key)).map((s) => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
+                    {statuses.filter((s) => s.active || s.key === edit.status).map((s) => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
                     <SelectItem value="leer">Eintrag entfernen</SelectItem>
                   </SelectContent>
                 </Select>

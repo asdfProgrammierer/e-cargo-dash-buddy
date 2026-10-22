@@ -1,11 +1,46 @@
-export type ScheduleStatus = "dienst" | "frei" | "urlaub" | "krank" | "nicht_verfuegbar";
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
-export const SCHEDULE_STATUSES: { key: ScheduleStatus; label: string; short: string; cls: string }[] = [
-  { key: "dienst", label: "Dienst", short: "D", cls: "bg-primary text-primary-foreground" },
-  { key: "frei", label: "Frei", short: "F", cls: "bg-warning text-warning-foreground" },
-  { key: "urlaub", label: "Urlaub", short: "U", cls: "bg-destructive/70 text-destructive-foreground" },
-  { key: "krank", label: "Krank", short: "K", cls: "bg-destructive text-destructive-foreground" },
-  { key: "nicht_verfuegbar", label: "Nicht verfügbar", short: "N", cls: "bg-destructive/20 text-destructive ring-1 ring-inset ring-destructive/40" },
-];
+export type ScheduleStatus = string;
 
-export const scheduleLabel = (s?: string | null) => SCHEDULE_STATUSES.find((x) => x.key === s)?.label ?? null;
+export interface ScheduleStatusDef {
+  key: string;
+  label: string;
+  short: string;
+  color: string;
+  is_duty: boolean;
+  active: boolean;
+  sort_order: number;
+}
+
+/** Farbvorlagen: Klasse für die App, Hex-Werte für die Druckansicht. */
+export const SCHEDULE_COLORS: Record<string, { label: string; cls: string; bg: string; fg: string }> = {
+  gruen: { label: "Grün", cls: "bg-primary text-primary-foreground", bg: "#2f8f5b", fg: "#fff" },
+  gruen_dunkel: { label: "Dunkelgrün", cls: "bg-primary/80 text-primary-foreground ring-1 ring-inset ring-foreground/30", bg: "#1f6b42", fg: "#fff" },
+  gruen_hell: { label: "Hellgrün", cls: "bg-primary/30 text-foreground", bg: "#cdebd6", fg: "#123" },
+  blau: { label: "Blau", cls: "bg-accent text-accent-foreground ring-1 ring-inset ring-border", bg: "#d6e4f5", fg: "#123" },
+  gelb: { label: "Orange", cls: "bg-warning text-warning-foreground", bg: "#f8a30d", fg: "#fff" },
+  grau: { label: "Grau", cls: "bg-muted-foreground/40 text-foreground", bg: "#c4c4c4", fg: "#222" },
+  rot_mittel: { label: "Mittelrot", cls: "bg-destructive/70 text-destructive-foreground", bg: "#e57070", fg: "#fff" },
+  rot: { label: "Rot", cls: "bg-destructive text-destructive-foreground", bg: "#d92f2f", fg: "#fff" },
+  rot_hell: { label: "Hellrot", cls: "bg-destructive/20 text-destructive ring-1 ring-inset ring-destructive/40", bg: "#f7d2d2", fg: "#8a1c1c" },
+};
+
+export const colorOf = (c?: string) => SCHEDULE_COLORS[c ?? ""] ?? SCHEDULE_COLORS.grau;
+
+/** Macht aus einem Namen einen stabilen Schlüssel (z. B. „Bochum bringt´s" → bochum_bringt_s). */
+export function statusKeyFromLabel(label: string): string {
+  const k = label.toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+    .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  return k || `status_${Date.now()}`;
+}
+
+export function useScheduleStatuses() {
+  const [statuses, setStatuses] = useState<ScheduleStatusDef[]>([]);
+  const reload = useCallback(async () => {
+    const { data } = await supabase.from("driver_schedule_statuses").select("key,label,short,color,is_duty,active,sort_order").order("sort_order");
+    setStatuses((data as ScheduleStatusDef[]) ?? []);
+  }, []);
+  useEffect(() => { reload(); }, [reload]);
+  return { statuses, reload };
+}
