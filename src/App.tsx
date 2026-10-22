@@ -27,7 +27,6 @@ const FahrzeugePage = lazy(() => import("./pages/admin/FahrzeugePage"));
 const FahrzeugDetailPage = lazy(() => import("./pages/admin/FahrzeugDetailPage"));
 const RoutenplanungPage = lazy(() => import("./pages/admin/RoutenplanungPage"));
 const RouteDetailPage = lazy(() => import("./pages/admin/RouteDetailPage"));
-const RouteDruckPage = lazy(() => import("./pages/admin/RouteDruckPage"));
 const DeliveryZonesPage = lazy(() => import("./pages/admin/DeliveryZonesPage"));
 const DepotsPage = lazy(() => import("./pages/admin/DepotsPage"));
 const RouteSettingsPage = lazy(() => import("./pages/admin/RouteSettingsPage"));
@@ -154,7 +153,6 @@ const AppRoutes = () => (
     <Route path="/admin/fahrzeuge/:id" element={<AdminRoute><FahrzeugDetailPage /></AdminRoute>} />
     <Route path="/admin/routen" element={<AdminRoute><RoutenplanungPage /></AdminRoute>} />
     <Route path="/admin/routen/:id" element={<AdminRoute><RouteDetailPage /></AdminRoute>} />
-    <Route path="/admin/routen/:id/druck" element={<AdminRoute><RouteDruckPage /></AdminRoute>} />
     <Route path="/admin/einstellungen" element={<Navigate to="/admin/einstellungen/liefergebiet" replace />} />
     <Route path="/admin/einstellungen/liefergebiet" element={<AdminRoute><DeliveryZonesPage /></AdminRoute>} />
     <Route path="/admin/einstellungen/depots" element={<AdminRoute><DepotsPage /></AdminRoute>} />

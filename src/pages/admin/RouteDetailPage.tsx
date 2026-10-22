@@ -1,13 +1,38 @@
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer } from "lucide-react";
+import { toast } from "sonner";
 import { RouteBuilder } from "@/components/admin/RouteBuilder";
+import { generateRoutePrintPdf, type RoutePrintData } from "@/lib/routePrint";
 
 const RouteDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [printing, setPrinting] = useState(false);
+
   if (!id) return null;
+
+  const handlePrint = async () => {
+    setPrinting(true);
+    try {
+      const { data, error } = await supabase
+        .from("routes")
+        .select("id, name, datum, start_time, drivers(name), vehicles(kennzeichen)")
+        .eq("id", id)
+        .single();
+      if (error || !data) throw error ?? new Error("Route nicht gefunden");
+      await generateRoutePrintPdf(data as unknown as RoutePrintData);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e.message ?? "PDF konnte nicht erstellt werden");
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   return (
     <AdminLayout title="Route">
       <div className="space-y-4">
@@ -15,8 +40,9 @@ const RouteDetailPage = () => {
           <Button variant="ghost" size="sm" onClick={() => navigate("/admin/routen")}>
             <ArrowLeft className="mr-2 h-4 w-4" />Zurück
           </Button>
-          <Button size="sm" onClick={() => navigate(`/admin/routen/${id}/druck`)}>
-            <Printer className="mr-2 h-4 w-4" />Drucken
+          <Button size="sm" onClick={handlePrint} disabled={printing}>
+            <Printer className="mr-2 h-4 w-4" />
+            {printing ? "Bereite Druck vor..." : "Drucken"}
           </Button>
         </div>
         <RouteBuilder routeId={id} />
