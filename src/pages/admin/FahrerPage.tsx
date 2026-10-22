@@ -295,6 +295,8 @@ const FahrerPage = () => {
           onClose={() => setStatsDriver(null)}
         />
       </div>
+        </TabsContent>
+      </Tabs>
     </AdminLayout>
   );
 };
