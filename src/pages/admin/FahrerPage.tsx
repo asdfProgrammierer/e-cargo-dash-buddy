@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DriverSchedulePlanner } from "@/components/admin/DriverSchedulePlanner";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -126,6 +128,15 @@ const FahrerPage = () => {
 
   return (
     <AdminLayout title="Fahrerverwaltung">
+      <Tabs defaultValue="verwaltung" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="verwaltung">Fahrer-Verwaltung</TabsTrigger>
+          <TabsTrigger value="plan">Einsatzplan</TabsTrigger>
+        </TabsList>
+        <TabsContent value="plan">
+          <DriverSchedulePlanner drivers={drivers.filter((d) => d.status === "aktiv").map((d) => ({ id: d.id, name: d.name }))} />
+        </TabsContent>
+        <TabsContent value="verwaltung">
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2 justify-between items-center">
           <p className="text-muted-foreground text-sm">{drivers.length} Fahrer</p>
@@ -286,6 +297,8 @@ const FahrerPage = () => {
           onClose={() => setStatsDriver(null)}
         />
       </div>
+        </TabsContent>
+      </Tabs>
     </AdminLayout>
   );
 };
