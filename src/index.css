@@ -54,6 +54,12 @@ All colors MUST be HSL.
     --info: 210 80% 52%;
     --info-foreground: 0 0% 100%;
 
+    /* Einsatzplan-Statusfarben */
+    --schedule-blue: 210 80% 52%;
+    --schedule-blue-foreground: 0 0% 100%;
+    --schedule-brown: 18 42% 33%;
+    --schedule-brown-foreground: 0 0% 100%;
+
     /* Surfaces & subtle borders (Route-Genius-inspired) */
     --surface-muted: 140 15% 96%;
     --active-surface: 145 20% 94%;
@@ -109,6 +115,11 @@ All colors MUST be HSL.
     --warning-foreground: 0 0% 100%;
     --info: 210 80% 60%;
     --info-foreground: 0 0% 100%;
+
+    --schedule-blue: 210 80% 60%;
+    --schedule-blue-foreground: 0 0% 100%;
+    --schedule-brown: 18 45% 45%;
+    --schedule-brown-foreground: 0 0% 100%;
 
     --surface-muted: 160 20% 11%;
     --active-surface: 160 20% 14%;
