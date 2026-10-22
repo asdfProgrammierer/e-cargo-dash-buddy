@@ -28,6 +28,15 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
   const [busy, setBusy] = useState(false);
   const [stats, setStats] = useState<Record<string, DayStat>>({});
   const [monthSec, setMonthSec] = useState<Record<string, number>>({});
+  const [defaultStart, setDefaultStart] = useState("");
+  const [enabled, setEnabled] = useState<string[]>(SCHEDULE_STATUSES.map((s) => s.key));
+  useEffect(() => {
+    supabase.from("driver_schedule_settings").select("default_start_time, enabled_statuses").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (!data) return;
+      setDefaultStart(data.default_start_time?.slice(0, 5) ?? "");
+      setEnabled(data.enabled_statuses ?? []);
+    });
+  }, []);
 
   const days = useMemo(() => {
     const n = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
@@ -94,7 +103,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
 
   const open = (driverId: string, datum: string) => {
     const e = entries[`${driverId}_${datum}`];
-    setEdit({ driverId, from: datum, to: datum, status: e?.status ?? "dienst", notiz: e?.notiz ?? "", startTime: e?.start_time?.slice(0, 5) ?? "" });
+    setEdit({ driverId, from: datum, to: datum, status: e?.status ?? "dienst", notiz: e?.notiz ?? "", startTime: e ? (e.start_time?.slice(0, 5) ?? "") : defaultStart });
   };
 
   const save = async () => {
@@ -179,7 +188,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
         </div>
         <div className="flex gap-2">
         <Button size="sm" variant="outline" disabled={!drivers.length} onClick={printPlan}><Printer className="h-4 w-4 mr-1" /> Drucken</Button>
-        <Button size="sm" disabled={!drivers.length} onClick={() => drivers[0] && setEdit({ driverId: drivers[0].id, from: ymd(days[0]), to: ymd(days[days.length - 1]), status: "dienst", notiz: "", startTime: "" })}>
+        <Button size="sm" disabled={!drivers.length} onClick={() => drivers[0] && setEdit({ driverId: drivers[0].id, from: ymd(days[0]), to: ymd(days[days.length - 1]), status: "dienst", notiz: "", startTime: defaultStart })}>
           <CalendarRange className="h-4 w-4 mr-1" /> Zeitraum eintragen
         </Button>
         </div>
@@ -305,7 +314,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
                 <Select value={edit.status} onValueChange={(v) => setEdit({ ...edit, status: v as ScheduleStatus | "leer" })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {SCHEDULE_STATUSES.map((s) => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
+                    {SCHEDULE_STATUSES.filter((s) => s.key === "dienst" || s.key === edit.status || enabled.includes(s.key)).map((s) => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
                     <SelectItem value="leer">Eintrag entfernen</SelectItem>
                   </SelectContent>
                 </Select>

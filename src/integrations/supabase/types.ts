@@ -388,6 +388,27 @@ export type Database = {
           },
         ]
       }
+      driver_schedule_settings: {
+        Row: {
+          default_start_time: string | null
+          enabled_statuses: string[]
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          default_start_time?: string | null
+          enabled_statuses?: string[]
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          default_start_time?: string | null
+          enabled_statuses?: string[]
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       driver_schedules: {
         Row: {
           created_at: string
