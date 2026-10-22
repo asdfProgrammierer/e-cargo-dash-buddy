@@ -388,6 +388,44 @@ export type Database = {
           },
         ]
       }
+      driver_schedules: {
+        Row: {
+          created_at: string
+          datum: string
+          driver_id: string
+          id: string
+          notiz: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          datum: string
+          driver_id: string
+          id?: string
+          notiz?: string | null
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          datum?: string
+          driver_id?: string
+          id?: string
+          notiz?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_schedules_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       driver_work_sessions: {
         Row: {
           created_at: string
