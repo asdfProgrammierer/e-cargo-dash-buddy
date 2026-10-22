@@ -57,6 +57,7 @@ const RouteDruckPage = () => {
     pakete: a.pakete + (s.orders.pakete ?? 0),
     gewicht: a.gewicht + Number(s.orders.gewicht ?? 0),
   }), { pakete: 0, gewicht: 0 });
+  const hasWeight = totals.gewicht > 0;
 
   return (
     <div className="min-h-screen bg-background p-6 print:p-4">
@@ -78,7 +79,7 @@ const RouteDruckPage = () => {
               <div><span className="text-muted-foreground">Strecke: </span>{fmtKm(route?.total_distance_m ?? null)}</div>
               <div><span className="text-muted-foreground">Fahrzeit: </span>{fmtMin(route?.total_duration_s ?? null)}</div>
               <div><span className="text-muted-foreground">Stops: </span>{stops.length}</div>
-              <div><span className="text-muted-foreground">Pakete / Gewicht: </span>{totals.pakete} / {totals.gewicht.toFixed(1)} kg</div>
+              <div><span className="text-muted-foreground">Pakete: </span>{totals.pakete}{hasWeight ? ` / ${totals.gewicht.toFixed(1)} kg` : ""}</div>
             </div>
             {route?.notizen && <div className="mt-2 text-sm"><span className="text-muted-foreground">Notiz: </span>{route.notizen}</div>}
           </div>
@@ -99,7 +100,7 @@ const RouteDruckPage = () => {
                   {s.orders.empfaenger_telefon && <div className="text-muted-foreground">Tel: {s.orders.empfaenger_telefon}</div>}
                   <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
                     <span>{s.orders.pakete} Paket(e)</span>
-                    <span>{Number(s.orders.gewicht).toFixed(1)} kg</span>
+                    {Number(s.orders.gewicht) > 0 && <span>{Number(s.orders.gewicht).toFixed(1)} kg</span>}
                     {s.leg_distance_m != null && <span>Etappe: {fmtKm(s.leg_distance_m)} · {fmtMin(s.leg_duration_s)}</span>}
                   </div>
                   {s.orders.notizen && <div className="mt-1 rounded bg-muted p-1.5 text-xs">📝 {s.orders.notizen}</div>}
