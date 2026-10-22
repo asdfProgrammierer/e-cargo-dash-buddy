@@ -58,6 +58,15 @@ const RoutenplanungPage = () => {
   const [form, setForm] = useState(emptyForm);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [refreshKey, setRefreshKey] = useState(0);
+  const [daySchedule, setDaySchedule] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!open || !form.datum) return;
+    supabase.from("driver_schedules").select("driver_id, status").eq("datum", form.datum).then(({ data }) => {
+      const m: Record<string, string> = {};
+      (data ?? []).forEach((r: { driver_id: string; status: string }) => { m[r.driver_id] = r.status; });
+      setDaySchedule(m);
+    });
+  }, [open, form.datum]);
   const [routeProgress, setRouteProgress] = useState<Record<string, { total: number; done: number }>>({});
 
   // Lifted "new orders" state shared between map + table
@@ -403,8 +412,20 @@ const RoutenplanungPage = () => {
                   <Label>Fahrer</Label>
                   <Select value={form.driver_id} onValueChange={(v) => setForm({ ...form, driver_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
-                    <SelectContent>{drivers.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
+                    <SelectContent>
+                      {[...drivers]
+                        .sort((a, b) => Number(daySchedule[b.id] === "dienst") - Number(daySchedule[a.id] === "dienst"))
+                        .map((d) => {
+                          const s = daySchedule[d.id];
+                          const prefix = s === "dienst" ? "● " : s ? "⚠ " : "";
+                          const suffix = s && s !== "dienst" ? ` (${scheduleLabel(s)})` : "";
+                          return <SelectItem key={d.id} value={d.id}>{prefix}{d.name}{suffix}</SelectItem>;
+                        })}
+                    </SelectContent>
                   </Select>
+                  {form.driver_id && daySchedule[form.driver_id] && daySchedule[form.driver_id] !== "dienst" && (
+                    <p className="text-xs text-destructive mt-1">⚠ Laut Einsatzplan an diesem Tag: {scheduleLabel(daySchedule[form.driver_id])}</p>
+                  )}
                 </div>
                 <div>
                   <Label>Fahrzeug</Label>
