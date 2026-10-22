@@ -80,6 +80,14 @@ export default {
           DEFAULT: "hsl(var(--info))",
           foreground: "hsl(var(--info-foreground))",
         },
+        "schedule-blue": {
+          DEFAULT: "hsl(var(--schedule-blue))",
+          foreground: "hsl(var(--schedule-blue-foreground))",
+        },
+        "schedule-brown": {
+          DEFAULT: "hsl(var(--schedule-brown))",
+          foreground: "hsl(var(--schedule-brown-foreground))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
