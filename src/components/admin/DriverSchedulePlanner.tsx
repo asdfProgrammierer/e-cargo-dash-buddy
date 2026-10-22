@@ -88,8 +88,10 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
       th.d { text-align: left; width: 70px; white-space: nowrap; }
       tr.we { background: #eee; }
       td.dienst { background: #cdebd6; font-weight: 600; }
-      td.urlaub { background: #fde9b8; } td.krank { background: #f6c6c6; }
-      td.frei, td.nicht_verfuegbar { color: #666; }
+      td.frei { background: #f8a30d; color: #fff; font-weight: 600; }
+      td.urlaub { background: #e57070; color: #fff; }
+      td.krank { background: #d92f2f; color: #fff; font-weight: 600; }
+      td.nicht_verfuegbar { background: #f7d2d2; color: #8a1c1c; }
       .n { font-size: 8px; color: #444; }
     </style></head><body><h1>e-cargo Einsatzplan – ${esc(monthLabel)}</h1>
     <table><thead><tr><th class="d">Datum</th>${head}</tr></thead><tbody>${rows}</tbody></table>
