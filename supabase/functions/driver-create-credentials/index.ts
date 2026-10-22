@@ -90,12 +90,46 @@ Deno.serve(async (req) => {
     const email = `${username}@drivers.e-cargo.local`;
     const pin = generatePin(6);
 
-    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+    let created: { user: { id: string } | null } = { user: null };
+    const createRes = await admin.auth.admin.createUser({
       email,
       password: pin,
       email_confirm: true,
       user_metadata: { driver_id: driver.id, username, full_name: driver.name },
     });
+    let createErr = createRes.error;
+    created = { user: createRes.data?.user ?? null };
+
+    // Username already taken: reuse it only if the old login is orphaned (driver deleted).
+    if (createErr && /already been registered|email_exists/i.test(createErr.message)) {
+      let existingId: string | null = null;
+      for (let page = 1; page <= 20 && !existingId; page++) {
+        const { data: list } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+        const hit = list?.users.find((u) => u.email?.toLowerCase() === email);
+        if (hit) existingId = hit.id;
+        if (!list || list.users.length < 1000) break;
+      }
+      if (existingId) {
+        const { data: linked } = await admin
+          .from("drivers").select("id").eq("auth_user_id", existingId).maybeSingle();
+        if (linked) {
+          return new Response(
+            JSON.stringify({ error: `Benutzername „${username}“ ist bereits an einen anderen Fahrer vergeben.` }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        const { error: updUserErr } = await admin.auth.admin.updateUserById(existingId, {
+          password: pin,
+          email_confirm: true,
+          user_metadata: { driver_id: driver.id, username, full_name: driver.name },
+        });
+        if (!updUserErr) {
+          createErr = null;
+          created = { user: { id: existingId } };
+        }
+      }
+    }
+
     if (createErr || !created.user) {
       return new Response(JSON.stringify({ error: createErr?.message ?? "Auth-User Erstellung fehlgeschlagen" }), {
         status: 400,
