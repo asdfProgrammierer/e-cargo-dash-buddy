@@ -690,8 +690,8 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
                 </div>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-                    <ScrollArea className="flex-1 min-h-0">
-                      <div className="border-y border-border/50">
+                    <ScrollArea className="flex-1 min-h-0 [&_[data-radix-scroll-area-viewport]>div]:!block">
+                      <div className="border-y border-border/50 w-full min-w-0">
                         {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} onTogglePin={togglePin} onOrderClick={onOrderClick} selected={selectedIds.has(s.id)} onToggleSelect={toggleSelect} />)}
                       </div>
                     </ScrollArea>
