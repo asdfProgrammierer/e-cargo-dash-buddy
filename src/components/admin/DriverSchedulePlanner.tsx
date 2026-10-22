@@ -14,12 +14,16 @@ interface Driver { id: string; name: string }
 interface Entry { driver_id: string; datum: string; status: ScheduleStatus; notiz: string | null }
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+interface DayStat { routes: number; stops: number; done: number; km: number; sec: number }
+const hm = (sec: number) => { const m = Math.round(sec / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`; };
 
 export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [entries, setEntries] = useState<Record<string, Entry>>({});
   const [edit, setEdit] = useState<{ driverId: string; from: string; to: string; status: ScheduleStatus | "leer"; notiz: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [stats, setStats] = useState<Record<string, DayStat>>({});
+  const [monthSec, setMonthSec] = useState<Record<string, number>>({});
 
   const days = useMemo(() => {
     const n = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
@@ -34,8 +38,39 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
     const map: Record<string, Entry> = {};
     (data as Entry[]).forEach((e) => { map[`${e.driver_id}_${e.datum}`] = e; });
     setEntries(map);
+    loadStats();
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [days]);
+
+  const loadStats = async () => {
+    const from = ymd(days[0]), to = ymd(days[days.length - 1]);
+    const start = new Date(days[0]); start.setDate(start.getDate() - 1);
+    const end = new Date(days[days.length - 1]); end.setDate(end.getDate() + 2);
+    const [{ data: routes }, { data: sessions }] = await Promise.all([
+      supabase.from("routes").select("id, driver_id, datum, total_distance_m, route_stops(status)")
+        .gte("datum", from).lte("datum", to).not("driver_id", "is", null),
+      supabase.from("driver_work_sessions").select("driver_id, route_id, started_at, ended_at")
+        .gte("started_at", start.toISOString()).lt("started_at", end.toISOString()),
+    ]);
+    const map: Record<string, DayStat> = {};
+    const get = (k: string) => (map[k] ??= { routes: 0, stops: 0, done: 0, km: 0, sec: 0 });
+    for (const r of (routes ?? []) as any[]) {
+      const s = get(`${r.driver_id}_${r.datum}`);
+      s.routes++; s.km += (r.total_distance_m ?? 0) / 1000;
+      const st = (r.route_stops ?? []) as { status: string }[];
+      s.stops += st.length; s.done += st.filter((x) => x.status === "erledigt").length;
+    }
+    const monthly: Record<string, number> = {};
+    for (const w of (sessions ?? []) as any[]) {
+      const st = new Date(w.started_at);
+      const sec = Math.max(0, ((w.ended_at ? new Date(w.ended_at).getTime() : Date.now()) - st.getTime()) / 1000);
+      const day = st.toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
+      if (day < from || day > to) continue;
+      get(`${w.driver_id}_${day}`).sec += sec;
+      monthly[w.driver_id] = (monthly[w.driver_id] ?? 0) + sec;
+    }
+    setStats(map); setMonthSec(monthly);
+  };
 
   const open = (driverId: string, datum: string) => {
     const e = entries[`${driverId}_${datum}`];
