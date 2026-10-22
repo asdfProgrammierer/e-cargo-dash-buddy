@@ -24,7 +24,11 @@ const DriverLoginPage = () => {
     }
     setLoading(true);
     const email = `${cleanUser}@drivers.e-cargo.local`;
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pin });
+    let { data, error } = await supabase.auth.signInWithPassword({ email, password: driverAuthPassword(cleanUser, pin) });
+    if (error || !data.user) {
+      // Legacy logins (older 10-character PINs) were stored without the suffix.
+      ({ data, error } = await supabase.auth.signInWithPassword({ email, password: pin }));
+    }
     setLoading(false);
     if (error || !data.user) {
       toast.error("Login fehlgeschlagen. Bitte Username und PIN prüfen.");
