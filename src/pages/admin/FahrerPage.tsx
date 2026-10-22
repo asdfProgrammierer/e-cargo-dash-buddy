@@ -93,7 +93,11 @@ const FahrerPage = () => {
     });
     setCredBusy(false);
     if (error || (data as any)?.error) {
-      toast.error((data as any)?.error ?? "Fehler beim Aktivieren");
+      let msg = (data as any)?.error as string | undefined;
+      if (!msg && error && (error as any).context?.json) {
+        try { msg = (await (error as any).context.json())?.error; } catch { /* ignore */ }
+      }
+      toast.error(msg ?? "Fehler beim Aktivieren");
       return;
     }
     setShowPin({ username: (data as any).username, pin: (data as any).pin });
