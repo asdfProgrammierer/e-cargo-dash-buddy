@@ -134,7 +134,6 @@ Deno.serve(async (req) => {
   const { error: upErr } = await admin.from("shop_connections").update({
     webhook_secret: appSecret || conn.webhook_secret,
     webhook_cutoff_at: cutoff,
-    poll_sync_enabled: false,
   }).eq("id", conn.id);
   if (upErr) return json({ error: "Speichern fehlgeschlagen", details: upErr.message }, 500);
 

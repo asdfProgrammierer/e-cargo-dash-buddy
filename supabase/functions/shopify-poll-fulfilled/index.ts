@@ -141,6 +141,8 @@ async function importOrder(admin: any, conn: any, merchantCode: string, order: a
     shop_connection_id: conn.id,
     external_order_ref: externalId,
     external_order_name: orderName,
+    // Bereits in Shopify erfuellt -> kein zweites Fulfillment anlegen
+    shopify_fulfilled_at: new Date().toISOString(),
   }).eq("id", created.shipment_id);
 
   await logEvent(admin, { ...base, decision: "imported", reason: created.tracking_number });

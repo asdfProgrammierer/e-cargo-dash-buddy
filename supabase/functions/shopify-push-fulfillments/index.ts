@@ -159,7 +159,7 @@ export const SHOPIFY_EVENT_FOR_STATUS: Record<string, string> = {
   nicht_zugestellt: "attempted_delivery",
 };
 
-async function syncDeliveryEvents(admin: ReturnType<typeof createClient>, orderId?: string) {
+async function syncDeliveryEvents(admin: ReturnType<typeof createClient>, req: Request, orderId?: string) {
   const { data: conns } = await admin
     .from("shop_connections")
     .select("id, api_key, api_url, shop_domain, active, platform, sync_delivery_status")
@@ -169,10 +169,10 @@ async function syncDeliveryEvents(admin: ReturnType<typeof createClient>, orderI
 
   let q = admin
     .from("orders")
-    .select("id, status, external_order_ref, shop_connection_id, shopify_fulfillment_id, shopify_event_status")
+    .select("id, status, auftrags_nr, tracking_token, external_order_ref, shop_connection_id, shopify_fulfillment_id, shopify_event_status")
     .in("shop_connection_id", conns.map((c) => c.id))
     .not("external_order_ref", "is", null)
-    .in("status", Object.keys(SHOPIFY_EVENT_FOR_STATUS))
+    .in("status", ["neu", ...Object.keys(SHOPIFY_EVENT_FOR_STATUS)])
     .gte("updated_at", new Date(Date.now() - 14 * 86400_000).toISOString())
     .limit(100);
   if (orderId) q = q.eq("id", orderId);
@@ -182,7 +182,8 @@ async function syncDeliveryEvents(admin: ReturnType<typeof createClient>, orderI
   const results: Array<Record<string, unknown>> = [];
   for (const o of orders ?? []) {
     const event = SHOPIFY_EVENT_FOR_STATUS[o.status as string];
-    if (!event || o.shopify_event_status === event) continue;
+    const needsTracking = !o.shopify_fulfillment_id;
+    if (!needsTracking && (!event || o.shopify_event_status === event)) continue;
     const conn = connMap.get(o.shop_connection_id as string)!;
     const domain = normalizeDomain(conn.shop_domain ?? conn.api_url);
     if (!domain || !conn.api_key) continue;
@@ -196,6 +197,17 @@ async function syncDeliveryEvents(admin: ReturnType<typeof createClient>, orderI
         const last = active[active.length - 1];
         if (!last) { results.push({ orderId: o.id, skipped: "kein Fulfillment in Shopify" }); continue; }
         fulfillmentId = String(last.id);
+        // e-cargo-Sendungsverfolgung am bestehenden Shopify-Fulfillment hinterlegen
+        const url = buildTrackingUrl(o.tracking_token as string | null, req);
+        const tr = await shopifyFetch(domain, conn.api_key, `/fulfillments/${fulfillmentId}/update_tracking.json`, {
+          method: "POST",
+          body: JSON.stringify({ fulfillment: { notify_customer: false, tracking_info: {
+            number: o.auftrags_nr, url: url || undefined, company: "e-cargo",
+          } } }),
+        });
+        if (!tr.ok) throw new Error(`tracking ${tr.status}: ${(await tr.text()).slice(0, 200)}`);
+        await admin.from("orders").update({ shopify_fulfillment_id: fulfillmentId }).eq("id", o.id);
+        if (!event || o.shopify_event_status === event) { results.push({ orderId: o.id, tracking: true }); continue; }
       }
       const er = await shopifyFetch(
         domain, conn.api_key,
@@ -272,7 +284,7 @@ Deno.serve(async (req) => {
     const { data: orders, error: oErr } = await q;
     if (oErr) throw oErr;
 
-    const eventResults = await syncDeliveryEvents(admin, body.orderId);
+    const eventResults = await syncDeliveryEvents(admin, req, body.orderId);
 
     if (!orders || orders.length === 0) {
       return new Response(JSON.stringify({ ok: true, results: [], eventResults }), {
