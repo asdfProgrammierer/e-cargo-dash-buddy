@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { driverAuthPassword } from "../_shared/driver-pin.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -96,7 +97,7 @@ Deno.serve(async (req) => {
     }
 
     const { error: updErr } = await admin.auth.admin.updateUserById(driver.auth_user_id, {
-      password: pin,
+      password: driverAuthPassword(driver.username ?? (existing.user.email ?? "").split("@")[0], pin),
     });
     if (updErr) {
       return new Response(JSON.stringify({ error: updErr.message }), {

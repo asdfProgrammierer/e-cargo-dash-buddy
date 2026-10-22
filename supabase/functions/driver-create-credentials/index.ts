@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { driverAuthPassword } from "../_shared/driver-pin.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -93,7 +94,7 @@ Deno.serve(async (req) => {
     let created: { user: { id: string } | null } = { user: null };
     const createRes = await admin.auth.admin.createUser({
       email,
-      password: pin,
+      password: driverAuthPassword(username, pin),
       email_confirm: true,
       user_metadata: { driver_id: driver.id, username, full_name: driver.name },
     });
@@ -119,7 +120,7 @@ Deno.serve(async (req) => {
           );
         }
         const { error: updUserErr } = await admin.auth.admin.updateUserById(existingId, {
-          password: pin,
+          password: driverAuthPassword(username, pin),
           email_confirm: true,
           user_metadata: { driver_id: driver.id, username, full_name: driver.name },
         });
