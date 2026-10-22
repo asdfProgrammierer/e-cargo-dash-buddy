@@ -123,6 +123,7 @@ Deno.serve(async (req) => {
           email_confirm: true,
           user_metadata: { driver_id: driver.id, username, full_name: driver.name },
         });
+        if (updUserErr) console.error("reuse update failed", updUserErr.message);
         if (!updUserErr) {
           createErr = null;
           created = { user: { id: existingId } };
@@ -131,6 +132,7 @@ Deno.serve(async (req) => {
     }
 
     if (createErr || !created.user) {
+      console.error("create login failed", username, createErr?.message);
       return new Response(JSON.stringify({ error: createErr?.message ?? "Auth-User Erstellung fehlgeschlagen" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -142,6 +144,7 @@ Deno.serve(async (req) => {
       .update({ username, auth_user_id: created.user.id })
       .eq("id", driver.id);
     if (updErr) {
+      console.error("driver link failed", updErr.message);
       await admin.auth.admin.deleteUser(created.user.id);
       return new Response(JSON.stringify({ error: updErr.message }), {
         status: 400,
