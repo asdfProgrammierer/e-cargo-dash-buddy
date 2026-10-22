@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, CalendarRange } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarRange, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { SCHEDULE_STATUSES, type ScheduleStatus } from "@/lib/driverSchedule";
@@ -64,6 +64,39 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
   const today = ymd(new Date());
   const monthLabel = month.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
 
+  const printPlan = () => {
+    const w = window.open("", "_blank");
+    if (!w) { toast.error("Pop-up wurde blockiert"); return; }
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+    const head = drivers.map((d) => `<th>${esc(d.name)}</th>`).join("");
+    const rows = days.map((d) => {
+      const we = d.getDay() === 0 || d.getDay() === 6;
+      const cells = drivers.map((dr) => {
+        const e = entries[`${dr.id}_${ymd(d)}`];
+        const meta = e && SCHEDULE_STATUSES.find((s) => s.key === e.status);
+        return `<td class="${e?.status ?? ""}">${meta ? esc(meta.label) : ""}${e?.notiz ? `<div class="n">${esc(e.notiz)}</div>` : ""}</td>`;
+      }).join("");
+      return `<tr class="${we ? "we" : ""}"><th class="d">${d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })}</th>${cells}</tr>`;
+    }).join("");
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Einsatzplan ${esc(monthLabel)}</title><style>
+      @page { size: A4 ${drivers.length > 6 ? "landscape" : "portrait"}; margin: 10mm; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body { font-family: system-ui, sans-serif; font-size: 10px; margin: 0; }
+      h1 { font-size: 16px; margin: 0 0 6px; text-transform: capitalize; }
+      table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+      th, td { border: 1px solid #999; padding: 2px 4px; text-align: center; height: 17px; }
+      th.d { text-align: left; width: 70px; white-space: nowrap; }
+      tr.we { background: #eee; }
+      td.dienst { background: #cdebd6; font-weight: 600; }
+      td.urlaub { background: #fde9b8; } td.krank { background: #f6c6c6; }
+      td.frei, td.nicht_verfuegbar { color: #666; }
+      .n { font-size: 8px; color: #444; }
+    </style></head><body><h1>e-cargo Einsatzplan – ${esc(monthLabel)}</h1>
+    <table><thead><tr><th class="d">Datum</th>${head}</tr></thead><tbody>${rows}</tbody></table>
+    <script>window.onload=()=>{window.print()}<\/script></body></html>`);
+    w.document.close();
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -72,9 +105,12 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
           <span className="min-w-40 text-center font-semibold capitalize">{monthLabel}</span>
           <Button variant="outline" size="icon" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight className="h-4 w-4" /></Button>
         </div>
+        <div className="flex gap-2">
+        <Button size="sm" variant="outline" disabled={!drivers.length} onClick={printPlan}><Printer className="h-4 w-4 mr-1" /> Drucken</Button>
         <Button size="sm" disabled={!drivers.length} onClick={() => drivers[0] && setEdit({ driverId: drivers[0].id, from: today, to: today, status: "urlaub", notiz: "" })}>
           <CalendarRange className="h-4 w-4 mr-1" /> Zeitraum eintragen
         </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3 text-xs">
