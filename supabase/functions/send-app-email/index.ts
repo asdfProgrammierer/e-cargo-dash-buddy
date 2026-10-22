@@ -7,7 +7,7 @@ import { loadTemplateOverride } from '../_shared/transactional-email-templates/o
 import { buildTrackingUrl } from '../_shared/site-url.ts'
 
 // Configuration baked in at scaffold time — do NOT change these manually.
-const SITE_NAME = 'e-cargo Connect'
+const SITE_NAME = 'e-cargo Logistik'
 // SENDER_DOMAIN is the verified sender subdomain FQDN.
 const SENDER_DOMAIN = 'notify.ecargo-logistic.de'
 // FROM_DOMAIN is the domain shown in the From: header.
