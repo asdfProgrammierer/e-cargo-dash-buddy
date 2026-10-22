@@ -37,15 +37,24 @@ Deno.serve(async (req) => {
     connectionId: z.string().uuid(),
     appSecret: z.string().max(24576).optional(),
     shopDomain: z.string().max(255).optional(),
-    action: z.enum(["status", "save", "register"]).optional(),
+    action: z.enum(["status", "save", "register", "delivery_sync"]).optional(),
+    syncDeliveryStatus: z.boolean().optional(),
   }).safeParse(await req.json().catch(() => null));
   if (!parsed.success) return json({ error: "Ungültige Shop-Einstellungen" }, 400);
   const body = parsed.data;
 
   const { data: conn } = await admin.from("shop_connections")
-    .select("id, api_key, api_url, shop_domain, platform, webhook_secret, webhook_cutoff_at")
+    .select("id, api_key, api_url, shop_domain, platform, webhook_secret, webhook_cutoff_at, sync_delivery_status")
     .eq("id", body.connectionId).maybeSingle();
   if (!conn || conn.platform !== "shopify") return json({ error: "Shopify-Verbindung nicht gefunden" }, 404);
+
+  if (body.action === "delivery_sync") {
+    if (typeof body.syncDeliveryStatus !== "boolean") return json({ error: "Wert fehlt" }, 400);
+    const { error } = await admin.from("shop_connections")
+      .update({ sync_delivery_status: body.syncDeliveryStatus }).eq("id", conn.id);
+    if (error) return json({ error: "Speichern fehlgeschlagen" }, 500);
+    return json({ ok: true, syncDeliveryStatus: body.syncDeliveryStatus });
+  }
 
   if (body.action === "save") {
     let update;
@@ -62,6 +71,7 @@ Deno.serve(async (req) => {
     secretConfigured: Boolean(conn.webhook_secret),
     shopDomain: conn.shop_domain ?? conn.api_url,
     cutoff: conn.webhook_cutoff_at,
+    syncDeliveryStatus: Boolean(conn.sync_delivery_status),
   };
 
   const domain = normalizeDomain(conn.shop_domain ?? conn.api_url);

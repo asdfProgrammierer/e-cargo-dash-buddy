@@ -95,6 +95,8 @@ const HaendlerDetailPage = () => {
   const [appSecret, setAppSecret] = useState("");
   const [shopDomain, setShopDomain] = useState("");
   const [secretConfigured, setSecretConfigured] = useState<boolean | null>(null);
+  const [syncDelivery, setSyncDelivery] = useState(false);
+  const [savingSyncDelivery, setSavingSyncDelivery] = useState(false);
   const [savingHookSettings, setSavingHookSettings] = useState(false);
   const [checkingHook, setCheckingHook] = useState(false);
   const [registeringHook, setRegisteringHook] = useState(false);
@@ -339,6 +341,18 @@ const HaendlerDetailPage = () => {
     }
   };
 
+  const toggleSyncDelivery = async (value: boolean) => {
+    if (!shopConn) return;
+    setSavingSyncDelivery(true);
+    const { data, error } = await supabase.functions.invoke("shopify-webhook-setup", {
+      body: { connectionId: shopConn.id, action: "delivery_sync", syncDeliveryStatus: value },
+    });
+    setSavingSyncDelivery(false);
+    if (error || !data?.ok) { toast.error(data?.error || "Speichern fehlgeschlagen"); return; }
+    setSyncDelivery(value);
+    toast.success(value ? "Lieferstatus wird an Shopify gemeldet" : "Lieferstatus-Meldung ausgeschaltet");
+  };
+
   useEffect(() => {
     if (shopConn?.platform !== "shopify") return;
     let cancelled = false;
@@ -348,6 +362,7 @@ const HaendlerDetailPage = () => {
     }).then(({ data }) => {
       if (cancelled || !data) return;
       if (typeof data.secretConfigured === "boolean") setSecretConfigured(data.secretConfigured);
+      if (typeof data.syncDeliveryStatus === "boolean") setSyncDelivery(data.syncDeliveryStatus);
       if (data.shopDomain) setShopDomain(data.shopDomain);
       setHookInfo({ callbackUrl: data.callbackUrl, cutoff: data.cutoff, count: data.ok ? (data.webhooks ?? []).filter((w: { address: string }) => w.address === data.callbackUrl).length : undefined });
     });
@@ -735,6 +750,22 @@ const HaendlerDetailPage = () => {
                     <Button variant="outline" onClick={loadWebhookStatus} disabled={checkingHook || savingHookSettings || registeringHook || !shopConn}>
                       {checkingHook ? "Prüfe…" : "Status prüfen"}
                     </Button>
+                  </div>
+
+                  <div className="flex items-start justify-between gap-4 rounded-lg border border-border p-3">
+                    <div>
+                      <p className="font-medium text-sm">Lieferstatus an Shopify melden</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        In Bearbeitung → „In transit", Unterwegs → „Out for delivery", Zugestellt → „Delivered",
+                        Nicht zugestellt → „Delivery attempt". Wird alle 15 Minuten abgeglichen.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={syncDelivery}
+                      disabled={!shopConn || savingSyncDelivery}
+                      onCheckedChange={toggleSyncDelivery}
+                      aria-label="Lieferstatus an Shopify melden"
+                    />
                   </div>
                 </CardContent>
               </Card>
