@@ -64,13 +64,23 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
       s.stops += st.length; s.done += st.filter((x) => x.status === "erledigt").length;
     }
     const monthly: Record<string, number> = {};
+    // Pro Route & Tag: erster Start bis letztes Ende (Lücken durch App-Neustarts werden überbrückt).
+    // Rein alte Depot-Sessions (ohne neue Session derselben Route) werden ignoriert.
+    const spans: Record<string, { driver: string; day: string; start: number; end: number; legacyOnly: boolean }> = {};
     for (const w of (sessions ?? []) as any[]) {
-      if (w.end_reason === "auto_depot") continue; // altes Verfahren (Depot-Rückkehr)
       const st = new Date(w.started_at);
-      const sec = Math.max(0, ((w.ended_at ? new Date(w.ended_at).getTime() : Date.now()) - st.getTime()) / 1000);
       const day = st.toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
       if (day < from || day > to) continue;
-      get(`${w.driver_id}_${day}`).sec += sec;
+      const k = `${w.driver_id}_${day}_${w.route_id ?? w.started_at}`;
+      const s = st.getTime(), e = w.ended_at ? new Date(w.ended_at).getTime() : Date.now();
+      const legacy = w.end_reason === "auto_depot";
+      const cur = spans[k];
+      if (!cur) spans[k] = { driver: w.driver_id, day, start: s, end: e, legacyOnly: legacy };
+      else { cur.start = Math.min(cur.start, s); cur.end = Math.max(cur.end, e); cur.legacyOnly &&= legacy; }
+    }
+    for (const sp of Object.values(spans)) {
+      if (sp.legacyOnly) continue;
+      get(`${sp.driver}_${sp.day}`).sec += Math.max(0, (sp.end - sp.start) / 1000);
     }
     // Monatssumme = Summe der pro Tag aufgerundeten Zeiten
     for (const [k, v] of Object.entries(map)) {
