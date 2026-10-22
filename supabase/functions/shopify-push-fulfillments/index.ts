@@ -150,6 +150,72 @@ async function pushFulfillment(
   return { orderId: order.id, ok: true };
 }
 
+// e-cargo-Status → Shopify Fulfillment-Event (Spalte „Delivery status").
+// "neu" erscheint in Shopify bereits als „Tracking added", sobald ein Fulfillment existiert.
+export const SHOPIFY_EVENT_FOR_STATUS: Record<string, string> = {
+  in_bearbeitung: "in_transit",
+  unterwegs: "out_for_delivery",
+  zugestellt: "delivered",
+  nicht_zugestellt: "attempted_delivery",
+};
+
+async function syncDeliveryEvents(admin: ReturnType<typeof createClient>, orderId?: string) {
+  const { data: conns } = await admin
+    .from("shop_connections")
+    .select("id, api_key, api_url, shop_domain, active, platform, sync_delivery_status")
+    .eq("platform", "shopify").eq("active", true).eq("sync_delivery_status", true);
+  if (!conns || conns.length === 0) return [];
+  const connMap = new Map(conns.map((c) => [c.id, c]));
+
+  let q = admin
+    .from("orders")
+    .select("id, status, external_order_ref, shop_connection_id, shopify_fulfillment_id, shopify_event_status")
+    .in("shop_connection_id", conns.map((c) => c.id))
+    .not("external_order_ref", "is", null)
+    .in("status", Object.keys(SHOPIFY_EVENT_FOR_STATUS))
+    .gte("updated_at", new Date(Date.now() - 14 * 86400_000).toISOString())
+    .limit(100);
+  if (orderId) q = q.eq("id", orderId);
+  const { data: orders, error } = await q;
+  if (error) { console.error("event sync query", error); return []; }
+
+  const results: Array<Record<string, unknown>> = [];
+  for (const o of orders ?? []) {
+    const event = SHOPIFY_EVENT_FOR_STATUS[o.status as string];
+    if (!event || o.shopify_event_status === event) continue;
+    const conn = connMap.get(o.shop_connection_id as string)!;
+    const domain = normalizeDomain(conn.shop_domain ?? conn.api_url);
+    if (!domain || !conn.api_key) continue;
+    try {
+      let fulfillmentId = o.shopify_fulfillment_id as string | null;
+      if (!fulfillmentId) {
+        const fr = await shopifyFetch(domain, conn.api_key, `/orders/${o.external_order_ref}/fulfillments.json`);
+        if (!fr.ok) throw new Error(`fulfillments ${fr.status}`);
+        const fj = await fr.json() as { fulfillments?: Array<{ id: number; status: string }> };
+        const active = (fj.fulfillments ?? []).filter((f) => f.status !== "cancelled" && f.status !== "error");
+        const last = active[active.length - 1];
+        if (!last) { results.push({ orderId: o.id, skipped: "kein Fulfillment in Shopify" }); continue; }
+        fulfillmentId = String(last.id);
+      }
+      const er = await shopifyFetch(
+        domain, conn.api_key,
+        `/orders/${o.external_order_ref}/fulfillments/${fulfillmentId}/events.json`,
+        { method: "POST", body: JSON.stringify({ event: { status: event } }) },
+      );
+      if (!er.ok) throw new Error(`event ${er.status}: ${(await er.text()).slice(0, 200)}`);
+      await admin.from("orders").update({
+        shopify_event_status: event, shopify_event_error: null, shopify_fulfillment_id: fulfillmentId,
+      }).eq("id", o.id);
+      results.push({ orderId: o.id, event });
+    } catch (err) {
+      console.error("event sync", o.id, err);
+      await admin.from("orders").update({ shopify_event_error: String(err).slice(0, 300) }).eq("id", o.id);
+      results.push({ orderId: o.id, error: String(err) });
+    }
+  }
+  return results;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -206,8 +272,10 @@ Deno.serve(async (req) => {
     const { data: orders, error: oErr } = await q;
     if (oErr) throw oErr;
 
+    const eventResults = await syncDeliveryEvents(admin, body.orderId);
+
     if (!orders || orders.length === 0) {
-      return new Response(JSON.stringify({ ok: true, results: [] }), {
+      return new Response(JSON.stringify({ ok: true, results: [], eventResults }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -231,7 +299,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, results }), {
+    return new Response(JSON.stringify({ ok: true, results, eventResults }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
