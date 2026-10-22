@@ -19,8 +19,32 @@ export function scheduleDates(from: string, to: string, weekdays: number[] = [])
   return dates;
 }
 
+export const QUARTER_MINUTES = ["00", "15", "30", "45"];
+
+const HOUR = /^([01]\d|2[0-3])$/;
+const LAST_QUARTER = 23 * 60 + 45;
+
+function snapQuarter(hour: number, minute: number): string {
+  const total = Math.min(Math.ceil((hour * 60 + minute) / 15) * 15, LAST_QUARTER);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+/** Stored "HH:MM:SS" or "HH:MM" as a selectable "HH:MM" on the 15-minute rhythm; "" when nothing is set. */
+export function scheduleTimeValue(value: string | null | undefined): string {
+  const match = /^(\d{2}):(\d{2})/.exec(value ?? "");
+  if (!match || !HOUR.test(match[1])) return "";
+  return snapQuarter(Number(match[1]), Number(match[2]));
+}
+
+/** Hour and minute parts for the start-time dropdowns; falls back to 09:00 when nothing is set. */
+export function scheduleTimeParts(value: string | null | undefined): { hour: string; minute: string } {
+  const time = scheduleTimeValue(value);
+  return time ? { hour: time.slice(0, 2), minute: time.slice(3, 5) } : { hour: "09", minute: "00" };
+}
+
 export function scheduleStartTime(value: string): string | null {
   if (!value) return null;
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) throw new Error("Bitte eine gültige Startzeit angeben.");
+  if (Number(value.slice(3, 5)) % 15 !== 0) throw new Error("Bitte eine Startzeit im 15-Minuten-Rhythmus wählen: 00, 15, 30 oder 45.");
   return value;
 }
