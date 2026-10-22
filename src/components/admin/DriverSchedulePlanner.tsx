@@ -8,18 +8,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChevronLeft, ChevronRight, CalendarRange, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { SCHEDULE_STATUSES, type ScheduleStatus } from "@/lib/driverSchedule";
 
 interface Driver { id: string; name: string }
 interface Entry { driver_id: string; datum: string; status: ScheduleStatus; notiz: string | null }
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+interface DayStat { routes: number; stops: number; done: number; km: number; sec: number }
+const hm = (sec: number) => { const m = Math.round(sec / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`; };
 
 export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [entries, setEntries] = useState<Record<string, Entry>>({});
   const [edit, setEdit] = useState<{ driverId: string; from: string; to: string; status: ScheduleStatus | "leer"; notiz: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [stats, setStats] = useState<Record<string, DayStat>>({});
+  const [monthSec, setMonthSec] = useState<Record<string, number>>({});
 
   const days = useMemo(() => {
     const n = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
@@ -34,8 +39,39 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
     const map: Record<string, Entry> = {};
     (data as Entry[]).forEach((e) => { map[`${e.driver_id}_${e.datum}`] = e; });
     setEntries(map);
+    loadStats();
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [days]);
+
+  const loadStats = async () => {
+    const from = ymd(days[0]), to = ymd(days[days.length - 1]);
+    const start = new Date(days[0]); start.setDate(start.getDate() - 1);
+    const end = new Date(days[days.length - 1]); end.setDate(end.getDate() + 2);
+    const [{ data: routes }, { data: sessions }] = await Promise.all([
+      supabase.from("routes").select("id, driver_id, datum, total_distance_m, route_stops(status)")
+        .gte("datum", from).lte("datum", to).not("driver_id", "is", null),
+      supabase.from("driver_work_sessions").select("driver_id, route_id, started_at, ended_at")
+        .gte("started_at", start.toISOString()).lt("started_at", end.toISOString()),
+    ]);
+    const map: Record<string, DayStat> = {};
+    const get = (k: string) => (map[k] ??= { routes: 0, stops: 0, done: 0, km: 0, sec: 0 });
+    for (const r of (routes ?? []) as any[]) {
+      const s = get(`${r.driver_id}_${r.datum}`);
+      s.routes++; s.km += (r.total_distance_m ?? 0) / 1000;
+      const st = (r.route_stops ?? []) as { status: string }[];
+      s.stops += st.length; s.done += st.filter((x) => x.status === "erledigt").length;
+    }
+    const monthly: Record<string, number> = {};
+    for (const w of (sessions ?? []) as any[]) {
+      const st = new Date(w.started_at);
+      const sec = Math.max(0, ((w.ended_at ? new Date(w.ended_at).getTime() : Date.now()) - st.getTime()) / 1000);
+      const day = st.toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
+      if (day < from || day > to) continue;
+      get(`${w.driver_id}_${day}`).sec += sec;
+      monthly[w.driver_id] = (monthly[w.driver_id] ?? 0) + sec;
+    }
+    setStats(map); setMonthSec(monthly);
+  };
 
   const open = (driverId: string, datum: string) => {
     const e = entries[`${driverId}_${datum}`];
@@ -121,7 +157,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
         ))}
       </div>
 
-      <div className="rounded-lg border overflow-x-auto">
+      <TooltipProvider><div className="rounded-lg border overflow-x-auto">
         <table className="text-xs border-collapse">
           <thead>
             <tr>
@@ -135,6 +171,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
                   </th>
                 );
               })}
+              <th className="sticky right-0 z-10 bg-card p-2 text-right min-w-24 border-b border-l">Arbeitszeit<div className="font-normal text-muted-foreground">Monat</div></th>
             </tr>
           </thead>
           <tbody>
@@ -153,16 +190,33 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
                     const we = d.getDay() === 0 || d.getDay() === 6;
                     return (
                       <td key={key} className={cn("border-b border-l p-0.5", we && "bg-muted/50")}>
+                        {(() => { const st = stats[`${dr.id}_${key}`]; const btn = (
                         <button
                           onClick={() => open(dr.id, key)}
-                          title={meta ? `${meta.label}${e?.notiz ? ` – ${e.notiz}` : ""}` : "Eintragen"}
+                          title={st ? undefined : meta ? `${meta.label}${e?.notiz ? ` – ${e.notiz}` : ""}` : "Eintragen"}
                           className={cn("h-7 w-7 rounded-sm text-[10px] font-semibold hover:ring-2 hover:ring-ring", meta?.cls ?? "hover:bg-accent")}
                         >
-                          {meta?.short ?? ""}
-                        </button>
+                          {meta?.short ?? (st ? "•" : "")}
+                        </button>);
+                          if (!st) return btn;
+                          return (
+                            <Tooltip delayDuration={100}>
+                              <TooltipTrigger asChild>{btn}</TooltipTrigger>
+                              <TooltipContent className="text-xs space-y-0.5">
+                                <div className="font-semibold">{d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })} · {dr.name}</div>
+                                {meta && <div>{meta.label}{e?.notiz ? ` – ${e.notiz}` : ""}</div>}
+                                {st.routes > 0 && <div>{st.stops} Stopps ({st.done} zugestellt){st.routes > 1 ? ` · ${st.routes} Routen` : ""}</div>}
+                                {st.km > 0 && <div>{st.km.toLocaleString("de-DE", { maximumFractionDigits: 1 })} km</div>}
+                                <div>Arbeitszeit: {st.sec > 0 ? `${hm(st.sec)} Std.` : "—"}</div>
+                              </TooltipContent>
+                            </Tooltip>
+                          ); })()}
                       </td>
                     );
                   })}
+                  <td className="sticky right-0 z-10 bg-card p-2 text-right border-b border-l font-semibold tabular-nums">
+                    {monthSec[dr.id] ? `${hm(monthSec[dr.id])} Std.` : <span className="text-muted-foreground font-normal">—</span>}
+                  </td>
                 </tr>
               );
             })}
@@ -172,10 +226,11 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
                 const n = drivers.filter((dr) => entries[`${dr.id}_${ymd(d)}`]?.status === "dienst").length;
                 return <td key={ymd(d)} className={cn("text-center font-semibold border-l", n === 0 ? "text-destructive" : "text-primary")}>{n}</td>;
               })}
+              <td className="sticky right-0 z-10 bg-card p-2 text-right border-l font-semibold tabular-nums">{hm(Object.values(monthSec).reduce((a, b) => a + b, 0))} Std.</td>
             </tr>
           </tbody>
         </table>
-      </div>
+      </div></TooltipProvider>
       {!drivers.length && <p className="text-sm text-muted-foreground">Keine aktiven Fahrer vorhanden.</p>}
 
       <Dialog open={!!edit} onOpenChange={(v) => !v && setEdit(null)}>
