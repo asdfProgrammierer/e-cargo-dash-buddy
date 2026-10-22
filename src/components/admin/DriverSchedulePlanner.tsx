@@ -10,7 +10,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { colorOf, useScheduleStatuses, type ScheduleStatus } from "@/lib/driverSchedule";
-import { scheduleDates, scheduleStartTime } from "@/lib/driverScheduleDates";
+import { scheduleDates, scheduleStartTime, scheduleTimeValue } from "@/lib/driverScheduleDates";
+import { QuarterTimeSelect } from "@/components/admin/QuarterTimeSelect";
 import { closedDayLabel } from "@/lib/nrwHolidays";
 
 interface Driver { id: string; name: string }
@@ -36,7 +37,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
   const firstStatus = () => statuses.find((s) => s.active)?.key ?? "leer";
   useEffect(() => {
     supabase.from("driver_schedule_settings").select("default_start_time").eq("id", 1).maybeSingle().then(({ data }) => {
-      if (data) setDefaultStart(data.default_start_time?.slice(0, 5) ?? "");
+      if (data) setDefaultStart(scheduleTimeValue(data.default_start_time));
     });
   }, []);
 
@@ -105,7 +106,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
 
   const open = (driverId: string, datum: string) => {
     const e = entries[`${driverId}_${datum}`];
-    setEdit({ driverId, from: datum, to: datum, status: e?.status ?? firstStatus(), notiz: e?.notiz ?? "", startTime: e ? (e.start_time?.slice(0, 5) ?? "") : defaultStart });
+    setEdit({ driverId, from: datum, to: datum, status: e?.status ?? firstStatus(), notiz: e?.notiz ?? "", startTime: e ? scheduleTimeValue(e.start_time) : defaultStart });
   };
 
   const save = async () => {
@@ -325,7 +326,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
               </div>
               {edit.status !== "leer" && (
                 <>
-                  <div><Label htmlFor="schedule-start">Startzeit (optional)</Label><Input id="schedule-start" type="time" value={edit.startTime} onChange={(e) => setEdit({ ...edit, startTime: e.target.value })} /></div>
+                  <div><Label>Startzeit (optional)</Label><QuarterTimeSelect value={edit.startTime} onChange={(v) => setEdit({ ...edit, startTime: v })} /></div>
                   <div><Label htmlFor="schedule-note">Notiz (optional)</Label><Input id="schedule-note" value={edit.notiz} onChange={(e) => setEdit({ ...edit, notiz: e.target.value })} placeholder="z. B. Treffpunkt am Depot" /></div>
                 </>
               )}

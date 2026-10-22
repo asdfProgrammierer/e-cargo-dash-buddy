@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Trash2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { SCHEDULE_COLORS, colorOf, statusKeyFromLabel, useScheduleStatuses, type ScheduleStatusDef } from "@/lib/driverSchedule";
-import { scheduleStartTime } from "@/lib/driverScheduleDates";
+import { scheduleStartTime, scheduleTimeValue } from "@/lib/driverScheduleDates";
+import { QuarterTimeSelect } from "@/components/admin/QuarterTimeSelect";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -28,7 +29,7 @@ const ScheduleSettingsPage = () => {
   useEffect(() => {
     supabase.from("driver_schedule_settings").select("default_start_time").eq("id", 1).maybeSingle().then(({ data, error }) => {
       if (error) toast.error("Einstellungen konnten nicht geladen werden");
-      else if (data) setStartTime(data.default_start_time?.slice(0, 5) ?? "");
+      else if (data) setStartTime(scheduleTimeValue(data.default_start_time));
       setLoading(false);
     });
   }, []);
@@ -79,8 +80,8 @@ const ScheduleSettingsPage = () => {
         <CardHeader><CardTitle className="text-base">Einsatzplan</CardTitle></CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="default-start">Standard-Startzeit</Label>
-            <Input id="default-start" type="time" value={startTime} disabled={loading} onChange={(e) => setStartTime(e.target.value)} className="max-w-[10rem]" />
+            <Label>Standard-Startzeit</Label>
+            <div className="max-w-[12rem]"><QuarterTimeSelect value={startTime} onChange={setStartTime} disabled={loading} /></div>
             <p className="text-xs text-muted-foreground">Wird bei neuen Einträgen vorausgefüllt. Leer lassen für keine Vorgabe.</p>
           </div>
 

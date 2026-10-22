@@ -3,3 +3,4 @@
 - [x] Make notes visible and add a saved, optional planned start time.
 - [x] Verify saving and reopening entries; keep work-time statistics unchanged.
 - [x] Make the plan blue a strong blue and add brown to the status colour list.
+- [x] Restrict planned start times to the 15-minute rhythm in the planner and settings.
