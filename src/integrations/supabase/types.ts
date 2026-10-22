@@ -858,6 +858,8 @@ export type Database = {
           package_width_cm: number | null
           pakete: number
           shop_connection_id: string | null
+          shopify_event_error: string | null
+          shopify_event_status: string | null
           shopify_fulfilled_at: string | null
           shopify_fulfillment_id: string | null
           signature_required: boolean
@@ -906,6 +908,8 @@ export type Database = {
           package_width_cm?: number | null
           pakete?: number
           shop_connection_id?: string | null
+          shopify_event_error?: string | null
+          shopify_event_status?: string | null
           shopify_fulfilled_at?: string | null
           shopify_fulfillment_id?: string | null
           signature_required?: boolean
@@ -954,6 +958,8 @@ export type Database = {
           package_width_cm?: number | null
           pakete?: number
           shop_connection_id?: string | null
+          shopify_event_error?: string | null
+          shopify_event_status?: string | null
           shopify_fulfilled_at?: string | null
           shopify_fulfillment_id?: string | null
           signature_required?: boolean
@@ -1306,6 +1312,7 @@ export type Database = {
           poll_watermark_at: string | null
           pos_source_names: string[]
           shop_domain: string | null
+          sync_delivery_status: boolean
           updated_at: string
           user_id: string
           webhook_cutoff_at: string | null
@@ -1328,6 +1335,7 @@ export type Database = {
           poll_watermark_at?: string | null
           pos_source_names?: string[]
           shop_domain?: string | null
+          sync_delivery_status?: boolean
           updated_at?: string
           user_id: string
           webhook_cutoff_at?: string | null
@@ -1350,6 +1358,7 @@ export type Database = {
           poll_watermark_at?: string | null
           pos_source_names?: string[]
           shop_domain?: string | null
+          sync_delivery_status?: boolean
           updated_at?: string
           user_id?: string
           webhook_cutoff_at?: string | null
@@ -1698,6 +1707,7 @@ export type Database = {
           poll_watermark_at: string | null
           pos_source_names: string[]
           shop_domain: string | null
+          sync_delivery_status: boolean
           updated_at: string
           user_id: string
           webhook_cutoff_at: string | null
@@ -1751,6 +1761,8 @@ export type Database = {
           package_width_cm: number | null
           pakete: number
           shop_connection_id: string | null
+          shopify_event_error: string | null
+          shopify_event_status: string | null
           shopify_fulfilled_at: string | null
           shopify_fulfillment_id: string | null
           signature_required: boolean
@@ -1812,6 +1824,8 @@ export type Database = {
           package_width_cm: number | null
           pakete: number
           shop_connection_id: string | null
+          shopify_event_error: string | null
+          shopify_event_status: string | null
           shopify_fulfilled_at: string | null
           shopify_fulfillment_id: string | null
           signature_required: boolean
@@ -1854,6 +1868,7 @@ export type Database = {
           poll_watermark_at: string | null
           pos_source_names: string[]
           shop_domain: string | null
+          sync_delivery_status: boolean
           updated_at: string
           user_id: string
           webhook_cutoff_at: string | null
