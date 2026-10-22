@@ -409,6 +409,42 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_schedule_statuses: {
+        Row: {
+          active: boolean
+          color: string
+          created_at: string
+          is_duty: boolean
+          key: string
+          label: string
+          short: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          color?: string
+          created_at?: string
+          is_duty?: boolean
+          key: string
+          label: string
+          short: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          color?: string
+          created_at?: string
+          is_duty?: boolean
+          key?: string
+          label?: string
+          short?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       driver_schedules: {
         Row: {
           created_at: string
@@ -447,6 +483,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "drivers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_schedules_status_fkey"
+            columns: ["status"]
+            isOneToOne: false
+            referencedRelation: "driver_schedule_statuses"
+            referencedColumns: ["key"]
           },
         ]
       }
