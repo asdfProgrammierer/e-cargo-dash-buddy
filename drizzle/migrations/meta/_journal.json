@@ -43,6 +43,13 @@
       "when": 1792668927621,
       "tag": "0005_driver_schedules",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792670117112,
+      "tag": "0006_driver_time_stats_exclude_legacy",
+      "breakpoints": true
     }
   ]
 }
