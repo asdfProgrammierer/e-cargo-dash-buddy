@@ -136,7 +136,7 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrd
     <div
       ref={setNodeRef}
       style={style}
-      className={`group flex items-center gap-2 px-3 py-2 hover:bg-surface-muted transition-colors duration-fast ease-fast-out border-b border-border/50 last:border-b-0 ${selected ? "bg-primary/5" : stop.pinned ? "bg-primary/5" : "bg-card"}`}
+      className={`group flex w-full min-w-0 max-w-full overflow-hidden items-center gap-2 px-3 py-2 hover:bg-surface-muted transition-colors duration-fast ease-fast-out border-b border-border/50 last:border-b-0 ${selected ? "bg-primary/5" : stop.pinned ? "bg-primary/5" : "bg-card"}`}
     >
       <Checkbox
         checked={selected}
@@ -160,7 +160,7 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrd
         onClick={onOrderClick ? () => onOrderClick(stop.orders.id) : undefined}
         disabled={!onOrderClick}
         className={`flex-1 min-w-0 text-left ${onOrderClick ? "cursor-pointer hover:text-primary" : "cursor-default"}`}
-        title={onOrderClick ? "Auftrag anzeigen / bearbeiten" : undefined}
+        title={stop.orders.empfaenger_name}
       >
         <p className={`text-body font-medium truncate ${stop.status === "erledigt" ? "line-through text-muted-foreground" : ""}`}>
           {stop.orders.empfaenger_name}
@@ -234,7 +234,7 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrd
       <button
         onClick={() => onTogglePin(stop.id, stop.pinned)}
         title={stop.pinned ? "Position fixiert – klicken zum Lösen" : "Position fixieren (wird beim Optimieren nicht verschoben)"}
-        className={`h-6 w-6 inline-flex items-center justify-center rounded transition-opacity duration-fast ${stop.pinned ? "text-primary opacity-100" : "text-muted-foreground/60 opacity-0 group-hover:opacity-100 hover:text-foreground"}`}
+        className={`h-6 w-6 shrink-0 inline-flex items-center justify-center rounded transition-opacity duration-fast ${stop.pinned ? "text-primary opacity-100" : "text-muted-foreground/60 opacity-0 group-hover:opacity-100 hover:text-foreground"}`}
         aria-label={stop.pinned ? "Position lösen" : "Position fixieren"}
       >
         {stop.pinned ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
