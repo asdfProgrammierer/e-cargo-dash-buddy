@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { colorOf, useScheduleStatuses, type ScheduleStatus } from "@/lib/driverSchedule";
 import { scheduleDates, scheduleStartTime } from "@/lib/driverScheduleDates";
+import { closedDayLabel } from "@/lib/nrwHolidays";
 
 interface Driver { id: string; name: string }
 interface Entry { driver_id: string; datum: string; status: ScheduleStatus; notiz: string | null; start_time: string | null }
@@ -150,14 +151,16 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
     const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] ?? c));
     const head = drivers.map((d) => `<th>${esc(d.name)}</th>`).join("");
     const rows = days.map((d) => {
-      const we = d.getDay() === 0 || d.getDay() === 6;
+      const closed = closedDayLabel(d);
+      const we = d.getDay() === 6;
       const cells = drivers.map((dr) => {
         const e = entries[`${dr.id}_${ymd(d)}`];
         const meta = e && metaOf(e.status);
         const c = meta && colorOf(meta.color);
         return `<td style="${c ? `background:${c.bg};color:${c.fg};font-weight:600` : ""}">${meta ? esc(meta.label) : ""}${e?.notiz ? `<div class="n">${esc(e.notiz)}</div>` : ""}</td>`;
       }).join("");
-      return `<tr class="${we ? "we" : ""}"><th class="d">${d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })}</th>${cells}</tr>`;
+      const holiday = closed && closed !== "Sonntag" ? ` <span class="n">${esc(closed)}</span>` : "";
+      return `<tr class="${closed ? "cl" : we ? "we" : ""}"><th class="d">${d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })}${holiday}</th>${cells}</tr>`;
     }).join("");
     w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Einsatzplan ${esc(monthLabel)}</title><style>
       @page { size: A4 ${drivers.length > 6 ? "landscape" : "portrait"}; margin: 10mm; }
@@ -168,6 +171,8 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
       th, td { border: 1px solid #999; padding: 2px 4px; text-align: center; height: 17px; }
       th.d { text-align: left; width: 70px; white-space: nowrap; }
       tr.we { background: #eee; }
+      tr.cl { background: #9a9a9a; }
+      th.d .n { color: #222; }
       .n { font-size: 8px; color: #444; }
     </style></head><body><h1>e-cargo Einsatzplan – ${esc(monthLabel)}</h1>
     <table><thead><tr><th class="d">Datum</th>${head}</tr></thead><tbody>${rows}</tbody></table>
@@ -203,9 +208,10 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
             <tr>
               <th className="sticky left-0 z-10 bg-card p-2 text-left min-w-36 border-b">Fahrer</th>
               {days.map((d) => {
-                const we = d.getDay() === 0 || d.getDay() === 6;
+                const closed = closedDayLabel(d);
+                const we = d.getDay() === 6;
                 return (
-                  <th key={d.getDate()} className={cn("p-1 w-8 text-center border-b font-medium", we && "bg-muted", ymd(d) === today && "text-primary")}>
+                  <th key={d.getDate()} title={closed ?? undefined} className={cn("p-1 w-8 text-center border-b font-medium", closed ? "bg-foreground/70 text-background" : we && "bg-muted", ymd(d) === today && !closed && "text-primary")}>
                     <div>{d.toLocaleDateString("de-DE", { weekday: "short" }).slice(0, 2)}</div>
                     <div>{d.getDate()}</div>
                   </th>
@@ -227,9 +233,10 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
                     const key = ymd(d);
                     const e = entries[`${dr.id}_${key}`];
                     const meta = e && metaOf(e.status);
-                    const we = d.getDay() === 0 || d.getDay() === 6;
+                    const closed = closedDayLabel(d);
+                    const we = d.getDay() === 6;
                     return (
-                      <td key={key} className={cn("border-b border-l p-0.5", we && "bg-muted/50")}>
+                      <td key={key} title={closed ?? undefined} className={cn("border-b border-l p-0.5", closed ? "bg-muted-foreground/40" : we && "bg-muted/50")}>
                         {(() => { const st = stats[`${dr.id}_${key}`]; const btn = (
                         <Button variant="ghost"
                           onClick={() => open(dr.id, key)}
