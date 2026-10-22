@@ -100,7 +100,7 @@ const RouteDruckPage = () => {
                   {s.orders.empfaenger_telefon && <div className="text-muted-foreground">Tel: {s.orders.empfaenger_telefon}</div>}
                   <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
                     <span>{s.orders.pakete} Paket(e)</span>
-                    <span>{Number(s.orders.gewicht).toFixed(1)} kg</span>
+                    {Number(s.orders.gewicht) > 0 && <span>{Number(s.orders.gewicht).toFixed(1)} kg</span>}
                     {s.leg_distance_m != null && <span>Etappe: {fmtKm(s.leg_distance_m)} · {fmtMin(s.leg_duration_s)}</span>}
                   </div>
                   {s.orders.notizen && <div className="mt-1 rounded bg-muted p-1.5 text-xs">📝 {s.orders.notizen}</div>}
