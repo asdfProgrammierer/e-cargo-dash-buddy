@@ -23,7 +23,7 @@ const hm = (sec: number) => roundUpQuarterHours(sec).toLocaleString("de-DE", { m
 export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [entries, setEntries] = useState<Record<string, Entry>>({});
-  const [edit, setEdit] = useState<{ driverId: string; from: string; to: string; status: ScheduleStatus | "leer"; notiz: string } | null>(null);
+  const [edit, setEdit] = useState<{ driverId: string; from: string; to: string; status: ScheduleStatus | "leer"; notiz: string; weekdays?: number[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [stats, setStats] = useState<Record<string, DayStat>>({});
   const [monthSec, setMonthSec] = useState<Record<string, number>>({});
@@ -90,7 +90,11 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
     if (!edit) return;
     if (edit.to < edit.from) { toast.error("Enddatum liegt vor Startdatum"); return; }
     const dates: string[] = [];
-    for (let d = new Date(edit.from + "T12:00:00"); ymd(d) <= edit.to; d.setDate(d.getDate() + 1)) dates.push(ymd(d));
+    const wd = edit.weekdays ?? [];
+    for (let d = new Date(edit.from + "T12:00:00"); ymd(d) <= edit.to; d.setDate(d.getDate() + 1)) {
+      if (wd.length === 0 || wd.includes(d.getDay())) dates.push(ymd(d));
+    }
+    if (!dates.length) { toast.error("Im Zeitraum liegt keiner der gewählten Wochentage"); return; }
     if (dates.length > 366) { toast.error("Maximal ein Jahr auf einmal"); return; }
     setBusy(true);
     const { error } = edit.status === "leer"
@@ -256,6 +260,21 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Von</Label><Input type="date" value={edit.from} onChange={(e) => setEdit({ ...edit, from: e.target.value, to: e.target.value > edit.to ? e.target.value : edit.to })} /></div>
                 <div><Label>Bis</Label><Input type="date" value={edit.to} min={edit.from} onChange={(e) => setEdit({ ...edit, to: e.target.value })} /></div>
+              </div>
+              <div>
+                <Label>Nur an diesen Wochentagen (optional)</Label>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {[1, 2, 3, 4, 5, 6, 0].map((n) => {
+                    const on = (edit.weekdays ?? []).includes(n);
+                    return (
+                      <Button key={n} type="button" size="sm" variant={on ? "default" : "outline"} className="w-10 px-0"
+                        onClick={() => setEdit({ ...edit, weekdays: on ? (edit.weekdays ?? []).filter((x) => x !== n) : [...(edit.weekdays ?? []), n] })}>
+                        {["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][n]}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">Keiner gewählt = jeder Tag im Zeitraum. Beispiel: jeden Mo + Do von Januar bis Dezember.</p>
               </div>
               <div>
                 <Label>Status</Label>
