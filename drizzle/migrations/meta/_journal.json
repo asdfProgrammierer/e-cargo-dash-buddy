@@ -57,6 +57,13 @@
       "when": 1792671602242,
       "tag": "0007_driver_schedule_start_time",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792672431950,
+      "tag": "0008_driver_schedule_settings",
+      "breakpoints": true
     }
   ]
 }
