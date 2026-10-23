@@ -230,6 +230,11 @@ Deno.serve(async (req) => {
   const cronKey = req.headers.get("x-cron-key") ?? "";
   let authorized = (token !== "" && token === serviceKey)
     || (cronKey !== "" && cronKey === (Deno.env.get("WMS_API_KEY") ?? "\u0000"));
+  if (!authorized && cronKey) {
+    // Cron sendet den Tresor-Schluessel shopify_poll_cron_key
+    const { data: ok } = await admin.rpc("verify_shopify_poll_cron_key", { _key: cronKey });
+    if (ok === true) authorized = true;
+  }
   if (!authorized && token) {
     // Cron nutzt den im Vault hinterlegten Service-Key
     try {
