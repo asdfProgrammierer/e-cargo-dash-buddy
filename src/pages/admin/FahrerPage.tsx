@@ -210,9 +210,9 @@ const FahrerPage = () => {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Lade...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Lade...</TableCell></TableRow>
               ) : drivers.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Keine Fahrer vorhanden</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Keine Fahrer vorhanden</TableCell></TableRow>
               ) : drivers.map((d) => (
                 <TableRow key={d.id}>
                   <TableCell className="font-medium">
