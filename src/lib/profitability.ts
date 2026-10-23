@@ -42,7 +42,8 @@ export interface ProfitInput {
   wages: Record<string, number | null>; // driver_id -> €/h brutto
   vehicles: Record<string, VehicleIn>;
   driverFilter?: string | null;
-  merchantFilter?: string | null;
+  /** Selected merchant ids; null/undefined = all merchants. */
+  merchantFilter?: string[] | null;
 }
 
 export interface Revenue { packages: number; stops: number; hours: number; daily: number; base: number; total: number }
@@ -141,6 +142,7 @@ export function analyzeProfit(i: ProfitInput): ProfitResult {
   }
 
   // --- apply filters & aggregate ---
+  const mSet = i.merchantFilter ? new Set(i.merchantFilter) : null;
   const driverOk = (r: RouteIn) => !i.driverFilter || r.driver_id === i.driverFilter;
   const merchantRows = new Map<string, Row>();
   const driverRows = new Map<string, Row>();
@@ -161,10 +163,10 @@ export function analyzeProfit(i: ProfitInput): ProfitResult {
 
     // share of this route's cost attributable to the merchant filter
     let share = 1;
-    if (i.merchantFilter) {
-      if (r.exclusive_merchant_user_id) share = r.exclusive_merchant_user_id === i.merchantFilter ? 1 : 0;
-      else share = routeStops > 0 ? (rm.get(i.merchantFilter)?.stops ?? 0) / routeStops : 0;
-      if (share === 0 && !rm.has(i.merchantFilter)) continue;
+    if (mSet) {
+      if (r.exclusive_merchant_user_id) share = mSet.has(r.exclusive_merchant_user_id) ? 1 : 0;
+      else share = routeStops > 0 ? [...rm].reduce((a, [m, c]) => a + (mSet.has(m) ? c.stops : 0), 0) / routeStops : 0;
+      if (share === 0 && ![...rm.keys()].some((m) => mSet.has(m))) continue;
     }
     dRow.routes += 1;
     dRow.hours += r.hours * share;
@@ -173,7 +175,7 @@ export function analyzeProfit(i: ProfitInput): ProfitResult {
     addCost(totalCost, cost, share);
 
     for (const [m, c] of rm) {
-      if (i.merchantFilter && m !== i.merchantFilter) continue;
+      if (mSet && !mSet.has(m)) continue;
       addRev(dRow.revenue, c.rev);
       addRev(totalRev, c.rev);
       dRow.stops += c.stops;
@@ -194,7 +196,7 @@ export function analyzeProfit(i: ProfitInput): ProfitResult {
   // Grundbeitrag: a merchant-level monthly fee, not attributable to a driver.
   if (!i.driverFilter) {
     for (const [m, p] of Object.entries(i.merchants)) {
-      if (i.merchantFilter && m !== i.merchantFilter) continue;
+      if (mSet && !mSet.has(m)) continue;
       const base = ((p.grundbeitrag_monat ?? 0) * 12 * i.days) / 365;
       if (base <= 0) continue;
       const mRow = merchantRows.get(m) ?? newRow(m, p.name);
@@ -203,7 +205,7 @@ export function analyzeProfit(i: ProfitInput): ProfitResult {
       totalRev.base += base;
     }
     // Fixed costs of vehicles that drove no route in the period still count for the fleet.
-    if (!i.merchantFilter) {
+    if (!mSet) {
       for (const [vid, v] of Object.entries(i.vehicles)) {
         if ((vehicleHours.get(vid) ?? 0) > 0) continue;
         totalCost.vehicle += (v.fixPerMonth * 12 * i.days) / 365 + v.maintenance;

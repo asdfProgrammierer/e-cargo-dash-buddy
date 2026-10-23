@@ -81,4 +81,13 @@ describe("analyzeProfit", () => {
     expect(r.revenue.total).toBe(3);
     expect(r.costs.wage).toBe(40);
   });
+
+  it("sums several selected merchants and leaves out excluded ones", () => {
+    const r = analyzeProfit(base({
+      merchants: { a: m({ stopppreis: 1 }), b: m({ stopppreis: 2 }), c: m({ stopppreis: 4 }) },
+      stops: ["a", "b", "c"].map((x, n) => ({ route_id: "r1", order_id: `o${n}`, merchant_id: x, pakete: 1, served: true, billPackages: true })),
+      merchantFilter: ["a", "c"],
+    }));
+    expect(r.revenue.stops).toBe(5);
+  });
 });
