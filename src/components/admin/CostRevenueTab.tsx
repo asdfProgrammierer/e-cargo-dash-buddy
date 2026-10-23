@@ -47,7 +47,8 @@ type Base = Omit<ProfitInput, "driverFilter" | "merchantFilter">;
 export function CostRevenueTab() {
   const [period, setPeriod] = useState<Period>("this_month");
   const [custom, setCustom] = useState(() => range("this_month", { from: "", to: "" }));
-  const [driver, setDriver] = useState("all");
+  /** null = alle Fahrer, sonst die ausgewählten Fahrer-IDs. */
+  const [driverSel, setDriverSel] = useState<string[] | null>(null);
   /** null = alle Händler, sonst die ausgewählten IDs. */
   const [merchantSel, setMerchantSel] = useState<string[] | null>(null);
   const [base, setBase] = useState<Base | null>(null);
@@ -161,8 +162,8 @@ export function CostRevenueTab() {
   }, [from, to]);
 
   const result: ProfitResult | null = useMemo(
-    () => base ? analyzeProfit({ ...base, driverFilter: driver === "all" ? null : driver, merchantFilter: merchantSel }) : null,
-    [base, driver, merchantSel],
+    () => base ? analyzeProfit({ ...base, driverFilter: driverSel, merchantFilter: merchantSel }) : null,
+    [base, driverSel, merchantSel],
   );
   const merchantOpts = useMemo(() => Object.entries(base?.merchants ?? {}).map(([id, m]) => ({ id, name: m.name })).sort((a, b) => a.name.localeCompare(b.name)), [base]);
   const driverOpts = useMemo(() => Object.entries(driverNames).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)), [driverNames]);
@@ -186,13 +187,35 @@ export function CostRevenueTab() {
           )}
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Fahrer</p>
-            <Select value={driver} onValueChange={setDriver}>
-              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Alle Fahrer</SelectItem>
-                {driverOpts.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-56 justify-between font-normal">
+                  <span className="truncate">{driverSel == null ? "Alle Fahrer" : driverSel.length === 0 ? "Kein Fahrer" : driverSel.length === 1 ? driverOpts.find((d) => d.id === driverSel[0])?.name ?? "1 Fahrer" : `${driverSel.length} von ${driverOpts.length} Fahrern`}</span>
+                  <ChevronDown className="h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-2" align="start">
+                <div className="flex gap-2 pb-2 border-b mb-2">
+                  <Button size="sm" variant="ghost" onClick={() => setDriverSel(null)}>Alle</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setDriverSel([])}>Keine</Button>
+                </div>
+                <div className="max-h-72 overflow-y-auto space-y-1">
+                  {driverOpts.map((d) => {
+                    const checked = driverSel == null || driverSel.includes(d.id);
+                    return (
+                      <label key={d.id} className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer">
+                        <Checkbox checked={checked} onCheckedChange={(v) => {
+                          const cur = driverSel ?? driverOpts.map((o) => o.id);
+                          const next = v ? [...cur, d.id] : cur.filter((x) => x !== d.id);
+                          setDriverSel(next.length === driverOpts.length ? null : next);
+                        }} />
+                        <span className="truncate">{d.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Händler</p>
@@ -256,7 +279,7 @@ export function CostRevenueTab() {
                 <Line l="Stopppreise (jeder Stopp)" v={result.revenue.stops} />
                 <Line l="Stundenpreise (exklusive Touren)" v={result.revenue.hours} />
                 <Line l="Tagespauschalen" v={result.revenue.daily} />
-                <Line l="Grundbeiträge (anteilig)" v={result.revenue.base} hint={driver !== "all" ? "nicht einem Fahrer zuordenbar" : undefined} />
+                <Line l="Grundbeiträge (anteilig)" v={result.revenue.base} hint={driverSel != null ? "nicht einem Fahrer zuordenbar" : undefined} />
                 <Line l="Summe" v={result.revenue.total} bold />
               </CardContent>
             </Card>
