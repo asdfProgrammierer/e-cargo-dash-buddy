@@ -78,6 +78,13 @@
       "when": 1792738637472,
       "tag": "0010_driver_schedule_series",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792739760883,
+      "tag": "0011_fix_gdpr_anonymization",
+      "breakpoints": true
     }
   ]
 }
