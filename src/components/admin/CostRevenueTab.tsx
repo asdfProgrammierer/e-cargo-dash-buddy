@@ -4,7 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Loader2, AlertTriangle, Download, ChevronDown } from "lucide-react";
+import * as XLSX from "xlsx";
 import { sumCostItems, type VehicleCostItem } from "@/lib/vehicleCosts";
 import { analyzeProfit, EMPLOYER_SURCHARGE, type ProfitInput, type ProfitResult, type MerchantPrices, type StopIn, type RouteIn, type VehicleIn } from "@/lib/profitability";
 import { cn } from "@/lib/utils";
@@ -44,7 +48,8 @@ export function CostRevenueTab() {
   const [period, setPeriod] = useState<Period>("this_month");
   const [custom, setCustom] = useState(() => range("this_month", { from: "", to: "" }));
   const [driver, setDriver] = useState("all");
-  const [merchant, setMerchant] = useState("all");
+  /** null = alle Händler, sonst die ausgewählten IDs. */
+  const [merchantSel, setMerchantSel] = useState<string[] | null>(null);
   const [base, setBase] = useState<Base | null>(null);
   const [driverNames, setDriverNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -156,8 +161,8 @@ export function CostRevenueTab() {
   }, [from, to]);
 
   const result: ProfitResult | null = useMemo(
-    () => base ? analyzeProfit({ ...base, driverFilter: driver === "all" ? null : driver, merchantFilter: merchant === "all" ? null : merchant }) : null,
-    [base, driver, merchant],
+    () => base ? analyzeProfit({ ...base, driverFilter: driver === "all" ? null : driver, merchantFilter: merchantSel }) : null,
+    [base, driver, merchantSel],
   );
   const merchantOpts = useMemo(() => Object.entries(base?.merchants ?? {}).map(([id, m]) => ({ id, name: m.name })).sort((a, b) => a.name.localeCompare(b.name)), [base]);
   const driverOpts = useMemo(() => Object.entries(driverNames).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)), [driverNames]);
@@ -191,14 +196,39 @@ export function CostRevenueTab() {
           </div>
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Händler</p>
-            <Select value={merchant} onValueChange={setMerchant}>
-              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Alle Händler</SelectItem>
-                {merchantOpts.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-56 justify-between font-normal">
+                  <span className="truncate">{merchantSel == null ? "Alle Händler" : merchantSel.length === 0 ? "Kein Händler" : merchantSel.length === 1 ? merchantOpts.find((m) => m.id === merchantSel[0])?.name ?? "1 Händler" : `${merchantSel.length} von ${merchantOpts.length} Händlern`}</span>
+                  <ChevronDown className="h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-2" align="start">
+                <div className="flex gap-2 pb-2 border-b mb-2">
+                  <Button size="sm" variant="ghost" onClick={() => setMerchantSel(null)}>Alle</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setMerchantSel([])}>Keine</Button>
+                </div>
+                <div className="max-h-72 overflow-y-auto space-y-1">
+                  {merchantOpts.map((m) => {
+                    const checked = merchantSel == null || merchantSel.includes(m.id);
+                    return (
+                      <label key={m.id} className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer">
+                        <Checkbox checked={checked} onCheckedChange={(v) => {
+                          const cur = merchantSel ?? merchantOpts.map((o) => o.id);
+                          const next = v ? [...cur, m.id] : cur.filter((x) => x !== m.id);
+                          setMerchantSel(next.length === merchantOpts.length ? null : next);
+                        }} />
+                        <span className="truncate">{m.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
+          <Button variant="outline" className="ml-auto" disabled={!result || loading} onClick={() => result && exportExcel(result, driverNames, from, to)}>
+            <Download className="h-4 w-4 mr-2" />Excel-Export
+          </Button>
           {loading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mb-2" />}
         </CardContent>
       </Card>
@@ -250,6 +280,29 @@ export function CostRevenueTab() {
       )}
     </div>
   );
+}
+
+function exportExcel(result: ProfitResult, driverNames: Record<string, string>, from: string, to: string) {
+  const sheet = (rows: ProfitResult["byDriver"], first: string, withRoutes: boolean, withDays: boolean) =>
+    XLSX.utils.json_to_sheet(rows.map((r) => ({
+      [first]: r.name,
+      ...(withRoutes ? { Touren: r.routes } : {}),
+      Stunden: +r.hours.toFixed(2),
+      km: Math.round(r.km),
+      Stopps: r.stops,
+      Pakete: r.packages,
+      ...(withDays ? { Tage: r.days } : {}),
+      "Umsatz (€)": +r.revenue.total.toFixed(2),
+      "Lohn brutto (€)": +r.costs.wage.toFixed(2),
+      "AG-Aufschlag (€)": +r.costs.surcharge.toFixed(2),
+      "Fahrzeug (€)": +r.costs.vehicle.toFixed(2),
+      "Deckungsbeitrag (€)": +r.margin.toFixed(2),
+    })));
+  const wb = XLSX.utils.book_new();
+  const drivers = result.byDriver.map((r) => ({ ...r, name: r.id === "none" ? "Ohne Fahrer" : driverNames[r.id] ?? "Unbekannt" }));
+  XLSX.utils.book_append_sheet(wb, sheet(drivers, "Fahrer", true, false), "Fahrer");
+  XLSX.utils.book_append_sheet(wb, sheet(result.byMerchant, "Händler", false, true), "Händler");
+  XLSX.writeFile(wb, `Kosten-Ertrag_${from}_bis_${to}.xlsx`);
 }
 
 function Kpi({ label, value, tone }: { label: string; value: string; tone?: "good" | "bad" }) {
