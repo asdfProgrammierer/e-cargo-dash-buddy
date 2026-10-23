@@ -123,7 +123,8 @@ export function analyzeProfit(i: ProfitInput): ProfitResult {
     if (r.exclusive_merchant_user_id) billed.add(r.exclusive_merchant_user_id);
     for (const m of billed) {
       const rate = i.merchants[m]?.stundenpreis ?? 0;
-      if (rate > 0) cell(r.id, m).rev.hours += rate * r.hours;
+      // Billed tour time is rounded up to the next quarter hour per tour.
+      if (rate > 0) cell(r.id, m).rev.hours += rate * (Math.ceil(r.hours * 4 - 1e-9) / 4);
     }
   }
   // Tagespauschale: once per merchant & day, split across that day's routes by stop count.

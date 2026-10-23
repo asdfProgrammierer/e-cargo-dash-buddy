@@ -66,6 +66,15 @@ describe("analyzeProfit", () => {
     expect(r.revenue.hours).toBe(160);
   });
 
+  it("rounds billed tour hours up to the next 15 minutes", () => {
+    const r = analyzeProfit(base({
+      routes: [{ id: "r1", datum: "2026-10-01", driver_id: "d1", vehicle_id: null, exclusive_merchant_user_id: null, hours: 3.78, km: 0 }],
+      merchants: { a: m({ stundenpreis: 40 }) },
+      stops: [{ route_id: "r1", order_id: "o1", merchant_id: "a", pakete: 1, served: true, billPackages: true }],
+    }));
+    expect(r.revenue.hours).toBe(160);
+  });
+
   it("adds a 30 % employer surcharge shown separately from gross wage", () => {
     const r = analyzeProfit(base());
     expect(r.costs.wage).toBe(60);
