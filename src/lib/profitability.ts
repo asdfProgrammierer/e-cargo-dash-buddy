@@ -1,4 +1,4 @@
-/** Pure revenue/cost math for the Kosten- & Ertragsanalyse. */
+/** Pure revenue/cost math for the Kosten- & Ertragsanalyse (Statistiken → Kosten & Ertrag). */
 
 export const EMPLOYER_SURCHARGE = 0.3; // 30 % Arbeitgeber-Aufschlag auf Bruttolohn
 
