@@ -143,7 +143,7 @@ const FahrerPage = () => {
           <TabsTrigger value="plan">Einsatzplan</TabsTrigger>
         </TabsList>
         <TabsContent value="plan">
-          <DriverSchedulePlanner drivers={drivers.filter((d) => d.status === "aktiv").map((d) => ({ id: d.id, name: d.name }))} />
+          <DriverSchedulePlanner drivers={drivers.filter((d) => d.status === "aktiv")} />
         </TabsContent>
         <TabsContent value="verwaltung">
       <div className="space-y-4">
