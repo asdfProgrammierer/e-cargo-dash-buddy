@@ -420,7 +420,7 @@ const RoutenplanungPage = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Fahrer</Label>
-                  <Select value={form.driver_id} onValueChange={(v) => setForm({ ...form, driver_id: v, start_time: dayStart[v] ?? form.start_time })}>
+                  <Select value={form.driver_id} onValueChange={(v) => setForm({ ...form, driver_id: v, start_time: dayStart[v] ?? form.start_time, name: daySchedule[v] ? scheduleLabel(daySchedule[v]) : form.name })}>
                     <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
                     <SelectContent>
                       {[...drivers]
