@@ -7,6 +7,8 @@ import { format, startOfDay, endOfDay, subDays } from "date-fns";
 import { de } from "date-fns/locale";
 import { CalendarIcon, ChevronDown, Loader2, MapPin, Percent, Timer, Target } from "lucide-react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CostRevenueTab } from "@/components/admin/CostRevenueTab";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -235,6 +237,13 @@ export default function StatistikenPage() {
 
   return (
     <AdminLayout title="Statistiken">
+      <Tabs defaultValue="delivery" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="delivery">Lieferleistung & Heatmap</TabsTrigger>
+          <TabsTrigger value="profit">Kosten & Ertrag</TabsTrigger>
+        </TabsList>
+        <TabsContent value="profit"><CostRevenueTab /></TabsContent>
+        <TabsContent value="delivery">
       <div className="space-y-6">
         {/* Filterbereich */}
         <Card>
@@ -394,6 +403,8 @@ export default function StatistikenPage() {
           </Card>
         )}
       </div>
+        </TabsContent>
+      </Tabs>
     </AdminLayout>
   );
 }
