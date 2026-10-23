@@ -39,6 +39,10 @@ interface MerchantProfile {
   website: string | null;
   logo_url: string | null;
   paketpreis: number | null;
+  stopppreis: number | null;
+  stundenpreis: number | null;
+  tagespauschale: number | null;
+  grundbeitrag_monat: number | null;
   merchant_code: string | null;
   approved: boolean;
   pickup_enabled: boolean;
@@ -538,11 +542,19 @@ const HaendlerDetailPage = () => {
                     <FileText className="h-4 w-4 text-muted-foreground" />
                     <span>USt-IdNr.: {profile.ustid || "–"}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Key className="h-4 w-4 text-muted-foreground" />
-                    <span>
-                      Paketpreis: {profile.paketpreis != null ? `${profile.paketpreis.toFixed(2)} €` : "Nicht hinterlegt"}
-                    </span>
+                  <div className="flex items-start gap-2 text-sm">
+                    <Key className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div className="space-y-0.5">
+                      {([
+                        ["Paketpreis", profile.paketpreis, ""],
+                        ["Stopppreis", profile.stopppreis, ""],
+                        ["Stundenpreis", profile.stundenpreis, " / h"],
+                        ["Tagespauschale", profile.tagespauschale, " / Tag"],
+                        ["Grundbeitrag", profile.grundbeitrag_monat, " / Monat"],
+                      ] as const).map(([l, v, s]) => (
+                        <div key={l}>{l}: {v != null ? `${Number(v).toFixed(2)} €${s}` : "–"}</div>
+                      ))}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Shield className="h-4 w-4 text-muted-foreground" />
