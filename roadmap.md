@@ -1,4 +1,6 @@
 # Tasks
+- [ ] Add explicit single-day / same-series deletion for driver schedules, including recurring and date-range entries.
+- [ ] Verify series boundaries and save/delete round trips without touching working-time statistics.
 - [x] Correct Einsatzplan date-range validation and show saved entries in the selected month.
 - [x] Make notes visible and add a saved, optional planned start time.
 - [x] Verify saving and reopening entries; keep work-time statistics unchanged.
