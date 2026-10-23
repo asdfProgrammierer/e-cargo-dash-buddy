@@ -44,8 +44,9 @@ interface MerchantProfile {
   created_at: string;
 }
 
-const missingPrices = (m: MerchantProfile) =>
-  PRICE_FIELDS.filter((f) => f.key !== "paketpreis" && m[f.key] == null).map((f) => f.short);
+const eurFmt = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" });
+const setPrices = (m: MerchantProfile) =>
+  PRICE_FIELDS.filter((f) => m[f.key] != null).map((f) => ({ key: f.key, value: Number(m[f.key]), zahlart: f.zahlart }));
 
 const HaendlerVerwaltungPage = () => {
   const navigate = useNavigate();
