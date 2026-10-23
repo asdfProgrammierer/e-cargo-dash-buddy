@@ -104,7 +104,7 @@ export function VehicleCostTab({ vehicleId, fixPerMonth, costPerKm }: { vehicleI
       </div>
       {fixPerMonth === 0 && costPerKm === 0 && (
         <p className="text-sm rounded-md border border-warning/50 bg-warning/10 p-3">
-          Für dieses Fahrzeug sind noch keine Fixkosten oder Kilometerkosten hinterlegt. Trag sie unter „Fahrzeug bearbeiten" ein.
+          Für dieses Fahrzeug sind noch keine Fixkosten oder Kilometerkosten hinterlegt. Trag sie im Reiter „Kostenpositionen" ein.
         </p>
       )}
       {!data || !c ? (
