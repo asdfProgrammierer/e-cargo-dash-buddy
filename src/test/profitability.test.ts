@@ -76,10 +76,26 @@ describe("analyzeProfit", () => {
         { route_id: "r1", order_id: "o1", merchant_id: "a", pakete: 1, served: true, billPackages: true },
         { route_id: "r2", order_id: "o2", merchant_id: "a", pakete: 1, served: true, billPackages: true },
       ],
-      driverFilter: "d2",
+      driverFilter: ["d2"],
     }));
     expect(r.revenue.total).toBe(3);
     expect(r.costs.wage).toBe(40);
+  });
+
+  it("filters by several selected drivers at once and excludes the rest", () => {
+    const r = analyzeProfit(base({
+      routes: [
+        { id: "r1", datum: "2026-10-01", driver_id: "d1", vehicle_id: null, exclusive_merchant_user_id: null, hours: 2, km: 0 },
+        { id: "r2", datum: "2026-10-01", driver_id: "d2", vehicle_id: null, exclusive_merchant_user_id: null, hours: 2, km: 0 },
+        { id: "r3", datum: "2026-10-01", driver_id: "d3", vehicle_id: null, exclusive_merchant_user_id: null, hours: 2, km: 0 },
+      ],
+      wages: { d1: 10, d2: 20, d3: 30 },
+      merchants: { a: m({ stopppreis: 1 }) },
+      stops: ["r1", "r2", "r3"].map((rid, n) => ({ route_id: rid, order_id: `o${n}`, merchant_id: "a", pakete: 1, served: true, billPackages: true })),
+      driverFilter: ["d1", "d3"],
+    }));
+    expect(r.revenue.total).toBe(2);
+    expect(r.costs.wage).toBe(80);
   });
 
   it("sums several selected merchants and leaves out excluded ones", () => {
