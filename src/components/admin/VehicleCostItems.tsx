@@ -35,7 +35,7 @@ export function VehicleCostItems({ vehicleId, items, onChange }: { vehicleId: st
     if (!d) return;
     const bez = (d.bezeichnung ?? it.bezeichnung).trim();
     if (!bez) return toast.error("Bezeichnung fehlt");
-    let patch: Record<string, unknown>;
+    let patch: { bezeichnung: string; betrag: number; intervall?: string; strompreis_kwh?: number; verbrauch_kwh_100km?: number };
     if (isEnergy(it)) {
       const price = d.strompreis_kwh !== undefined ? toNum(d.strompreis_kwh) : Number(it.strompreis_kwh ?? 0);
       const cons = d.verbrauch_kwh_100km !== undefined ? toNum(d.verbrauch_kwh_100km) : Number(it.verbrauch_kwh_100km ?? 0);
