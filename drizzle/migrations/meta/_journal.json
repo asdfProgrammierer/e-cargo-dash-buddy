@@ -99,6 +99,13 @@
       "when": 1792752827574,
       "tag": "0013_vehicle_costs",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792753065767,
+      "tag": "0014_vehicle_cost_items",
+      "breakpoints": true
     }
   ]
 }
