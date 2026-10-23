@@ -133,30 +133,6 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
             <Input value={telefon} onChange={(e) => setTelefon(e.target.value)} />
           </div>
           <div className="space-y-1.5 col-span-2">
-              <Label className="text-xs">Stadt</Label>
-              <Input value={stadt} onChange={(e) => setStadt(e.target.value)} />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Telefon</Label>
-            <Input value={telefon} onChange={(e) => setTelefon(e.target.value)} />
-          </div>
-          <div className="rounded-md border p-3 space-y-2">
-            <p className="text-sm font-medium">Preise & Konditionen</p>
-            <div className="grid grid-cols-2 gap-2">
-              {PRICE_FIELDS.map(({ key, label }) => (
-                <div key={key} className="space-y-1.5">
-                  <Label className="text-xs">{label}</Label>
-                  <Input type="number" min={0} step="0.01" value={prices[key]}
-                    onChange={(e) => setPrices((p) => ({ ...p, [key]: e.target.value }))} />
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Paket 1× pro Auftrag · Stopp bei jedem Anfahren · Stunde nur bei exklusiven Touren · Tag sobald der Händler gefahren wird.
-            </p>
-          </div>
-          <div className="space-y-1.5 col-span-2">
             <Label className="text-xs">Notiz für Abhol-Aufträge</Label>
             <Textarea
               value={pickupNote}
