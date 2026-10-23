@@ -120,6 +120,13 @@
       "when": 1792761291165,
       "tag": "0016_cost_revenue_analysis",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792761310234,
+      "tag": "0017_protect_merchant_prices",
+      "breakpoints": true
     }
   ]
 }
