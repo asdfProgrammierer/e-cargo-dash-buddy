@@ -17,3 +17,15 @@ describe("vehicleCosts", () => {
     expect(vehicleCosts({ fixPerMonth: 100, costPerKm: 0, days: 30, hours: 0, km: 0, maintenance: 0 }).perHour).toBeNull();
   });
 });
+
+import { sumCostItems } from "@/lib/vehicleCosts";
+describe("sumCostItems", () => {
+  it("yearly costs count as 1/12 per month, km separate", () => {
+    expect(sumCostItems([
+      { intervall: "monat", betrag: 180 },
+      { intervall: "jahr", betrag: 420 },
+      { intervall: "km", betrag: 0.05 },
+      { intervall: "km", betrag: 0.03 },
+    ])).toEqual({ fixPerMonth: 215, costPerKm: 0.08 });
+  });
+});

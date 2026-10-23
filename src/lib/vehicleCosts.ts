@@ -34,3 +34,17 @@ export function vehicleCosts(i: VehicleCostInput): VehicleCostResult {
     perKm: i.km > 0 ? round2(total / i.km) : null,
   };
 }
+
+export interface VehicleCostItem { intervall: "monat" | "jahr" | "km"; betrag: number }
+
+/** Sums cost items into monthly fixed costs (yearly ÷ 12) and costs per km. */
+export function sumCostItems(items: VehicleCostItem[]): { fixPerMonth: number; costPerKm: number } {
+  let fix = 0, km = 0;
+  for (const i of items) {
+    const b = Number(i.betrag) || 0;
+    if (i.intervall === "monat") fix += b;
+    else if (i.intervall === "jahr") fix += b / 12;
+    else km += b;
+  }
+  return { fixPerMonth: round2(fix), costPerKm: Math.round(km * 10000) / 10000 };
+}
