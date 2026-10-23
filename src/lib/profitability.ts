@@ -116,10 +116,15 @@ export function analyzeProfit(i: ProfitInput): ProfitResult {
       c.rev.packages += (p?.paketpreis ?? 0) * s.pakete;
     }
   }
+  // Stundenpreis: a merchant with an hourly rate is billed the whole tour duration
+  // whenever one of its stops is on that tour (or the tour is exclusive for it).
   for (const r of i.routes) {
-    const m = r.exclusive_merchant_user_id;
-    if (!m) continue;
-    cell(r.id, m).rev.hours += (i.merchants[m]?.stundenpreis ?? 0) * r.hours;
+    const billed = new Set<string>(cells.get(r.id)?.keys() ?? []);
+    if (r.exclusive_merchant_user_id) billed.add(r.exclusive_merchant_user_id);
+    for (const m of billed) {
+      const rate = i.merchants[m]?.stundenpreis ?? 0;
+      if (rate > 0) cell(r.id, m).rev.hours += rate * r.hours;
+    }
   }
   // Tagespauschale: once per merchant & day, split across that day's routes by stop count.
   const dayGroups = new Map<string, { routeId: string; weight: number }[]>();
