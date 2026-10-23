@@ -19,13 +19,15 @@ interface Vehicle {
   kapazitaet_kg: number;
   status: "verfuegbar" | "unterwegs" | "in_wartung";
   notizen: string | null;
+  fixkosten_monat: number;
+  kosten_pro_km: number;
 }
 
 const typLabels: Record<string, string> = { lastenrad: "Lastenrad", e_van: "E-Van", transporter: "Transporter", sonstige: "Sonstige" };
 const statusLabels: Record<string, string> = { verfuegbar: "Verfügbar", unterwegs: "Unterwegs", in_wartung: "In Wartung" };
 const statusVariant: Record<string, "default" | "secondary" | "destructive"> = { verfuegbar: "default", unterwegs: "secondary", in_wartung: "destructive" };
 
-const emptyForm = { kennzeichen: "", typ: "lastenrad" as Vehicle["typ"], kapazitaet_kg: "0", status: "verfuegbar" as Vehicle["status"], notizen: "" };
+const emptyForm = { kennzeichen: "", typ: "lastenrad" as Vehicle["typ"], kapazitaet_kg: "0", status: "verfuegbar" as Vehicle["status"], notizen: "", fixkosten_monat: "0", kosten_pro_km: "0" };
 
 const FahrzeugePage = () => {
   const navigate = useNavigate();
@@ -80,7 +82,10 @@ const FahrzeugePage = () => {
 
   const handleSave = async () => {
     if (!form.kennzeichen.trim()) { toast.error("Kennzeichen ist erforderlich"); return; }
-    const payload = { kennzeichen: form.kennzeichen, typ: form.typ, kapazitaet_kg: Number(form.kapazitaet_kg) || 0, status: form.status, notizen: form.notizen || null };
+    const fix = Number(form.fixkosten_monat.replace(",", ".")) || 0;
+    const km = Number(form.kosten_pro_km.replace(",", ".")) || 0;
+    if (fix < 0 || km < 0) { toast.error("Kosten dürfen nicht negativ sein"); return; }
+    const payload = { kennzeichen: form.kennzeichen, typ: form.typ, kapazitaet_kg: Number(form.kapazitaet_kg) || 0, status: form.status, notizen: form.notizen || null, fixkosten_monat: fix, kosten_pro_km: km };
 
     if (editId) {
       const { error } = await supabase.from("vehicles").update(payload).eq("id", editId);
@@ -102,7 +107,7 @@ const FahrzeugePage = () => {
 
   const openEdit = (v: Vehicle) => {
     setEditId(v.id);
-    setForm({ kennzeichen: v.kennzeichen, typ: v.typ, kapazitaet_kg: String(v.kapazitaet_kg), status: v.status, notizen: v.notizen ?? "" });
+    setForm({ kennzeichen: v.kennzeichen, typ: v.typ, kapazitaet_kg: String(v.kapazitaet_kg), status: v.status, notizen: v.notizen ?? "", fixkosten_monat: String(v.fixkosten_monat ?? 0), kosten_pro_km: String(v.kosten_pro_km ?? 0) });
     setOpen(true);
   };
 
@@ -144,6 +149,10 @@ const FahrzeugePage = () => {
                       <SelectItem value="in_wartung">In Wartung</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div><Label>Fixkosten / Monat (€)</Label><Input type="number" min="0" step="0.01" value={form.fixkosten_monat} onChange={(e) => setForm({ ...form, fixkosten_monat: e.target.value })} /><p className="text-xs text-muted-foreground mt-1">Leasing, Versicherung, Stellplatz …</p></div>
+                  <div><Label>Variable Kosten / km (€)</Label><Input type="number" min="0" step="0.01" value={form.kosten_pro_km} onChange={(e) => setForm({ ...form, kosten_pro_km: e.target.value })} /><p className="text-xs text-muted-foreground mt-1">Strom, Reifen, Verschleiß</p></div>
                 </div>
                 <div><Label>Notizen</Label><Input value={form.notizen} onChange={(e) => setForm({ ...form, notizen: e.target.value })} /></div>
                 <Button className="w-full" onClick={handleSave}>{editId ? "Speichern" : "Hinzufügen"}</Button>
