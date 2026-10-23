@@ -6,11 +6,11 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 export const PRICE_FIELDS = [
-  { key: "paketpreis", label: "Paketpreis (€)", short: "Paket", hint: "1× pro Auftrag" },
-  { key: "stopppreis", label: "Stopppreis (€)", short: "Stopp", hint: "jeder angefahrene Stopp" },
-  { key: "stundenpreis", label: "Stundenpreis (€/h)", short: "Std.", hint: "nur exklusive Touren" },
-  { key: "tagespauschale", label: "Tagespauschale (€)", short: "Tag", hint: "1× pro Einsatztag" },
-  { key: "grundbeitrag_monat", label: "Grundbeitrag (€/Monat)", short: "Grund", hint: "monatliche Pauschale" },
+  { key: "paketpreis", label: "Paketpreis (€)", short: "Paket", zahlart: "pro Paket", hint: "1× pro Auftrag" },
+  { key: "stopppreis", label: "Stopppreis (€)", short: "Stopp", zahlart: "pro Stopp", hint: "jeder angefahrene Stopp" },
+  { key: "stundenpreis", label: "Stundenpreis (€/h)", short: "Std.", zahlart: "pro Stunde", hint: "nur exklusive Touren" },
+  { key: "tagespauschale", label: "Tagespauschale (€)", short: "Tag", zahlart: "pro Tag", hint: "1× pro Einsatztag" },
+  { key: "grundbeitrag_monat", label: "Grundbeitrag (€/Monat)", short: "Grund", zahlart: "Grundbeitrag / Monat", hint: "monatliche Pauschale" },
 ] as const;
 export type PriceKey = (typeof PRICE_FIELDS)[number]["key"];
 export type MerchantPriceValues = Partial<Record<PriceKey, number | null>>;
@@ -51,8 +51,8 @@ export function MerchantPricesCard({ profileId, values, onSaved }: {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {PRICE_FIELDS.map(({ key, label, hint }) => (
           <div key={key} className="space-y-1">
-            <Label className="text-xs">{label}</Label>
-            <Input type="number" min="0" step="0.01" value={form[key] ?? ""}
+            <Label htmlFor={`price-${key}`} className="text-xs">{label}</Label>
+            <Input id={`price-${key}`} type="number" min="0" step="0.01" value={form[key] ?? ""}
               onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} />
             <p className="text-[11px] text-muted-foreground">{hint}</p>
           </div>
