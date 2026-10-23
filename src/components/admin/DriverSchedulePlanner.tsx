@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, CalendarRange, Printer } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarRange, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -13,9 +13,10 @@ import { colorOf, useScheduleStatuses, type ScheduleStatus } from "@/lib/driverS
 import { scheduleDates, scheduleStartTime, scheduleTimeValue } from "@/lib/driverScheduleDates";
 import { QuarterTimeSelect } from "@/components/admin/QuarterTimeSelect";
 import { closedDayLabel } from "@/lib/nrwHolidays";
+import { scheduleDeletionEntries, type ScheduleSeriesEntry } from "@/lib/driverScheduleSeries";
 
 interface Driver { id: string; name: string }
-interface Entry { driver_id: string; datum: string; status: ScheduleStatus; notiz: string | null; start_time: string | null }
+interface Entry extends ScheduleSeriesEntry { status: ScheduleStatus; notiz: string | null; start_time: string | null }
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 interface DayStat { routes: number; stops: number; done: number; km: number; sec: number }
@@ -26,7 +27,8 @@ const hm = (sec: number) => roundUpQuarterHours(sec).toLocaleString("de-DE", { m
 export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [entries, setEntries] = useState<Record<string, Entry>>({});
-  const [edit, setEdit] = useState<{ driverId: string; from: string; to: string; status: ScheduleStatus | "leer"; notiz: string; startTime: string; weekdays?: number[] } | null>(null);
+  const [edit, setEdit] = useState<{ driverId: string; from: string; to: string; status: ScheduleStatus; notiz: string; startTime: string; weekdays?: number[] } | null>(null);
+  const [deletion, setDeletion] = useState<{ anchor: Entry; entries: ScheduleSeriesEntry[]; scope: "day" | "series" } | null>(null);
   const [busy, setBusy] = useState(false);
   const [stats, setStats] = useState<Record<string, DayStat>>({});
   const [monthSec, setMonthSec] = useState<Record<string, number>>({});
@@ -34,7 +36,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
   const { statuses } = useScheduleStatuses();
   const metaOf = (k?: string) => statuses.find((s) => s.key === k);
   const isDuty = (k?: string) => !!metaOf(k)?.is_duty;
-  const firstStatus = () => statuses.find((s) => s.active)?.key ?? "leer";
+  const firstStatus = () => statuses.find((s) => s.active)?.key ?? "";
   useEffect(() => {
     supabase.from("driver_schedule_settings").select("default_start_time").eq("id", 1).maybeSingle().then(({ data }) => {
       if (data) setDefaultStart(scheduleTimeValue(data.default_start_time));
@@ -48,7 +50,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
 
   const load = async () => {
     const { data, error } = await supabase.from("driver_schedules")
-      .select("driver_id, datum, status, notiz, start_time")
+      .select("id, driver_id, datum, status, notiz, start_time, series_id")
       .gte("datum", ymd(days[0])).lte("datum", ymd(days[days.length - 1]));
     if (error) { toast.error("Plan konnte nicht geladen werden"); return; }
     const map: Record<string, Entry> = {};
@@ -115,17 +117,18 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
     let startTime: string | null;
     try {
       dates = scheduleDates(edit.from, edit.to, edit.weekdays);
-      startTime = edit.status === "leer" ? null : scheduleStartTime(edit.startTime);
+      if (!edit.status) throw new Error("Bitte einen Status wählen.");
+      startTime = scheduleStartTime(edit.startTime);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Bitte Eingaben prüfen.");
       return;
     }
     setBusy(true);
     try {
-    const { error } = edit.status === "leer"
-      ? await supabase.from("driver_schedules").delete().eq("driver_id", edit.driverId).in("datum", dates)
-      : await supabase.from("driver_schedules").upsert(
-          dates.map((datum) => ({ driver_id: edit.driverId, datum, status: edit.status, notiz: edit.notiz.trim() || null, start_time: startTime })),
+    const existing = dates.length === 1 ? entries[`${edit.driverId}_${dates[0]}`] : undefined;
+    const seriesId = existing?.status === edit.status && existing.series_id ? existing.series_id : crypto.randomUUID();
+    const { error } = await supabase.from("driver_schedules").upsert(
+          dates.map((datum) => ({ driver_id: edit.driverId, datum, status: edit.status, notiz: edit.notiz.trim() || null, start_time: startTime, series_id: seriesId })),
           { onConflict: "driver_id,datum" });
     if (error) throw error;
     toast.success("Plan gespeichert");
@@ -141,6 +144,40 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
     } finally {
       setBusy(false);
     }
+  };
+
+  const prepareDeletion = async () => {
+    if (!edit || busy) return;
+    const anchor = entries[`${edit.driverId}_${edit.from}`];
+    if (!anchor) return;
+    setBusy(true);
+    try {
+      const query = supabase.from("driver_schedules").select("id, driver_id, datum, series_id").eq("driver_id", anchor.driver_id);
+      const { data, error } = await (anchor.series_id ? query.eq("series_id", anchor.series_id) : query.eq("id", anchor.id));
+      if (error) throw error;
+      if (!data?.some(e => e.id === anchor.id)) throw new Error("Eintrag wurde inzwischen geändert. Bitte Plan neu öffnen.");
+      setDeletion({ anchor, entries: data, scope: "day" });
+    } catch {
+      toast.error("Einträge konnten nicht zum Löschen geladen werden.");
+    } finally { setBusy(false); }
+  };
+
+  const remove = async () => {
+    if (!deletion || busy) return;
+    const selected = scheduleDeletionEntries(deletion.entries, deletion.anchor, deletion.scope);
+    if (!selected.length) return;
+    setBusy(true);
+    try {
+      let query = supabase.from("driver_schedules").delete().eq("driver_id", deletion.anchor.driver_id).in("id", selected.map(e => e.id));
+      query = deletion.anchor.series_id ? query.eq("series_id", deletion.anchor.series_id) : query.is("series_id", null);
+      const { data, error } = await query.select("id");
+      if (error) throw error;
+      if (data?.length !== selected.length) {
+        toast.warning("Der Plan wurde inzwischen geändert. Bitte verbleibende Einträge prüfen.");
+      } else toast.success(selected.length === 1 ? "Eintrag gelöscht" : `${selected.length} Einträge gelöscht`);
+      setDeletion(null); setEdit(null); await load();
+    } catch { toast.error("Löschen fehlgeschlagen. Bitte erneut versuchen."); }
+    finally { setBusy(false); }
   };
 
   const today = ymd(new Date());
@@ -316,23 +353,37 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
               </div>
               <div>
                 <Label>Status</Label>
-                <Select value={edit.status} onValueChange={(v) => setEdit({ ...edit, status: v as ScheduleStatus | "leer" })}>
+                <Select value={edit.status} onValueChange={(v) => setEdit({ ...edit, status: v as ScheduleStatus })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {statuses.filter((s) => s.active || s.key === edit.status).map((s) => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
-                    <SelectItem value="leer">Eintrag entfernen</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              {edit.status !== "leer" && (
-                <>
                   <div><Label>Startzeit (optional)</Label><QuarterTimeSelect value={edit.startTime} onChange={(v) => setEdit({ ...edit, startTime: v })} /></div>
                   <div><Label htmlFor="schedule-note">Notiz (optional)</Label><Input id="schedule-note" value={edit.notiz} onChange={(e) => setEdit({ ...edit, notiz: e.target.value })} placeholder="z. B. Treffpunkt am Depot" /></div>
-                </>
-              )}
-              <Button className="w-full" onClick={save} disabled={busy}>Speichern</Button>
+              <div className="flex flex-wrap gap-2">
+                {entries[`${edit.driverId}_${edit.from}`] && <Button variant="destructive" onClick={prepareDeletion} disabled={busy}><Trash2 className="mr-2 h-4 w-4" />Löschen</Button>}
+                <Button className="flex-1" onClick={save} disabled={busy}>Speichern</Button>
+              </div>
             </fieldset>
           )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!deletion} onOpenChange={(v) => !v && !busy && setDeletion(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Einsatzplaneintrag löschen</DialogTitle></DialogHeader>
+          {deletion && <div className="space-y-4">
+            <p className="text-sm font-medium">{drivers.find(d => d.id === deletion.anchor.driver_id)?.name} · {metaOf(deletion.anchor.status)?.label}</p>
+            <fieldset disabled={busy} className="space-y-3">
+              <label className="flex items-center gap-2 text-sm"><input type="radio" name="schedule-delete-scope" checked={deletion.scope === "day"} onChange={() => setDeletion({ ...deletion, scope: "day" })} />Nur diesen Tag ({new Date(`${deletion.anchor.datum}T12:00:00`).toLocaleDateString("de-DE")})</label>
+              {deletion.entries.length > 1 && <label className="flex items-start gap-2 text-sm"><input type="radio" name="schedule-delete-scope" className="mt-1" checked={deletion.scope === "series"} onChange={() => setDeletion({ ...deletion, scope: "series" })} /><span>Gesamte zusammengehörige Serie ({deletion.entries.length} Tage)<span className="block text-muted-foreground">{[...deletion.entries].sort((a, b) => a.datum.localeCompare(b.datum)).filter((_, i, all) => i === 0 || i === all.length - 1).map(e => new Date(`${e.datum}T12:00:00`).toLocaleDateString("de-DE")).join(" – ")}</span></span></label>}
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button variant="outline" onClick={() => setDeletion(null)}>Abbrechen</Button>
+                <Button variant="destructive" onClick={remove}><Trash2 className="mr-2 h-4 w-4" />{deletion.scope === "series" ? "Serie löschen" : "Tag löschen"}</Button>
+              </div>
+            </fieldset>
+          </div>}
         </DialogContent>
       </Dialog>
     </div>

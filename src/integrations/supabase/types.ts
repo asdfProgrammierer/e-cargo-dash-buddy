@@ -452,6 +452,7 @@ export type Database = {
           driver_id: string
           id: string
           notiz: string | null
+          series_id: string | null
           start_time: string | null
           status: string
           updated_at: string
@@ -462,6 +463,7 @@ export type Database = {
           driver_id: string
           id?: string
           notiz?: string | null
+          series_id?: string | null
           start_time?: string | null
           status: string
           updated_at?: string
@@ -472,6 +474,7 @@ export type Database = {
           driver_id?: string
           id?: string
           notiz?: string | null
+          series_id?: string | null
           start_time?: string | null
           status?: string
           updated_at?: string
