@@ -1,0 +1,2 @@
+ALTER TABLE public.drivers ADD COLUMN vacation_days_per_year integer NOT NULL DEFAULT 28 CHECK (vacation_days_per_year BETWEEN 0 AND 60);
+ALTER TABLE public.drivers ADD COLUMN work_days_per_week integer NOT NULL DEFAULT 5 CHECK (work_days_per_week IN (5, 6));
