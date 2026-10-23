@@ -41,7 +41,7 @@ export interface ProfitInput {
   merchants: Record<string, MerchantPrices>;
   wages: Record<string, number | null>; // driver_id -> €/h brutto
   vehicles: Record<string, VehicleIn>;
-  driverFilter?: string | null;
+  driverFilter?: string[] | null;
   /** Selected merchant ids; null/undefined = all merchants. */
   merchantFilter?: string[] | null;
 }
@@ -143,7 +143,8 @@ export function analyzeProfit(i: ProfitInput): ProfitResult {
 
   // --- apply filters & aggregate ---
   const mSet = i.merchantFilter ? new Set(i.merchantFilter) : null;
-  const driverOk = (r: RouteIn) => !i.driverFilter || r.driver_id === i.driverFilter;
+  const dSet = i.driverFilter ? new Set(i.driverFilter) : null;
+  const driverOk = (r: RouteIn) => !dSet || (r.driver_id != null && dSet.has(r.driver_id));
   const merchantRows = new Map<string, Row>();
   const driverRows = new Map<string, Row>();
   const newRow = (id: string, name: string): Row => ({ id, name, routes: 0, hours: 0, km: 0, stops: 0, packages: 0, days: 0, revenue: zeroRev(), costs: zeroCost(), margin: 0 });
@@ -194,7 +195,7 @@ export function analyzeProfit(i: ProfitInput): ProfitResult {
   }
 
   // Grundbeitrag: a merchant-level monthly fee, not attributable to a driver.
-  if (!i.driverFilter) {
+  if (i.driverFilter == null) {
     for (const [m, p] of Object.entries(i.merchants)) {
       if (mSet && !mSet.has(m)) continue;
       const base = ((p.grundbeitrag_monat ?? 0) * 12 * i.days) / 365;
