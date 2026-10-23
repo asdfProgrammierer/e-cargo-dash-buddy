@@ -432,7 +432,7 @@ const RoutenplanungPage = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Fahrer</Label>
-                  <Select value={form.driver_id} onValueChange={(v) => setForm({ ...form, driver_id: v, start_time: dayStart[v] ?? form.start_time, name: daySchedule[v] ? scheduleLabel(daySchedule[v]) : form.name })}>
+                  <Select value={form.driver_id} onValueChange={(v) => setForm({ ...form, driver_id: v, start_time: dayStart[v] ?? form.start_time, name: daySchedule[v] ? scheduleLabel(daySchedule[v]) : form.name, exclusive_merchant: daySchedule[v] ? (matchExclusive(scheduleLabel(daySchedule[v])) || form.exclusive_merchant) : form.exclusive_merchant })}>
                     <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
                     <SelectContent>
                       {[...drivers]
