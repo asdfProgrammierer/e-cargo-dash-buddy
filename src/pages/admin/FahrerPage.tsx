@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Plus, UserCircle, Pencil, Trash2, KeyRound, Smartphone, Copy, BarChart3 } from "lucide-react";
 import { DriverStatsDialog } from "@/components/admin/DriverStatsDialog";
+import { DriverVacationPopover, useVacationSummaries } from "@/components/admin/DriverVacationPopover";
 
 interface Driver {
   id: string;
@@ -25,9 +26,11 @@ interface Driver {
   username: string | null;
   auth_user_id: string | null;
   last_login_at: string | null;
+  vacation_days_per_year: number;
+  work_days_per_week: number;
 }
 
-const emptyForm = { name: "", telefon: "", email: "", fuehrerscheinklasse: "", status: "aktiv" as "aktiv" | "inaktiv", notizen: "" };
+const emptyForm = { name: "", telefon: "", email: "", fuehrerscheinklasse: "", status: "aktiv" as "aktiv" | "inaktiv", notizen: "", vacation_days_per_year: "28", work_days_per_week: "5" };
 
 const FahrerPage = () => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -40,18 +43,24 @@ const FahrerPage = () => {
   const [credBusy, setCredBusy] = useState(false);
   const [showPin, setShowPin] = useState<{ username: string; pin: string } | null>(null);
   const [statsDriver, setStatsDriver] = useState<Driver | null>(null);
+  const year = new Date().getFullYear();
+  const [reload, setReload] = useState(0);
+  const vacation = useVacationSummaries(drivers, year, reload);
 
   const fetch = async () => {
     const { data } = await supabase.from("drivers").select("*").order("created_at", { ascending: false });
     setDrivers((data as Driver[]) ?? []);
     setLoading(false);
+    setReload((r) => r + 1);
   };
 
   useEffect(() => { fetch(); }, []);
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error("Name ist erforderlich"); return; }
-    const payload = { name: form.name, telefon: form.telefon || null, email: form.email || null, fuehrerscheinklasse: form.fuehrerscheinklasse || null, status: form.status, notizen: form.notizen || null };
+    const vac = Number(form.vacation_days_per_year);
+    if (!Number.isInteger(vac) || vac < 0 || vac > 60) { toast.error("Urlaubsanspruch muss zwischen 0 und 60 Tagen liegen"); return; }
+    const payload = { name: form.name, telefon: form.telefon || null, email: form.email || null, fuehrerscheinklasse: form.fuehrerscheinklasse || null, status: form.status, notizen: form.notizen || null, vacation_days_per_year: vac, work_days_per_week: Number(form.work_days_per_week) };
 
     if (editId) {
       const { error } = await supabase.from("drivers").update(payload).eq("id", editId);
@@ -73,7 +82,7 @@ const FahrerPage = () => {
 
   const openEdit = (d: Driver) => {
     setEditId(d.id);
-    setForm({ name: d.name, telefon: d.telefon ?? "", email: d.email ?? "", fuehrerscheinklasse: d.fuehrerscheinklasse ?? "", status: d.status, notizen: d.notizen ?? "" });
+    setForm({ name: d.name, telefon: d.telefon ?? "", email: d.email ?? "", fuehrerscheinklasse: d.fuehrerscheinklasse ?? "", status: d.status, notizen: d.notizen ?? "", vacation_days_per_year: String(d.vacation_days_per_year ?? 28), work_days_per_week: String(d.work_days_per_week ?? 5) });
     setOpen(true);
   };
 
@@ -134,7 +143,7 @@ const FahrerPage = () => {
           <TabsTrigger value="plan">Einsatzplan</TabsTrigger>
         </TabsList>
         <TabsContent value="plan">
-          <DriverSchedulePlanner drivers={drivers.filter((d) => d.status === "aktiv").map((d) => ({ id: d.id, name: d.name }))} />
+          <DriverSchedulePlanner drivers={drivers.filter((d) => d.status === "aktiv")} />
         </TabsContent>
         <TabsContent value="verwaltung">
       <div className="space-y-4">
@@ -165,6 +174,19 @@ const FahrerPage = () => {
                     </Select>
                   </div>
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div><Label>Urlaubsanspruch (Tage/Jahr)</Label><Input type="number" min={0} max={60} value={form.vacation_days_per_year} onChange={(e) => setForm({ ...form, vacation_days_per_year: e.target.value })} /></div>
+                  <div>
+                    <Label>Arbeitstage</Label>
+                    <Select value={form.work_days_per_week} onValueChange={(v) => setForm({ ...form, work_days_per_week: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5-Tage-Woche (Mo–Fr)</SelectItem>
+                        <SelectItem value="6">6-Tage-Woche (Mo–Sa)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 <div><Label>Notizen</Label><Input value={form.notizen} onChange={(e) => setForm({ ...form, notizen: e.target.value })} /></div>
                 <Button className="w-full" onClick={handleSave}>{editId ? "Speichern" : "Hinzufügen"}</Button>
               </div>
@@ -181,15 +203,16 @@ const FahrerPage = () => {
                 <TableHead>Telefon</TableHead>
                 <TableHead>E-Mail</TableHead>
                 <TableHead>Führerschein</TableHead>
+                <TableHead>Urlaub {year}</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Aktionen</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Lade...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Lade...</TableCell></TableRow>
               ) : drivers.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Keine Fahrer vorhanden</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Keine Fahrer vorhanden</TableCell></TableRow>
               ) : drivers.map((d) => (
                 <TableRow key={d.id}>
                   <TableCell className="font-medium">
@@ -218,6 +241,13 @@ const FahrerPage = () => {
                   <TableCell>{d.telefon || "–"}</TableCell>
                   <TableCell>{d.email || "–"}</TableCell>
                   <TableCell>{d.fuehrerscheinklasse || "–"}</TableCell>
+                  <TableCell>
+                    <DriverVacationPopover driver={d} summary={vacation[d.id]} year={year}>
+                      <button type="button" className="text-left hover:text-primary" title="Urlaubsstand anzeigen">
+                        {vacation[d.id] ? <Badge variant={vacation[d.id].remaining < 0 ? "destructive" : "outline"}>{vacation[d.id].remaining} / {vacation[d.id].entitlement} übrig</Badge> : "–"}
+                      </button>
+                    </DriverVacationPopover>
+                  </TableCell>
                   <TableCell><Badge variant={d.status === "aktiv" ? "default" : "secondary"}>{d.status === "aktiv" ? "Aktiv" : "Inaktiv"}</Badge></TableCell>
                   <TableCell className="text-right space-x-1">
                     <Button variant="ghost" size="icon" title="Statistiken" onClick={() => setStatsDriver(d)}>

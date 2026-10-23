@@ -14,8 +14,9 @@ import { scheduleDates, scheduleStartTime, scheduleTimeValue } from "@/lib/drive
 import { QuarterTimeSelect } from "@/components/admin/QuarterTimeSelect";
 import { closedDayLabel } from "@/lib/nrwHolidays";
 import { scheduleDeletionEntries, type ScheduleSeriesEntry } from "@/lib/driverScheduleSeries";
+import { DriverVacationPopover, useVacationSummaries, type VacationDriver } from "@/components/admin/DriverVacationPopover";
 
-interface Driver { id: string; name: string }
+type Driver = VacationDriver;
 interface Entry extends ScheduleSeriesEntry { status: ScheduleStatus; notiz: string | null; start_time: string | null }
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -33,6 +34,7 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
   const [stats, setStats] = useState<Record<string, DayStat>>({});
   const [monthSec, setMonthSec] = useState<Record<string, number>>({});
   const [defaultStart, setDefaultStart] = useState("");
+  const vacation = useVacationSummaries(drivers, month.getFullYear(), Object.keys(entries).length + Object.values(entries).filter((e) => e.status === "urlaub").length * 1000);
   const { statuses } = useScheduleStatuses();
   const metaOf = (k?: string) => statuses.find((s) => s.key === k);
   const isDuty = (k?: string) => !!metaOf(k)?.is_duty;
@@ -264,7 +266,9 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
               return (
                 <tr key={dr.id}>
                   <td className="sticky left-0 z-10 bg-card p-2 border-b">
-                    <div className="font-medium truncate max-w-36" title={dr.name}>{dr.name}</div>
+                    <DriverVacationPopover driver={dr} summary={vacation[dr.id]} year={month.getFullYear()}>
+                      <button type="button" className="font-medium truncate max-w-36 block text-left hover:text-primary underline-offset-2 hover:underline" title={`${dr.name} – Urlaubsstand anzeigen`}>{dr.name}</button>
+                    </DriverVacationPopover>
                     <div className="text-muted-foreground">{count} Diensttage</div>
                   </td>
                   {days.map((d) => {

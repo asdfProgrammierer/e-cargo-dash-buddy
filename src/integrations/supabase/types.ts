@@ -581,6 +581,8 @@ export type Database = {
           telefon: string | null
           updated_at: string
           username: string | null
+          vacation_days_per_year: number
+          work_days_per_week: number
         }
         Insert: {
           auth_user_id?: string | null
@@ -595,6 +597,8 @@ export type Database = {
           telefon?: string | null
           updated_at?: string
           username?: string | null
+          vacation_days_per_year?: number
+          work_days_per_week?: number
         }
         Update: {
           auth_user_id?: string | null
@@ -609,6 +613,8 @@ export type Database = {
           telefon?: string | null
           updated_at?: string
           username?: string | null
+          vacation_days_per_year?: number
+          work_days_per_week?: number
         }
         Relationships: []
       }
