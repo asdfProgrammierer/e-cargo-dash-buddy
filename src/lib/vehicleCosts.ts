@@ -48,3 +48,8 @@ export function sumCostItems(items: VehicleCostItem[]): { fixPerMonth: number; c
   }
   return { fixPerMonth: round2(fix), costPerKm: Math.round(km * 10000) / 10000 };
 }
+
+/** €/km from electricity price (€/kWh) and consumption (kWh per 100 km). */
+export function energyCostPerKm(pricePerKwh: number, kwhPer100km: number): number {
+  return Math.round(((pricePerKwh * kwhPer100km) / 100) * 10000) / 10000;
+}

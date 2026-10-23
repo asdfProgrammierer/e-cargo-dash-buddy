@@ -38,8 +38,8 @@ const FahrzeugDetailPage = () => {
 
   const loadItems = useCallback(async () => {
     if (!id) return;
-    const { data } = await supabase.from("vehicle_cost_items").select("id, bezeichnung, intervall, betrag").eq("vehicle_id", id).order("sort_order").order("created_at");
-    setItems(((data ?? []) as CostItem[]).map((i) => ({ ...i, betrag: Number(i.betrag) })));
+    const { data } = await supabase.from("vehicle_cost_items").select("id, bezeichnung, intervall, betrag, strompreis_kwh, verbrauch_kwh_100km").eq("vehicle_id", id).order("sort_order").order("created_at");
+    setItems(((data ?? []) as CostItem[]).map((i) => ({ ...i, betrag: Number(i.betrag), strompreis_kwh: i.strompreis_kwh == null ? null : Number(i.strompreis_kwh), verbrauch_kwh_100km: i.verbrauch_kwh_100km == null ? null : Number(i.verbrauch_kwh_100km) })));
   }, [id]);
 
   useEffect(() => {

@@ -1587,8 +1587,10 @@ export type Database = {
           id: string
           intervall: string
           sort_order: number
+          strompreis_kwh: number | null
           updated_at: string
           vehicle_id: string
+          verbrauch_kwh_100km: number | null
         }
         Insert: {
           betrag: number
@@ -1597,8 +1599,10 @@ export type Database = {
           id?: string
           intervall: string
           sort_order?: number
+          strompreis_kwh?: number | null
           updated_at?: string
           vehicle_id: string
+          verbrauch_kwh_100km?: number | null
         }
         Update: {
           betrag?: number
@@ -1607,8 +1611,10 @@ export type Database = {
           id?: string
           intervall?: string
           sort_order?: number
+          strompreis_kwh?: number | null
           updated_at?: string
           vehicle_id?: string
+          verbrauch_kwh_100km?: number | null
         }
         Relationships: [
           {
