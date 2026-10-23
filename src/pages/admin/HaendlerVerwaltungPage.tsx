@@ -119,7 +119,7 @@ const HaendlerVerwaltungPage = () => {
 
   const filtered = merchants.filter((m) => {
     const q = search.toLowerCase();
-    if (onlyMissing && missingPrices(m).length === 0) return false;
+    if (onlyMissing && setPrices(m).length > 0) return false;
     return (
       !q ||
       m.merchant_code?.toLowerCase().includes(q) ||
@@ -162,7 +162,7 @@ const HaendlerVerwaltungPage = () => {
           </div>
           <div className="flex items-center gap-2">
             <Button type="button" size="sm" variant={onlyMissing ? "default" : "outline"} onClick={() => setOnlyMissing((v) => !v)}>
-              Preise unvollständig ({merchants.filter((m) => missingPrices(m).length > 0).length})
+              Ohne Preis ({merchants.filter((m) => setPrices(m).length === 0).length})
             </Button>
             <AdminVirtualMerchantDialog onCreated={fetchMerchants} />
           </div>
@@ -176,8 +176,8 @@ const HaendlerVerwaltungPage = () => {
                 <TableHead>Ansprechpartner</TableHead>
                 <TableHead>Stadt</TableHead>
                 <TableHead>Telefon</TableHead>
-                <TableHead>Paketpreis</TableHead>
-                <TableHead>Fehlende Preise</TableHead>
+                <TableHead>Preis</TableHead>
+                <TableHead>Zahlart</TableHead>
                 <TableHead>Registriert am</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Rechnung</TableHead>
@@ -214,19 +214,11 @@ const HaendlerVerwaltungPage = () => {
                     <TableCell>{m.ansprechpartner || "–"}</TableCell>
                     <TableCell>{m.stadt || "–"}</TableCell>
                     <TableCell>{m.telefon || "–"}</TableCell>
-                     <TableCell>
-                       {m.paketpreis != null
-                         ? new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(m.paketpreis)
-                         : "–"}
-                     </TableCell>
-                    <TableCell>
-                      {missingPrices(m).length === 0 ? (
-                        <Badge variant="outline" className="text-xs">vollständig</Badge>
-                      ) : (
-                        <div className="flex flex-wrap gap-1 min-w-[190px]">
-                          {missingPrices(m).map((x) => <Badge key={x} variant="secondary" className="text-xs">{x}</Badge>)}
-                        </div>
-                      )}
+                    <TableCell className="whitespace-nowrap tabular-nums">
+                      {setPrices(m).length === 0 ? "–" : setPrices(m).map((p) => <div key={p.key}>{eurFmt.format(p.value)}</div>)}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {setPrices(m).length === 0 ? "–" : setPrices(m).map((p) => <div key={p.key}>{p.zahlart}</div>)}
                     </TableCell>
                     <TableCell>
                       {new Date(m.created_at).toLocaleDateString("de-DE")}
