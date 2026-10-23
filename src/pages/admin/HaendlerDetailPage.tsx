@@ -17,6 +17,7 @@ import { DhlPricingTable } from "@/components/admin/DhlPricingTable";
 import { AdminCreateOrderDialog } from "@/components/admin/AdminCreateOrderDialog";
 import { AdminExcelImportDialog } from "@/components/admin/AdminExcelImportDialog";
 import { AdminEditMerchantDialog } from "@/components/admin/AdminEditMerchantDialog";
+import { MerchantPricesCard } from "@/components/admin/MerchantPricesCard";
 import { WmsApiKeysCard } from "@/components/admin/WmsApiKeysCard";
 
 import {
@@ -798,25 +799,11 @@ const HaendlerDetailPage = () => {
                 <CardDescription>Freigabe und Berechtigungen für diesen Händler verwalten.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="rounded-lg border border-border p-4 space-y-3">
-                  <div>
-                    <p className="font-medium text-sm">Paketpreis pro Händler</p>
-                    <p className="text-xs text-muted-foreground">Grundlage für die spätere Rechnungsberechnung aller zugestellten Pakete.</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={packagePrice}
-                      onChange={(e) => setPackagePrice(e.target.value)}
-                      placeholder="z. B. 4,90"
-                    />
-                    <Button onClick={savePackagePrice} disabled={savingPrice}>
-                      {savingPrice ? "Speichern..." : "Preis speichern"}
-                    </Button>
-                  </div>
-                </div>
+                <MerchantPricesCard
+                  profileId={profile.id}
+                  values={profile}
+                  onSaved={(v) => setProfile((prev) => (prev ? { ...prev, ...v } : prev))}
+                />
 
                 <div className="rounded-lg border border-border p-4 space-y-3">
                   <div>
