@@ -6,9 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { sumCostItems } from "@/lib/vehicleCosts";
+import { sumCostItems, energyCostPerKm } from "@/lib/vehicleCosts";
 
-export interface CostItem { id: string; bezeichnung: string; intervall: "monat" | "jahr" | "km"; betrag: number }
+export interface CostItem { id: string; bezeichnung: string; intervall: "monat" | "jahr" | "km"; betrag: number; strompreis_kwh?: number | null; verbrauch_kwh_100km?: number | null }
+const ENERGY = "Strom / Energie";
+const isEnergy = (i: CostItem) => i.strompreis_kwh != null || i.verbrauch_kwh_100km != null;
+const toNum = (v: unknown) => Number(String(v).replace(",", "."));
 
 const FIX_PRESETS = ["Leasing / Finanzierung", "Abschreibung", "Versicherung", "Kfz-Steuer", "Stellplatz / Garage", "GPS / Telematik", "Akku-Miete"];
 const KM_PRESETS = ["Strom / Energie", "Reifen", "Bremsen", "Kette / Antrieb", "Allgemeiner Verschleiß"];
@@ -22,18 +25,28 @@ export function VehicleCostItems({ vehicleId, items, onChange }: { vehicleId: st
   const { fixPerMonth, costPerKm } = sumCostItems(items);
 
   const add = async (bezeichnung: string, intervall: CostItem["intervall"]) => {
-    const { error } = await supabase.from("vehicle_cost_items").insert({ vehicle_id: vehicleId, bezeichnung, intervall, betrag: 0, sort_order: items.length });
+    const energy = bezeichnung === ENERGY ? { strompreis_kwh: 0, verbrauch_kwh_100km: 0 } : {};
+    const { error } = await supabase.from("vehicle_cost_items").insert({ vehicle_id: vehicleId, bezeichnung, intervall, betrag: 0, sort_order: items.length, ...energy });
     if (error) return toast.error("Konnte Position nicht anlegen");
     onChange();
   };
   const save = async (it: CostItem) => {
     const d = drafts[it.id];
     if (!d) return;
-    const betrag = d.betrag !== undefined ? Number(String(d.betrag).replace(",", ".")) : it.betrag;
-    if (!Number.isFinite(betrag) || betrag < 0) return toast.error("Betrag muss 0 oder größer sein");
     const bez = (d.bezeichnung ?? it.bezeichnung).trim();
     if (!bez) return toast.error("Bezeichnung fehlt");
-    const { error } = await supabase.from("vehicle_cost_items").update({ bezeichnung: bez, betrag, intervall: d.intervall ?? it.intervall }).eq("id", it.id);
+    let patch: Record<string, unknown>;
+    if (isEnergy(it)) {
+      const price = d.strompreis_kwh !== undefined ? toNum(d.strompreis_kwh) : Number(it.strompreis_kwh ?? 0);
+      const cons = d.verbrauch_kwh_100km !== undefined ? toNum(d.verbrauch_kwh_100km) : Number(it.verbrauch_kwh_100km ?? 0);
+      if (![price, cons].every((n) => Number.isFinite(n) && n >= 0)) return toast.error("Werte müssen 0 oder größer sein");
+      patch = { bezeichnung: bez, strompreis_kwh: price, verbrauch_kwh_100km: cons, betrag: energyCostPerKm(price, cons) };
+    } else {
+      const betrag = d.betrag !== undefined ? toNum(d.betrag) : it.betrag;
+      if (!Number.isFinite(betrag) || betrag < 0) return toast.error("Betrag muss 0 oder größer sein");
+      patch = { bezeichnung: bez, betrag, intervall: d.intervall ?? it.intervall };
+    }
+    const { error } = await supabase.from("vehicle_cost_items").update(patch).eq("id", it.id);
     if (error) return toast.error("Speichern fehlgeschlagen");
     setDrafts((p) => { const n = { ...p }; delete n[it.id]; return n; });
     onChange();
@@ -50,8 +63,16 @@ export function VehicleCostItems({ vehicleId, items, onChange }: { vehicleId: st
     return (
       <div key={it.id} className="flex flex-wrap sm:flex-nowrap items-center gap-2">
         <Input className="flex-1 min-w-40" value={d.bezeichnung ?? it.bezeichnung} onChange={(e) => set({ bezeichnung: e.target.value })} onBlur={() => save(it)} />
+        {isEnergy(it) ? (
+          <>
+            <div className="flex items-center gap-1"><Input className="w-20" inputMode="decimal" aria-label="Strompreis" value={String(d.strompreis_kwh ?? it.strompreis_kwh ?? 0)} onChange={(e) => set({ strompreis_kwh: e.target.value as any })} onBlur={() => save(it)} /><span className="text-xs text-muted-foreground whitespace-nowrap">€/kWh</span></div>
+            <div className="flex items-center gap-1"><Input className="w-20" inputMode="decimal" aria-label="Verbrauch" value={String(d.verbrauch_kwh_100km ?? it.verbrauch_kwh_100km ?? 0)} onChange={(e) => set({ verbrauch_kwh_100km: e.target.value as any })} onBlur={() => save(it)} /><span className="text-xs text-muted-foreground whitespace-nowrap">kWh/100 km</span></div>
+            <span className="w-24 text-sm font-medium text-right whitespace-nowrap">= {eur(it.betrag, 3)}/km</span>
+          </>
+        ) : (
         <Input className="w-28" inputMode="decimal" value={d.betrag !== undefined ? String(d.betrag) : String(it.betrag)} onChange={(e) => set({ betrag: e.target.value as any })} onBlur={() => save(it)} />
-        {km ? (
+        )}
+        {isEnergy(it) ? null : km ? (
           <span className="w-28 text-sm text-muted-foreground">€ / km</span>
         ) : (
           <Select value={it.intervall} onValueChange={async (v) => { const { error } = await supabase.from("vehicle_cost_items").update({ intervall: v }).eq("id", it.id); if (error) toast.error("Speichern fehlgeschlagen"); onChange(); }}>

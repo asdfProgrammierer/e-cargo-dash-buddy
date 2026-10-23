@@ -29,3 +29,10 @@ describe("sumCostItems", () => {
     ])).toEqual({ fixPerMonth: 215, costPerKm: 0.08 });
   });
 });
+
+import { energyCostPerKm } from "@/lib/vehicleCosts";
+describe("energyCostPerKm", () => {
+  it("0,35 €/kWh bei 20 kWh/100 km = 0,07 €/km", () => {
+    expect(energyCostPerKm(0.35, 20)).toBe(0.07);
+  });
+});
