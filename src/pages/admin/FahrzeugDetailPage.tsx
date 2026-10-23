@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Truck } from "lucide-react";
 import { MaintenanceTab } from "@/components/admin/MaintenanceTab";
 import { InspectionTab } from "@/components/admin/InspectionTab";
+import { VehicleCostTab } from "@/components/admin/VehicleCostTab";
 
 const typLabels: Record<string, string> = { lastenrad: "Lastenrad", e_van: "E-Van", transporter: "Transporter", sonstige: "Sonstige" };
 const statusLabels: Record<string, string> = { verfuegbar: "Verfügbar", unterwegs: "Unterwegs", in_wartung: "In Wartung" };
@@ -20,6 +21,8 @@ interface Vehicle {
   kapazitaet_kg: number;
   status: string;
   notizen: string | null;
+  fixkosten_monat: number;
+  kosten_pro_km: number;
 }
 
 const FahrzeugDetailPage = () => {
@@ -66,10 +69,15 @@ const FahrzeugDetailPage = () => {
           <TabsList>
             <TabsTrigger value="wartung">Wartungsplan</TabsTrigger>
             <TabsTrigger value="kontrolle">Kontrollliste</TabsTrigger>
+            <TabsTrigger value="kosten">Kosten & Statistik</TabsTrigger>
           </TabsList>
 
           <TabsContent value="wartung" className="mt-4">
             <MaintenanceTab vehicleId={vehicle.id} />
+          </TabsContent>
+
+          <TabsContent value="kosten" className="mt-4">
+            <VehicleCostTab vehicleId={vehicle.id} fixPerMonth={Number(vehicle.fixkosten_monat ?? 0)} costPerKm={Number(vehicle.kosten_pro_km ?? 0)} />
           </TabsContent>
 
           <TabsContent value="kontrolle" className="mt-4">
