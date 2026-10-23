@@ -573,6 +573,7 @@ export type Database = {
           created_at: string
           email: string | null
           fuehrerscheinklasse: string | null
+          hourly_wage: number | null
           id: string
           last_login_at: string | null
           name: string
@@ -589,6 +590,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           fuehrerscheinklasse?: string | null
+          hourly_wage?: number | null
           id?: string
           last_login_at?: string | null
           name: string
@@ -605,6 +607,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           fuehrerscheinklasse?: string | null
+          hourly_wage?: number | null
           id?: string
           last_login_at?: string | null
           name?: string
@@ -1093,6 +1096,7 @@ export type Database = {
           created_at: string
           dhl_enabled: boolean
           firma_name: string | null
+          grundbeitrag_monat: number | null
           id: string
           is_virtual: boolean
           land: string | null
@@ -1107,7 +1111,10 @@ export type Database = {
           pickup_weekdays: number[]
           plz: string | null
           stadt: string | null
+          stopppreis: number | null
           strasse: string | null
+          stundenpreis: number | null
+          tagespauschale: number | null
           telefon: string | null
           updated_at: string
           user_id: string
@@ -1121,6 +1128,7 @@ export type Database = {
           created_at?: string
           dhl_enabled?: boolean
           firma_name?: string | null
+          grundbeitrag_monat?: number | null
           id?: string
           is_virtual?: boolean
           land?: string | null
@@ -1135,7 +1143,10 @@ export type Database = {
           pickup_weekdays?: number[]
           plz?: string | null
           stadt?: string | null
+          stopppreis?: number | null
           strasse?: string | null
+          stundenpreis?: number | null
+          tagespauschale?: number | null
           telefon?: string | null
           updated_at?: string
           user_id: string
@@ -1149,6 +1160,7 @@ export type Database = {
           created_at?: string
           dhl_enabled?: boolean
           firma_name?: string | null
+          grundbeitrag_monat?: number | null
           id?: string
           is_virtual?: boolean
           land?: string | null
@@ -1163,7 +1175,10 @@ export type Database = {
           pickup_weekdays?: number[]
           plz?: string | null
           stadt?: string | null
+          stopppreis?: number | null
           strasse?: string | null
+          stundenpreis?: number | null
+          tagespauschale?: number | null
           telefon?: string | null
           updated_at?: string
           user_id?: string
@@ -1322,6 +1337,7 @@ export type Database = {
           datum: string
           driver_id: string | null
           end_depot_id: string | null
+          exclusive_merchant_user_id: string | null
           geometry: Json | null
           id: string
           name: string
@@ -1342,6 +1358,7 @@ export type Database = {
           datum?: string
           driver_id?: string | null
           end_depot_id?: string | null
+          exclusive_merchant_user_id?: string | null
           geometry?: Json | null
           id?: string
           name: string
@@ -1362,6 +1379,7 @@ export type Database = {
           datum?: string
           driver_id?: string | null
           end_depot_id?: string | null
+          exclusive_merchant_user_id?: string | null
           geometry?: Json | null
           id?: string
           name?: string

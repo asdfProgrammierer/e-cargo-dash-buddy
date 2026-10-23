@@ -113,6 +113,13 @@
       "when": 1792753286396,
       "tag": "0015_vehicle_cost_items_energy",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792761291165,
+      "tag": "0016_cost_revenue_analysis",
+      "breakpoints": true
     }
   ]
 }
