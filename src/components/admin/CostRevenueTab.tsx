@@ -118,7 +118,9 @@ export function CostRevenueTab() {
       const routeIns: RouteIn[] = routes.map((r) => {
         const served = ((r.route_stops as any[]) ?? []).some((s) => s.status !== "offen");
         const actual = secByRoute.get(r.id);
-        const sec = actual ?? (served ? r.total_duration_s ?? 0 : 0);
+        // Sessions longer than 16 h are stale (never closed properly) → use the planned tour duration instead.
+        const planned = served ? r.total_duration_s ?? 0 : 0;
+        const sec = actual != null && actual > 0 && actual <= 16 * 3600 ? actual : planned;
         return {
           id: r.id, datum: r.datum, driver_id: r.driver_id, vehicle_id: r.vehicle_id,
           exclusive_merchant_user_id: r.exclusive_merchant_user_id,
