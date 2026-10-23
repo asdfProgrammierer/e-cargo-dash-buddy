@@ -51,8 +51,8 @@ export function MerchantPricesCard({ profileId, values, onSaved }: {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {PRICE_FIELDS.map(({ key, label, hint }) => (
           <div key={key} className="space-y-1">
-            <Label className="text-xs">{label}</Label>
-            <Input type="number" min="0" step="0.01" value={form[key] ?? ""}
+            <Label htmlFor={`price-${key}`} className="text-xs">{label}</Label>
+            <Input id={`price-${key}`} type="number" min="0" step="0.01" value={form[key] ?? ""}
               onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} />
             <p className="text-[11px] text-muted-foreground">{hint}</p>
           </div>
