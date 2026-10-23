@@ -25,11 +25,25 @@ interface Props {
     stadt: string | null;
     telefon: string | null;
     paketpreis: number | null;
+    stopppreis?: number | null;
+    stundenpreis?: number | null;
+    tagespauschale?: number | null;
+    grundbeitrag_monat?: number | null;
     is_virtual: boolean;
     pickup_note: string | null;
   };
   onUpdated: (updated: Partial<Props["profile"]>) => void;
 }
+
+const PRICE_FIELDS = [
+  { key: "paketpreis", label: "Paketpreis (€)" },
+  { key: "stopppreis", label: "Stopppreis (€)" },
+  { key: "stundenpreis", label: "Stundenpreis (€/h)" },
+  { key: "tagespauschale", label: "Tagespauschale (€)" },
+  { key: "grundbeitrag_monat", label: "Grundbeitrag (€/Monat)" },
+] as const;
+type PriceKey = (typeof PRICE_FIELDS)[number]["key"];
+const emptyPrices = { paketpreis: "", stopppreis: "", stundenpreis: "", tagespauschale: "", grundbeitrag_monat: "" };
 
 export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
   const [open, setOpen] = useState(false);
@@ -41,7 +55,7 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
   const [plz, setPlz] = useState("");
   const [stadt, setStadt] = useState("");
   const [telefon, setTelefon] = useState("");
-  const [paketpreis, setPaketpreis] = useState("");
+  const [prices, setPrices] = useState<Record<PriceKey, string>>(emptyPrices);
   const [pickupNote, setPickupNote] = useState("");
 
   useEffect(() => {
@@ -51,7 +65,7 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
     setPlz(profile.plz ?? "");
     setStadt(profile.stadt ?? "");
     setTelefon(profile.telefon ?? "");
-    setPaketpreis(profile.paketpreis != null ? String(profile.paketpreis) : "");
+    setPrices(Object.fromEntries(PRICE_FIELDS.map(({ key }) => [key, profile[key] != null ? String(profile[key]) : ""])) as Record<PriceKey, string>);
     setPickupNote(profile.pickup_note ?? "");
   }, [profile, open]);
 
@@ -62,29 +76,29 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
       return;
     }
 
-    const numericPrice =
-      paketpreis.trim() === ""
-        ? null
-        : Number(paketpreis.trim().replace(",", "."));
-    if (paketpreis.trim() !== "" && (!Number.isFinite(numericPrice) || numericPrice < 0)) {
-      toast.error("Ungültiger Paketpreis");
-      return;
+    const parsed: Record<string, number | null> = {};
+    for (const { key, label } of PRICE_FIELDS) {
+      const raw = prices[key].trim();
+      const n = raw === "" ? null : Number(raw.replace(",", "."));
+      if (n !== null && (!Number.isFinite(n) || n < 0)) {
+        toast.error(`Ungültiger Wert: ${label}`);
+        return;
+      }
+      parsed[key] = n;
     }
 
+    const fields = {
+      firma_name: firmaName.trim(),
+      ansprechpartner: ansprechpartner.trim() || null,
+      strasse: strasse.trim() || null,
+      plz: plz.trim() || null,
+      stadt: stadt.trim() || null,
+      telefon: telefon.trim() || null,
+      ...parsed,
+      pickup_note: pickupNote.trim() || null,
+    };
     setSaving(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        firma_name: firmaName.trim(),
-        ansprechpartner: ansprechpartner.trim() || null,
-        strasse: strasse.trim() || null,
-        plz: plz.trim() || null,
-        stadt: stadt.trim() || null,
-        telefon: telefon.trim() || null,
-        paketpreis: numericPrice,
-        pickup_note: pickupNote.trim() || null,
-      })
-      .eq("id", profile.id);
+    const { error } = await supabase.from("profiles").update(fields).eq("id", profile.id);
     setSaving(false);
 
     if (error) {
@@ -93,16 +107,7 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
     }
 
     toast.success("Händlerdaten aktualisiert");
-    onUpdated({
-      firma_name: firmaName.trim(),
-      ansprechpartner: ansprechpartner.trim() || null,
-      strasse: strasse.trim() || null,
-      plz: plz.trim() || null,
-      stadt: stadt.trim() || null,
-      telefon: telefon.trim() || null,
-      paketpreis: numericPrice,
-      pickup_note: pickupNote.trim() || null,
-    });
+    onUpdated(fields as Partial<Props["profile"]>);
     setOpen(false);
   };
 
@@ -114,7 +119,7 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
           Bearbeiten
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Händler bearbeiten</DialogTitle>
           <DialogDescription>
@@ -146,21 +151,24 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
               <Input value={stadt} onChange={(e) => setStadt(e.target.value)} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Telefon</Label>
-              <Input value={telefon} onChange={(e) => setTelefon(e.target.value)} />
+          <div className="space-y-1.5">
+            <Label className="text-xs">Telefon</Label>
+            <Input value={telefon} onChange={(e) => setTelefon(e.target.value)} />
+          </div>
+          <div className="rounded-md border p-3 space-y-2">
+            <p className="text-sm font-medium">Preise & Konditionen</p>
+            <div className="grid grid-cols-2 gap-2">
+              {PRICE_FIELDS.map(({ key, label }) => (
+                <div key={key} className="space-y-1.5">
+                  <Label className="text-xs">{label}</Label>
+                  <Input type="number" min={0} step="0.01" value={prices[key]}
+                    onChange={(e) => setPrices((p) => ({ ...p, [key]: e.target.value }))} />
+                </div>
+              ))}
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Paketpreis (€)</Label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={paketpreis}
-                onChange={(e) => setPaketpreis(e.target.value)}
-              />
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Paket 1× pro Auftrag · Stopp bei jedem Anfahren · Stunde nur bei exklusiven Touren · Tag sobald der Händler gefahren wird.
+            </p>
           </div>
           <div className="space-y-1.5 col-span-2">
             <Label className="text-xs">Notiz für Abhol-Aufträge</Label>

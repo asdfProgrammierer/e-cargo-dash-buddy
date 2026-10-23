@@ -28,9 +28,10 @@ interface Driver {
   last_login_at: string | null;
   vacation_days_per_year: number;
   work_days_per_week: number;
+  hourly_wage: number | null;
 }
 
-const emptyForm = { name: "", telefon: "", email: "", fuehrerscheinklasse: "", status: "aktiv" as "aktiv" | "inaktiv", notizen: "", vacation_days_per_year: "28", work_days_per_week: "5" };
+const emptyForm = { name: "", telefon: "", email: "", fuehrerscheinklasse: "", status: "aktiv" as "aktiv" | "inaktiv", notizen: "", vacation_days_per_year: "28", work_days_per_week: "5", hourly_wage: "" };
 
 const FahrerPage = () => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -60,7 +61,10 @@ const FahrerPage = () => {
     if (!form.name.trim()) { toast.error("Name ist erforderlich"); return; }
     const vac = Number(form.vacation_days_per_year);
     if (!Number.isInteger(vac) || vac < 0 || vac > 60) { toast.error("Urlaubsanspruch muss zwischen 0 und 60 Tagen liegen"); return; }
-    const payload = { name: form.name, telefon: form.telefon || null, email: form.email || null, fuehrerscheinklasse: form.fuehrerscheinklasse || null, status: form.status, notizen: form.notizen || null, vacation_days_per_year: vac, work_days_per_week: Number(form.work_days_per_week) };
+    const wageRaw = form.hourly_wage.trim().replace(",", ".");
+    const wage = wageRaw === "" ? null : Number(wageRaw);
+    if (wage !== null && (!Number.isFinite(wage) || wage < 0)) { toast.error("Ungültiger Stundenlohn"); return; }
+    const payload = { name: form.name, telefon: form.telefon || null, email: form.email || null, fuehrerscheinklasse: form.fuehrerscheinklasse || null, status: form.status, notizen: form.notizen || null, vacation_days_per_year: vac, work_days_per_week: Number(form.work_days_per_week), hourly_wage: wage };
 
     if (editId) {
       const { error } = await supabase.from("drivers").update(payload).eq("id", editId);
@@ -82,7 +86,7 @@ const FahrerPage = () => {
 
   const openEdit = (d: Driver) => {
     setEditId(d.id);
-    setForm({ name: d.name, telefon: d.telefon ?? "", email: d.email ?? "", fuehrerscheinklasse: d.fuehrerscheinklasse ?? "", status: d.status, notizen: d.notizen ?? "", vacation_days_per_year: String(d.vacation_days_per_year ?? 28), work_days_per_week: String(d.work_days_per_week ?? 5) });
+    setForm({ name: d.name, telefon: d.telefon ?? "", email: d.email ?? "", fuehrerscheinklasse: d.fuehrerscheinklasse ?? "", status: d.status, notizen: d.notizen ?? "", vacation_days_per_year: String(d.vacation_days_per_year ?? 28), work_days_per_week: String(d.work_days_per_week ?? 5), hourly_wage: d.hourly_wage != null ? String(d.hourly_wage) : "" });
     setOpen(true);
   };
 
@@ -187,6 +191,7 @@ const FahrerPage = () => {
                     </Select>
                   </div>
                 </div>
+                <div><Label>Stundenlohn brutto (€/h)</Label><Input type="number" min={0} step="0.01" value={form.hourly_wage} onChange={(e) => setForm({ ...form, hourly_wage: e.target.value })} placeholder="z. B. 14,50" /></div>
                 <div><Label>Notizen</Label><Input value={form.notizen} onChange={(e) => setForm({ ...form, notizen: e.target.value })} /></div>
                 <Button className="w-full" onClick={handleSave}>{editId ? "Speichern" : "Hinzufügen"}</Button>
               </div>
@@ -204,6 +209,7 @@ const FahrerPage = () => {
                 <TableHead>E-Mail</TableHead>
                 <TableHead>Führerschein</TableHead>
                 <TableHead>Urlaub {year}</TableHead>
+                <TableHead>Stundenlohn</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Aktionen</TableHead>
               </TableRow>
@@ -248,6 +254,7 @@ const FahrerPage = () => {
                       </button>
                     </DriverVacationPopover>
                   </TableCell>
+                  <TableCell>{d.hourly_wage != null ? `${Number(d.hourly_wage).toFixed(2).replace(".", ",")} €/h` : "–"}</TableCell>
                   <TableCell><Badge variant={d.status === "aktiv" ? "default" : "secondary"}>{d.status === "aktiv" ? "Aktiv" : "Inaktiv"}</Badge></TableCell>
                   <TableCell className="text-right space-x-1">
                     <Button variant="ghost" size="icon" title="Statistiken" onClick={() => setStatsDriver(d)}>

@@ -38,13 +38,14 @@ interface Route {
   start_depot_id: string | null;
   end_depot_id: string | null;
   stop_duration_minutes?: number | null;
+  exclusive_merchant_user_id?: string | null;
   drivers?: Driver | null;
   vehicles?: Vehicle | null;
 }
 
 const statusLabels: Record<string, string> = { geplant: "Geplant", aktiv: "Aktiv", abgeschlossen: "Abgeschlossen" };
 const statusVariant: Record<string, "default" | "secondary" | "outline"> = { geplant: "secondary", aktiv: "default", abgeschlossen: "outline" };
-const emptyForm = { name: "", driver_id: "", vehicle_id: "", start_depot_id: "", end_depot_id: "", datum: new Date().toISOString().slice(0, 10), start_time: "09:00", stop_duration: "", notizen: "" };
+const emptyForm = { name: "", driver_id: "", vehicle_id: "", start_depot_id: "", end_depot_id: "", datum: new Date().toISOString().slice(0, 10), start_time: "09:00", stop_duration: "", notizen: "", exclusive_merchant: "" };
 
 const RoutenplanungPage = () => {
   const navigate = useNavigate();
@@ -107,10 +108,19 @@ const RoutenplanungPage = () => {
 
   const defaultDepotId = useMemo(() => depots.find((x) => x.is_default)?.id ?? depots[0]?.id ?? "", [depots]);
   const [defaultStopDuration, setDefaultStopDuration] = useState<number>(4);
+  const [merchantOptions, setMerchantOptions] = useState<{ user_id: string; label: string; stundenpreis: number | null }[]>([]);
   useEffect(() => {
     supabase.from("route_settings").select("stop_duration_minutes").eq("id", 1).maybeSingle()
       .then(({ data }) => { if (data) setDefaultStopDuration(data.stop_duration_minutes); });
+    supabase.from("profiles").select("user_id, firma_name, ansprechpartner, stundenpreis").is("parent_user_id", null).eq("approved", true)
+      .then(({ data }) => setMerchantOptions((data ?? []).map((m) => ({ user_id: m.user_id, label: m.firma_name || m.ansprechpartner || "Händler", stundenpreis: m.stundenpreis })).sort((a, b) => a.label.localeCompare(b.label))));
   }, []);
+  // Preselect the exclusive merchant when the schedule status name matches a merchant with an hourly price.
+  const matchExclusive = (label: string) => {
+    const l = label.trim().toLowerCase();
+    if (!l) return "";
+    return merchantOptions.find((m) => m.stundenpreis != null && (m.label.toLowerCase().includes(l) || l.includes(m.label.toLowerCase())))?.user_id ?? "";
+  };
   const buildEmptyForm = (datum: string) => ({
     ...emptyForm,
     datum,
@@ -124,7 +134,7 @@ const RoutenplanungPage = () => {
       supabase
         .from("routes")
         .select(
-          "id, name, driver_id, vehicle_id, datum, start_time, status, notizen, start_depot_id, end_depot_id, stop_duration_minutes, drivers(id,name), vehicles(id,kennzeichen)"
+          "id, name, driver_id, vehicle_id, datum, start_time, status, notizen, start_depot_id, end_depot_id, stop_duration_minutes, exclusive_merchant_user_id, drivers(id,name), vehicles(id,kennzeichen)"
         )
         .order("datum", { ascending: false }),
       supabase.from("drivers").select("id, name").eq("status", "aktiv"),
@@ -253,6 +263,7 @@ const RoutenplanungPage = () => {
       start_time: form.start_time || "09:00",
       stop_duration_minutes: stopDur,
       notizen: form.notizen || null,
+      exclusive_merchant_user_id: form.exclusive_merchant || null,
       start_depot_id: startDepot,
       end_depot_id: endDepot,
     };
@@ -309,6 +320,7 @@ const RoutenplanungPage = () => {
       start_time: (r.start_time ?? "09:00").slice(0, 5),
       stop_duration: r.stop_duration_minutes != null ? String(r.stop_duration_minutes) : "",
       notizen: r.notizen ?? "",
+      exclusive_merchant: r.exclusive_merchant_user_id ?? "",
     });
     setOpen(true);
   };
@@ -420,7 +432,7 @@ const RoutenplanungPage = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Fahrer</Label>
-                  <Select value={form.driver_id} onValueChange={(v) => setForm({ ...form, driver_id: v, start_time: dayStart[v] ?? form.start_time, name: daySchedule[v] ? scheduleLabel(daySchedule[v]) : form.name })}>
+                  <Select value={form.driver_id} onValueChange={(v) => setForm({ ...form, driver_id: v, start_time: dayStart[v] ?? form.start_time, name: daySchedule[v] ? scheduleLabel(daySchedule[v]) : form.name, exclusive_merchant: daySchedule[v] ? (matchExclusive(scheduleLabel(daySchedule[v])) || form.exclusive_merchant) : form.exclusive_merchant })}>
                     <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
                     <SelectContent>
                       {[...drivers]
@@ -509,6 +521,16 @@ const RoutenplanungPage = () => {
                   placeholder={`Grundeinstellung: ${defaultStopDuration}`}
                 />
                 <p className="mt-1 text-xs text-muted-foreground">Leer lassen = Grundeinstellung ({defaultStopDuration} Min.)</p>
+              </div>
+              <div>
+                <Label>Exklusive Tour für Händler (Stundenabrechnung)</Label>
+                <Select value={form.exclusive_merchant || "none"} onValueChange={(v) => setForm({ ...form, exclusive_merchant: v === "none" ? "" : v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Keine (normale Tour)</SelectItem>
+                    {merchantOptions.map((m) => <SelectItem key={m.user_id} value={m.user_id}>{m.label}{m.stundenpreis == null ? " (kein Stundenpreis)" : ""}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div><Label>Notizen</Label><Input value={form.notizen} onChange={(e) => setForm({ ...form, notizen: e.target.value })} /></div>
               <Button className="w-full" onClick={handleSave}>{editId ? "Speichern" : "Erstellen"}</Button>
