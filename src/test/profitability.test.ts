@@ -50,12 +50,20 @@ describe("analyzeProfit", () => {
     expect(r.revenue.daily).toBe(40);
   });
 
-  it("charges the hourly price only on exclusive tours", () => {
+  it("charges the hourly price on exclusive tours", () => {
     const r = analyzeProfit(base({
       routes: [{ id: "r1", datum: "2026-10-01", driver_id: "d1", vehicle_id: null, exclusive_merchant_user_id: "a", hours: 3, km: 0 }],
       merchants: { a: m({ stundenpreis: 30 }), b: m({ stundenpreis: 99 }) },
     }));
     expect(r.revenue.hours).toBe(90);
+  });
+
+  it("bills the whole tour duration at the hourly price when a merchant's stop is on it", () => {
+    const r = analyzeProfit(base({
+      merchants: { a: m({ stundenpreis: 40 }), b: m({ stundenpreis: 99 }) },
+      stops: [{ route_id: "r1", order_id: "o1", merchant_id: "a", pakete: 1, served: true, billPackages: true }],
+    }));
+    expect(r.revenue.hours).toBe(160);
   });
 
   it("adds a 30 % employer surcharge shown separately from gross wage", () => {
