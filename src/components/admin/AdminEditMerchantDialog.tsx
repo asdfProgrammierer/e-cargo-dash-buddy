@@ -35,16 +35,6 @@ interface Props {
   onUpdated: (updated: Partial<Props["profile"]>) => void;
 }
 
-const PRICE_FIELDS = [
-  { key: "paketpreis", label: "Paketpreis (€)" },
-  { key: "stopppreis", label: "Stopppreis (€)" },
-  { key: "stundenpreis", label: "Stundenpreis (€/h)" },
-  { key: "tagespauschale", label: "Tagespauschale (€)" },
-  { key: "grundbeitrag_monat", label: "Grundbeitrag (€/Monat)" },
-] as const;
-type PriceKey = (typeof PRICE_FIELDS)[number]["key"];
-const emptyPrices = { paketpreis: "", stopppreis: "", stundenpreis: "", tagespauschale: "", grundbeitrag_monat: "" };
-
 export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -55,7 +45,6 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
   const [plz, setPlz] = useState("");
   const [stadt, setStadt] = useState("");
   const [telefon, setTelefon] = useState("");
-  const [prices, setPrices] = useState<Record<PriceKey, string>>(emptyPrices);
   const [pickupNote, setPickupNote] = useState("");
 
   useEffect(() => {
@@ -65,7 +54,6 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
     setPlz(profile.plz ?? "");
     setStadt(profile.stadt ?? "");
     setTelefon(profile.telefon ?? "");
-    setPrices(Object.fromEntries(PRICE_FIELDS.map(({ key }) => [key, profile[key] != null ? String(profile[key]) : ""])) as Record<PriceKey, string>);
     setPickupNote(profile.pickup_note ?? "");
   }, [profile, open]);
 
@@ -76,16 +64,6 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
       return;
     }
 
-    const parsed: Record<string, number | null> = {};
-    for (const { key, label } of PRICE_FIELDS) {
-      const raw = prices[key].trim();
-      const n = raw === "" ? null : Number(raw.replace(",", "."));
-      if (n !== null && (!Number.isFinite(n) || n < 0)) {
-        toast.error(`Ungültiger Wert: ${label}`);
-        return;
-      }
-      parsed[key] = n;
-    }
 
     const fields = {
       firma_name: firmaName.trim(),
@@ -94,7 +72,6 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
       plz: plz.trim() || null,
       stadt: stadt.trim() || null,
       telefon: telefon.trim() || null,
-      ...parsed,
       pickup_note: pickupNote.trim() || null,
     };
     setSaving(true);
@@ -147,6 +124,15 @@ export function AdminEditMerchantDialog({ profile, onUpdated }: Props) {
               <Input value={plz} onChange={(e) => setPlz(e.target.value)} />
             </div>
             <div className="space-y-1.5 col-span-2">
+              <Label className="text-xs">Stadt</Label>
+              <Input value={stadt} onChange={(e) => setStadt(e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Telefon</Label>
+            <Input value={telefon} onChange={(e) => setTelefon(e.target.value)} />
+          </div>
+          <div className="space-y-1.5 col-span-2">
               <Label className="text-xs">Stadt</Label>
               <Input value={stadt} onChange={(e) => setStadt(e.target.value)} />
             </div>
