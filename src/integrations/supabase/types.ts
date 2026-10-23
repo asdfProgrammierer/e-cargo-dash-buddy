@@ -1653,9 +1653,11 @@ export type Database = {
       vehicles: {
         Row: {
           created_at: string
+          fixkosten_monat: number
           id: string
           kapazitaet_kg: number
           kennzeichen: string
+          kosten_pro_km: number
           notizen: string | null
           status: Database["public"]["Enums"]["vehicle_status"]
           typ: Database["public"]["Enums"]["vehicle_type"]
@@ -1663,9 +1665,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          fixkosten_monat?: number
           id?: string
           kapazitaet_kg?: number
           kennzeichen: string
+          kosten_pro_km?: number
           notizen?: string | null
           status?: Database["public"]["Enums"]["vehicle_status"]
           typ?: Database["public"]["Enums"]["vehicle_type"]
@@ -1673,9 +1677,11 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          fixkosten_monat?: number
           id?: string
           kapazitaet_kg?: number
           kennzeichen?: string
+          kosten_pro_km?: number
           notizen?: string | null
           status?: Database["public"]["Enums"]["vehicle_status"]
           typ?: Database["public"]["Enums"]["vehicle_type"]
