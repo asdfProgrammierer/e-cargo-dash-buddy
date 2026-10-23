@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MerchantInvoiceDialog } from "@/components/admin/MerchantInvoiceDialog";
+import { PRICE_FIELDS } from "@/components/admin/MerchantPricesCard";
 import { AdminVirtualMerchantDialog } from "@/components/admin/AdminVirtualMerchantDialog";
 import { toast } from "sonner";
 import { Search, Building2, ChevronRight, Trash2, Download } from "lucide-react";
@@ -31,6 +32,10 @@ interface MerchantProfile {
   stadt: string | null;
   telefon: string | null;
   paketpreis: number | null;
+  stopppreis: number | null;
+  stundenpreis: number | null;
+  tagespauschale: number | null;
+  grundbeitrag_monat: number | null;
   merchant_code: string | null;
   approved: boolean;
   pickup_enabled: boolean;
@@ -39,10 +44,14 @@ interface MerchantProfile {
   created_at: string;
 }
 
+const missingPrices = (m: MerchantProfile) =>
+  PRICE_FIELDS.filter((f) => f.key !== "paketpreis" && m[f.key] == null).map((f) => f.short);
+
 const HaendlerVerwaltungPage = () => {
   const navigate = useNavigate();
   const [merchants, setMerchants] = useState<MerchantProfile[]>([]);
   const [search, setSearch] = useState("");
+  const [onlyMissing, setOnlyMissing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [exportingId, setExportingId] = useState<string | null>(null);
@@ -72,7 +81,7 @@ const HaendlerVerwaltungPage = () => {
   const fetchMerchants = async () => {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, user_id, firma_name, ansprechpartner, stadt, telefon, paketpreis, merchant_code, approved, pickup_enabled, pickup_weekdays, is_virtual, created_at")
+      .select("id, user_id, firma_name, ansprechpartner, stadt, telefon, paketpreis, stopppreis, stundenpreis, tagespauschale, grundbeitrag_monat, merchant_code, approved, pickup_enabled, pickup_weekdays, is_virtual, created_at")
       .order("created_at", { ascending: false });
     if (error) {
       toast.error("Fehler beim Laden der Händler");
@@ -110,6 +119,7 @@ const HaendlerVerwaltungPage = () => {
 
   const filtered = merchants.filter((m) => {
     const q = search.toLowerCase();
+    if (onlyMissing && missingPrices(m).length === 0) return false;
     return (
       !q ||
       m.merchant_code?.toLowerCase().includes(q) ||
@@ -150,7 +160,12 @@ const HaendlerVerwaltungPage = () => {
               className="pl-9"
             />
           </div>
-          <AdminVirtualMerchantDialog onCreated={fetchMerchants} />
+          <div className="flex items-center gap-2">
+            <Button type="button" size="sm" variant={onlyMissing ? "default" : "outline"} onClick={() => setOnlyMissing((v) => !v)}>
+              Preise unvollständig ({merchants.filter((m) => missingPrices(m).length > 0).length})
+            </Button>
+            <AdminVirtualMerchantDialog onCreated={fetchMerchants} />
+          </div>
         </div>
 
         <div className="rounded-lg border overflow-x-auto">
@@ -162,6 +177,7 @@ const HaendlerVerwaltungPage = () => {
                 <TableHead>Stadt</TableHead>
                 <TableHead>Telefon</TableHead>
                 <TableHead>Paketpreis</TableHead>
+                <TableHead>Fehlende Preise</TableHead>
                 <TableHead>Registriert am</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Rechnung</TableHead>
@@ -173,13 +189,13 @@ const HaendlerVerwaltungPage = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                     Lade Händler...
                   </TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                     Keine Händler gefunden
                   </TableCell>
                 </TableRow>
@@ -203,6 +219,15 @@ const HaendlerVerwaltungPage = () => {
                          ? new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(m.paketpreis)
                          : "–"}
                      </TableCell>
+                    <TableCell>
+                      {missingPrices(m).length === 0 ? (
+                        <Badge variant="outline" className="text-xs">vollständig</Badge>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {missingPrices(m).map((x) => <Badge key={x} variant="secondary" className="text-xs">{x}</Badge>)}
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {new Date(m.created_at).toLocaleDateString("de-DE")}
                     </TableCell>
