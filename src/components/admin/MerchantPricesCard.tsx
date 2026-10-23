@@ -8,9 +8,9 @@ import { supabase } from "@/integrations/supabase/client";
 export const PRICE_FIELDS = [
   { key: "paketpreis", label: "Paketpreis (€)", short: "Paket", hint: "1× pro Auftrag" },
   { key: "stopppreis", label: "Stopppreis (€)", short: "Stopp", hint: "jeder angefahrene Stopp" },
-  { key: "stundenpreis", label: "Stundenpreis (€/h)", short: "Stunde", hint: "nur exklusive Touren" },
+  { key: "stundenpreis", label: "Stundenpreis (€/h)", short: "Std.", hint: "nur exklusive Touren" },
   { key: "tagespauschale", label: "Tagespauschale (€)", short: "Tag", hint: "1× pro Einsatztag" },
-  { key: "grundbeitrag_monat", label: "Grundbeitrag (€/Monat)", short: "Grundbeitrag", hint: "monatliche Pauschale" },
+  { key: "grundbeitrag_monat", label: "Grundbeitrag (€/Monat)", short: "Grund", hint: "monatliche Pauschale" },
 ] as const;
 export type PriceKey = (typeof PRICE_FIELDS)[number]["key"];
 export type MerchantPriceValues = Partial<Record<PriceKey, number | null>>;

@@ -223,7 +223,7 @@ const HaendlerVerwaltungPage = () => {
                       {missingPrices(m).length === 0 ? (
                         <Badge variant="outline" className="text-xs">vollständig</Badge>
                       ) : (
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-1 min-w-[190px]">
                           {missingPrices(m).map((x) => <Badge key={x} variant="secondary" className="text-xs">{x}</Badge>)}
                         </div>
                       )}
