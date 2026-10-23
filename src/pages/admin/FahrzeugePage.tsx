@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Truck, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, Shield } from "lucide-react";
+import { Plus, Truck, AlertTriangle, CheckCircle2, Clock, Shield } from "lucide-react";
 
 interface Vehicle {
   id: string;
@@ -19,15 +19,13 @@ interface Vehicle {
   kapazitaet_kg: number;
   status: "verfuegbar" | "unterwegs" | "in_wartung";
   notizen: string | null;
-  fixkosten_monat: number;
-  kosten_pro_km: number;
 }
 
 const typLabels: Record<string, string> = { lastenrad: "Lastenrad", e_van: "E-Van", transporter: "Transporter", sonstige: "Sonstige" };
 const statusLabels: Record<string, string> = { verfuegbar: "Verfügbar", unterwegs: "Unterwegs", in_wartung: "In Wartung" };
 const statusVariant: Record<string, "default" | "secondary" | "destructive"> = { verfuegbar: "default", unterwegs: "secondary", in_wartung: "destructive" };
 
-const emptyForm = { kennzeichen: "", typ: "lastenrad" as Vehicle["typ"], kapazitaet_kg: "0", status: "verfuegbar" as Vehicle["status"], notizen: "", fixkosten_monat: "0", kosten_pro_km: "0" };
+const emptyForm = { kennzeichen: "", typ: "lastenrad" as Vehicle["typ"], kapazitaet_kg: "0", status: "verfuegbar" as Vehicle["status"], notizen: "" };
 
 const FahrzeugePage = () => {
   const navigate = useNavigate();
@@ -82,10 +80,7 @@ const FahrzeugePage = () => {
 
   const handleSave = async () => {
     if (!form.kennzeichen.trim()) { toast.error("Kennzeichen ist erforderlich"); return; }
-    const fix = Number(form.fixkosten_monat.replace(",", ".")) || 0;
-    const km = Number(form.kosten_pro_km.replace(",", ".")) || 0;
-    if (fix < 0 || km < 0) { toast.error("Kosten dürfen nicht negativ sein"); return; }
-    const payload = { kennzeichen: form.kennzeichen, typ: form.typ, kapazitaet_kg: Number(form.kapazitaet_kg) || 0, status: form.status, notizen: form.notizen || null, fixkosten_monat: fix, kosten_pro_km: km };
+    const payload = { kennzeichen: form.kennzeichen, typ: form.typ, kapazitaet_kg: Number(form.kapazitaet_kg) || 0, status: form.status, notizen: form.notizen || null };
 
     if (editId) {
       const { error } = await supabase.from("vehicles").update(payload).eq("id", editId);
@@ -99,18 +94,6 @@ const FahrzeugePage = () => {
     setOpen(false); setEditId(null); setForm(emptyForm); load();
   };
 
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("vehicles").delete().eq("id", id);
-    if (error) { toast.error("Fehler beim Löschen"); return; }
-    toast.success("Fahrzeug gelöscht"); load();
-  };
-
-  const openEdit = (v: Vehicle) => {
-    setEditId(v.id);
-    setForm({ kennzeichen: v.kennzeichen, typ: v.typ, kapazitaet_kg: String(v.kapazitaet_kg), status: v.status, notizen: v.notizen ?? "", fixkosten_monat: String(v.fixkosten_monat ?? 0), kosten_pro_km: String(v.kosten_pro_km ?? 0) });
-    setOpen(true);
-  };
-
   return (
     <AdminLayout title="Fahrzeugverwaltung">
       <div className="space-y-4">
@@ -121,7 +104,7 @@ const FahrzeugePage = () => {
               <Button size="sm"><Plus className="mr-2 h-4 w-4" />Fahrzeug hinzufügen</Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>{editId ? "Fahrzeug bearbeiten" : "Neues Fahrzeug"}</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{"Neues Fahrzeug"}</DialogTitle></DialogHeader>
               <div className="space-y-3">
                 <div><Label>Kennzeichen *</Label><Input value={form.kennzeichen} onChange={(e) => setForm({ ...form, kennzeichen: e.target.value })} /></div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -150,12 +133,8 @@ const FahrzeugePage = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div><Label>Fixkosten / Monat (€)</Label><Input type="number" min="0" step="0.01" value={form.fixkosten_monat} onChange={(e) => setForm({ ...form, fixkosten_monat: e.target.value })} /><p className="text-xs text-muted-foreground mt-1">Leasing, Versicherung, Stellplatz …</p></div>
-                  <div><Label>Variable Kosten / km (€)</Label><Input type="number" min="0" step="0.01" value={form.kosten_pro_km} onChange={(e) => setForm({ ...form, kosten_pro_km: e.target.value })} /><p className="text-xs text-muted-foreground mt-1">Strom, Reifen, Verschleiß</p></div>
-                </div>
                 <div><Label>Notizen</Label><Input value={form.notizen} onChange={(e) => setForm({ ...form, notizen: e.target.value })} /></div>
-                <Button className="w-full" onClick={handleSave}>{editId ? "Speichern" : "Hinzufügen"}</Button>
+                <Button className="w-full" onClick={handleSave}>Hinzufügen</Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -171,14 +150,13 @@ const FahrzeugePage = () => {
                 <TableHead>Status</TableHead>
                 <TableHead>Nächste Kontrolle</TableHead>
                 <TableHead>Nächster TÜV</TableHead>
-                <TableHead className="text-right">Aktionen</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Lade...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Lade...</TableCell></TableRow>
               ) : vehicles.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Keine Fahrzeuge vorhanden</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Keine Fahrzeuge vorhanden</TableCell></TableRow>
               ) : vehicles.map((v) => {
                 const lastDate = lastInspections[v.id];
                 let daysUntil: number | null = null;
@@ -258,10 +236,6 @@ const FahrzeugePage = () => {
                           </div>
                         );
                       })()}
-                    </TableCell>
-                    <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(v)}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(v.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </TableCell>
                   </TableRow>
                 );
