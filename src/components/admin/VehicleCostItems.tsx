@@ -44,17 +44,17 @@ export function VehicleCostItems({ vehicleId, items, onChange }: { vehicleId: st
     onChange();
   };
 
-  const Row = ({ it, km }: { it: CostItem; km: boolean }) => {
+  const renderRow = (it: CostItem, km: boolean) => {
     const d = drafts[it.id] ?? {};
     const set = (patch: Partial<CostItem>) => setDrafts((p) => ({ ...p, [it.id]: { ...p[it.id], ...patch } }));
     return (
-      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+      <div key={it.id} className="flex flex-wrap sm:flex-nowrap items-center gap-2">
         <Input className="flex-1 min-w-40" value={d.bezeichnung ?? it.bezeichnung} onChange={(e) => set({ bezeichnung: e.target.value })} onBlur={() => save(it)} />
         <Input className="w-28" inputMode="decimal" value={d.betrag !== undefined ? String(d.betrag) : String(it.betrag)} onChange={(e) => set({ betrag: e.target.value as any })} onBlur={() => save(it)} />
         {km ? (
           <span className="w-28 text-sm text-muted-foreground">€ / km</span>
         ) : (
-          <Select value={d.intervall ?? it.intervall} onValueChange={(v) => { set({ intervall: v as CostItem["intervall"] }); setTimeout(() => save({ ...it }), 0); supabase.from("vehicle_cost_items").update({ intervall: v }).eq("id", it.id).then(onChange); }}>
+          <Select value={it.intervall} onValueChange={async (v) => { const { error } = await supabase.from("vehicle_cost_items").update({ intervall: v }).eq("id", it.id); if (error) toast.error("Speichern fehlgeschlagen"); onChange(); }}>
             <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="monat">€ / Monat</SelectItem><SelectItem value="jahr">€ / Jahr</SelectItem></SelectContent>
           </Select>
@@ -64,7 +64,7 @@ export function VehicleCostItems({ vehicleId, items, onChange }: { vehicleId: st
     );
   };
 
-  const Section = ({ title, list, km, presets, total }: { title: string; list: CostItem[]; km: boolean; presets: string[]; total: string }) => {
+  const renderSection = (title: string, list: CostItem[], km: boolean, presets: string[], total: string) => {
     const unused = presets.filter((p) => !list.some((i) => i.bezeichnung === p));
     return (
       <Card>
@@ -74,7 +74,7 @@ export function VehicleCostItems({ vehicleId, items, onChange }: { vehicleId: st
         </CardHeader>
         <CardContent className="space-y-2">
           {list.length === 0 && <p className="text-sm text-muted-foreground">Noch keine Positionen.</p>}
-          {list.map((it) => <Row key={it.id} it={it} km={km} />)}
+          {list.map((it) => renderRow(it, km))}
           <div className="flex flex-wrap gap-1.5 pt-2">
             {unused.map((p) => (
               <Button key={p} variant="outline" size="sm" onClick={() => add(p, km ? "km" : "monat")}><Plus className="h-3 w-3 mr-1" />{p}</Button>
@@ -88,8 +88,8 @@ export function VehicleCostItems({ vehicleId, items, onChange }: { vehicleId: st
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <Section title="Fixkosten" list={fixItems} km={false} presets={FIX_PRESETS} total={`${eur(fixPerMonth)} / Monat`} />
-      <Section title="Variable Kosten" list={kmItems} km presets={KM_PRESETS} total={`${eur(costPerKm, 3)} / km`} />
+      {renderSection("Fixkosten", fixItems, false, FIX_PRESETS, `${eur(fixPerMonth)} / Monat`)}
+      {renderSection("Variable Kosten", kmItems, true, KM_PRESETS, `${eur(costPerKm, 3)} / km`)}
       <p className="text-xs text-muted-foreground lg:col-span-2">Jahresbeträge werden durch 12 geteilt. Änderungen werden beim Verlassen des Feldes gespeichert. Wartungen mit Kosten aus dem Wartungsplan kommen automatisch dazu.</p>
     </div>
   );
