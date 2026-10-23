@@ -197,7 +197,8 @@ export function DriverSchedulePlanner({ drivers }: { drivers: Driver[] }) {
         const e = entries[`${dr.id}_${ymd(d)}`];
         const meta = e && metaOf(e.status);
         const c = meta && colorOf(meta.color);
-        return `<td style="${c ? `background:${c.bg};color:${c.fg};font-weight:600` : ""}">${meta ? esc(meta.label) : ""}${e?.notiz ? `<div class="n">${esc(e.notiz)}</div>` : ""}</td>`;
+        const t = e?.start_time ? ` ${scheduleTimeValue(e.start_time)}` : "";
+        return `<td style="${c ? `background:${c.bg};color:${c.fg};font-weight:600` : ""}">${meta ? esc(meta.label) + esc(t) : ""}${e?.notiz ? `<div class="n">${esc(e.notiz)}</div>` : ""}</td>`;
       }).join("");
       const holiday = closed && closed !== "Sonntag" ? ` <span class="n">${esc(closed)}</span>` : "";
       return `<tr class="${closed ? "cl" : we ? "we" : ""}"><th class="d">${d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })}${holiday}</th>${cells}</tr>`;
