@@ -17,6 +17,7 @@ import { DhlPricingTable } from "@/components/admin/DhlPricingTable";
 import { AdminCreateOrderDialog } from "@/components/admin/AdminCreateOrderDialog";
 import { AdminExcelImportDialog } from "@/components/admin/AdminExcelImportDialog";
 import { AdminEditMerchantDialog } from "@/components/admin/AdminEditMerchantDialog";
+import { MerchantPricesCard } from "@/components/admin/MerchantPricesCard";
 import { WmsApiKeysCard } from "@/components/admin/WmsApiKeysCard";
 
 import {
@@ -89,9 +90,7 @@ const HaendlerDetailPage = () => {
   const [shopActive, setShopActive] = useState(false);
   const [shopNotizen, setShopNotizen] = useState("");
   const [savingShop, setSavingShop] = useState(false);
-  const [packagePrice, setPackagePrice] = useState("");
   const [merchantCode, setMerchantCode] = useState("");
-  const [savingPrice, setSavingPrice] = useState(false);
   const [savingMerchantCode, setSavingMerchantCode] = useState(false);
   const [pickupNote, setPickupNote] = useState("");
   const [savingPickupNote, setSavingPickupNote] = useState(false);
@@ -142,7 +141,6 @@ const HaendlerDetailPage = () => {
           setShopActive(s.active);
           setShopNotizen(s.notizen || "");
         }
-        setPackagePrice(profileRes.data.paketpreis != null ? String(profileRes.data.paketpreis) : "");
         setMerchantCode(profileRes.data.merchant_code ?? "");
         setPickupNote((profileRes.data as any).pickup_note ?? "");
         setOrderCount(ordersRes2.count ?? 0);
@@ -200,34 +198,6 @@ const HaendlerDetailPage = () => {
       setProfile({ ...profile, dhl_enabled: next });
       toast.success(next ? "DHL-Versand aktiviert" : "DHL-Versand deaktiviert");
     }
-  };
-
-  const savePackagePrice = async () => {
-    if (!profile) return;
-
-    const trimmed = packagePrice.trim();
-    const numericValue = trimmed === "" ? null : Number(trimmed.replace(",", "."));
-
-    if (trimmed !== "" && (!Number.isFinite(numericValue) || numericValue < 0)) {
-      toast.error("Bitte einen gültigen Paketpreis eingeben");
-      return;
-    }
-
-    setSavingPrice(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ paketpreis: numericValue })
-      .eq("id", profile.id);
-    setSavingPrice(false);
-
-    if (error) {
-      toast.error("Paketpreis konnte nicht gespeichert werden");
-      return;
-    }
-
-    setProfile({ ...profile, paketpreis: numericValue });
-    setPackagePrice(numericValue != null ? String(numericValue) : "");
-    toast.success("Paketpreis gespeichert");
   };
 
   const saveMerchantCode = async () => {
@@ -798,25 +768,11 @@ const HaendlerDetailPage = () => {
                 <CardDescription>Freigabe und Berechtigungen für diesen Händler verwalten.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="rounded-lg border border-border p-4 space-y-3">
-                  <div>
-                    <p className="font-medium text-sm">Paketpreis pro Händler</p>
-                    <p className="text-xs text-muted-foreground">Grundlage für die spätere Rechnungsberechnung aller zugestellten Pakete.</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={packagePrice}
-                      onChange={(e) => setPackagePrice(e.target.value)}
-                      placeholder="z. B. 4,90"
-                    />
-                    <Button onClick={savePackagePrice} disabled={savingPrice}>
-                      {savingPrice ? "Speichern..." : "Preis speichern"}
-                    </Button>
-                  </div>
-                </div>
+                <MerchantPricesCard
+                  profileId={profile.id}
+                  values={profile}
+                  onSaved={(v) => setProfile((prev) => (prev ? { ...prev, ...v } : prev))}
+                />
 
                 <div className="rounded-lg border border-border p-4 space-y-3">
                   <div>
