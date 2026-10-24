@@ -1253,6 +1253,8 @@ export type Database = {
           delivery_note_pdf_url: string | null
           delivery_photo_url: string | null
           delivery_recipient: string | null
+          detour_distance_m: number | null
+          detour_duration_s: number | null
           eta: string | null
           id: string
           leg_distance_m: number | null
@@ -1277,6 +1279,8 @@ export type Database = {
           delivery_note_pdf_url?: string | null
           delivery_photo_url?: string | null
           delivery_recipient?: string | null
+          detour_distance_m?: number | null
+          detour_duration_s?: number | null
           eta?: string | null
           id?: string
           leg_distance_m?: number | null
@@ -1301,6 +1305,8 @@ export type Database = {
           delivery_note_pdf_url?: string | null
           delivery_photo_url?: string | null
           delivery_recipient?: string | null
+          detour_distance_m?: number | null
+          detour_duration_s?: number | null
           eta?: string | null
           id?: string
           leg_distance_m?: number | null

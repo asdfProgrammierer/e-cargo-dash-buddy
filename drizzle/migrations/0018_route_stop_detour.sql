@@ -1,0 +1,1 @@
+ALTER TABLE public.route_stops ADD COLUMN IF NOT EXISTS detour_distance_m integer, ADD COLUMN IF NOT EXISTS detour_duration_s integer;
