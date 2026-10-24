@@ -123,4 +123,21 @@ describe("analyzeProfit", () => {
     }));
     expect(r.revenue.stops).toBe(5);
   });
+
+  it("charges a remote stop its detour (way in and way out) instead of an equal stop share", () => {
+    const res = analyzeProfit({
+      days: 1,
+      routes: [{ id: "r", datum: "2026-10-01", driver_id: "d", vehicle_id: null, exclusive_merchant_user_id: null, hours: 1, km: 0 }],
+      stops: [
+        { route_id: "r", order_id: "o1", merchant_id: "far", pakete: 1, served: true, billPackages: true, costWeight: 2400 },
+        { route_id: "r", order_id: "o2", merchant_id: "city", pakete: 1, served: true, billPackages: true, costWeight: 600 },
+      ],
+      merchants: { far: { name: "Far", paketpreis: 0, stopppreis: 0, stundenpreis: 0, tagespauschale: 0, grundbeitrag_monat: 0 }, city: { name: "City", paketpreis: 0, stopppreis: 0, stundenpreis: 0, tagespauschale: 0, grundbeitrag_monat: 0 } },
+      wages: { d: 100 }, vehicles: {},
+    });
+    const far = res.byMerchant.find((m) => m.id === "far")!;
+    const city = res.byMerchant.find((m) => m.id === "city")!;
+    expect(far.costs.wage).toBeCloseTo(80);
+    expect(city.costs.wage).toBeCloseTo(20);
+  });
 });

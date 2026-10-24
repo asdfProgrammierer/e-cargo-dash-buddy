@@ -169,7 +169,6 @@ export function analyzeProfit(i: ProfitInput): ProfitResult {
     if (!driverOk(r)) continue;
     const rm = cells.get(r.id) ?? new Map<string, Cell>();
     const cost = routeCost.get(r.id)!;
-    const routeStops = [...rm.values()].reduce((a, c) => a + c.stops, 0);
     const routeWeight = [...rm.values()].reduce((a, c) => a + c.weight, 0);
     const dId = r.driver_id ?? "none";
     const dRow = driverRows.get(dId) ?? newRow(dId, "");
