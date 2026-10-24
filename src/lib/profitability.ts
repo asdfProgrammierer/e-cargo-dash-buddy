@@ -30,6 +30,8 @@ export interface StopIn {
   served: boolean;
   /** true when this stop is the first route stop this order ever had — packages are billed once. */
   billPackages: boolean;
+  /** Seconds of marginal detour (way in + way out − direct) plus stop time; null when unknown. */
+  costWeight?: number | null;
 }
 
 export interface VehicleIn { fixPerMonth: number; costPerKm: number; maintenance: number }
@@ -97,19 +99,23 @@ export function analyzeProfit(i: ProfitInput): ProfitResult {
   }
 
   // --- per route & merchant revenue ---
-  type Cell = { rev: Revenue; stops: number; packages: number };
+  type Cell = { rev: Revenue; stops: number; packages: number; weight: number };
   const cells = new Map<string, Map<string, Cell>>(); // route -> merchant -> cell
   const cell = (routeId: string, m: string) => {
     let rm = cells.get(routeId);
     if (!rm) cells.set(routeId, (rm = new Map()));
     let c = rm.get(m);
-    if (!c) rm.set(m, (c = { rev: zeroRev(), stops: 0, packages: 0 }));
+    if (!c) rm.set(m, (c = { rev: zeroRev(), stops: 0, packages: 0, weight: 0 }));
     return c;
   };
+  // Cost split: by marginal detour time when every served stop of a route has it, else by stop count.
+  const detourOk = new Map<string, boolean>();
+  for (const s of served) detourOk.set(s.route_id, (detourOk.get(s.route_id) ?? true) && s.costWeight != null && s.costWeight > 0);
   for (const s of served) {
     const p = i.merchants[s.merchant_id];
     const c = cell(s.route_id, s.merchant_id);
     c.stops += 1;
+    c.weight += detourOk.get(s.route_id) ? s.costWeight! : 1;
     c.rev.stops += p?.stopppreis ?? 0;
     if (s.billPackages) {
       c.packages += s.pakete;
@@ -163,7 +169,7 @@ export function analyzeProfit(i: ProfitInput): ProfitResult {
     if (!driverOk(r)) continue;
     const rm = cells.get(r.id) ?? new Map<string, Cell>();
     const cost = routeCost.get(r.id)!;
-    const routeStops = [...rm.values()].reduce((a, c) => a + c.stops, 0);
+    const routeWeight = [...rm.values()].reduce((a, c) => a + c.weight, 0);
     const dId = r.driver_id ?? "none";
     const dRow = driverRows.get(dId) ?? newRow(dId, "");
     driverRows.set(dId, dRow);
@@ -172,7 +178,7 @@ export function analyzeProfit(i: ProfitInput): ProfitResult {
     let share = 1;
     if (mSet) {
       if (r.exclusive_merchant_user_id) share = mSet.has(r.exclusive_merchant_user_id) ? 1 : 0;
-      else share = routeStops > 0 ? [...rm].reduce((a, [m, c]) => a + (mSet.has(m) ? c.stops : 0), 0) / routeStops : 0;
+      else share = routeWeight > 0 ? [...rm].reduce((a, [m, c]) => a + (mSet.has(m) ? c.weight : 0), 0) / routeWeight : 0;
       if (share === 0 && ![...rm.keys()].some((m) => mSet.has(m))) continue;
     }
     dRow.routes += 1;
@@ -192,7 +198,7 @@ export function analyzeProfit(i: ProfitInput): ProfitResult {
       addRev(mRow.revenue, c.rev);
       mRow.stops += c.stops;
       mRow.packages += c.packages;
-      const mShare = r.exclusive_merchant_user_id ? (r.exclusive_merchant_user_id === m ? 1 : 0) : routeStops > 0 ? c.stops / routeStops : 0;
+      const mShare = r.exclusive_merchant_user_id ? (r.exclusive_merchant_user_id === m ? 1 : 0) : routeWeight > 0 ? c.weight / routeWeight : 0;
       addCost(mRow.costs, cost, mShare);
       mRow.hours += r.hours * mShare;
       mRow.km += r.km * mShare;

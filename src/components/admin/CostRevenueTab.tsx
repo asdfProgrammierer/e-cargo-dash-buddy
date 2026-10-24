@@ -63,7 +63,7 @@ export function CostRevenueTab() {
     (async () => {
       const [routesRes, profilesRes, driversRes, vehiclesRes, itemsRes, maintRes] = await Promise.all([
         supabase.from("routes")
-          .select("id, datum, driver_id, vehicle_id, exclusive_merchant_user_id, total_distance_m, total_duration_s, route_stops(id, order_id, status)")
+          .select("id, datum, driver_id, vehicle_id, exclusive_merchant_user_id, total_distance_m, total_duration_s, stop_duration_minutes, route_stops(id, order_id, status, detour_duration_s)")
           .gte("datum", from).lte("datum", to),
         supabase.from("profiles").select("user_id, parent_user_id, firma_name, ansprechpartner, paketpreis, stopppreis, stundenpreis, tagespauschale, grundbeitrag_monat"),
         supabase.from("drivers").select("id, name, hourly_wage"),
@@ -81,7 +81,7 @@ export function CostRevenueTab() {
         if (s.route_id) secByRoute.set(s.route_id, (secByRoute.get(s.route_id) ?? 0) + Math.max(0, sec));
       }
 
-      const allStops = routes.flatMap((r) => ((r.route_stops as any[]) ?? []).map((s) => ({ ...s, route_id: r.id, datum: r.datum })));
+      const allStops = routes.flatMap((r) => ((r.route_stops as any[]) ?? []).map((s) => ({ ...s, route_id: r.id, datum: r.datum, stopSec: (r.stop_duration_minutes ?? 3) * 60 })));
       const orderIds = [...new Set(allStops.map((s) => s.order_id as string))];
       const orders = await chunked(orderIds, async (p) =>
         (await supabase.from("orders").select("id, user_id, pakete").in("id", p)).data ?? []);
@@ -119,6 +119,7 @@ export function CostRevenueTab() {
           pakete: o.pakete ?? 1,
           served: s.status === "erledigt" || s.status === "uebersprungen",
           billPackages: firstStop.get(s.order_id)?.id === s.id,
+          costWeight: s.detour_duration_s != null ? s.detour_duration_s + s.stopSec : null,
         });
       }
       const routeIns: RouteIn[] = routes.map((r) => {

@@ -419,10 +419,23 @@ Deno.serve(async (req) => {
       const legDist = legDistances[position - 1] ?? 0;
       cursorMs += legDur * 1000;
       const etaIso = new Date(cursorMs).toISOString();
+      // Marginal detour: (prev→this) + (this→next) − (prev→next direct), direct estimated
+      // from straight line × 1.35 at the average speed of both legs (no extra ORS calls).
+      const outDur = legDurations[position] ?? 0;
+      const outDist = legDistances[position] ?? 0;
+      const [pLng, pLat] = coords[position - 1];
+      const [nLng, nLat] = coords[position + 1];
+      const directDist = haversineM(pLat, pLng, nLat, nLng) * 1.35;
+      const speed = (legDur + outDur) > 0 ? (legDist + outDist) / (legDur + outDur) : 0;
+      const directDur = speed > 0 ? directDist / speed : 0;
+      const detourDist = Math.max(0, legDist + outDist - directDist);
+      const detourDur = Math.max(0, legDur + outDur - directDur);
       await admin.from("route_stops").update({
         position,
         leg_distance_m: legDist ? Math.round(legDist) : null,
         leg_duration_s: legDur ? Math.round(legDur) : null,
+        detour_distance_m: Math.round(detourDist),
+        detour_duration_s: Math.round(detourDur),
         eta: etaIso,
       }).eq("id", s.id);
       // Service-Zeit am Stopp einrechnen
