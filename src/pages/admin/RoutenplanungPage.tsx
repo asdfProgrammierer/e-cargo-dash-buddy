@@ -22,6 +22,8 @@ import { generateRoutePrintPdf } from "@/lib/routePrint";
 import { sendOrderStatusEmailsForIds } from "@/lib/orderEmail";
 import { buildPostcodeZoneMap, type ZoneInfo, type ZoneWithPostcodes } from "@/lib/deliveryZoneLookup";
 import { zoneInfoFor, NO_ZONE_ID } from "@/lib/deliveryZoneLookup";
+import { useRouteRevenues } from "@/hooks/useRouteRevenues";
+import { RouteRevenueBadge } from "@/components/admin/RouteRevenueBadge";
 
 interface Driver { id: string; name: string; }
 interface Vehicle { id: string; kennzeichen: string; }
@@ -331,6 +333,7 @@ const RoutenplanungPage = () => {
   const printableRoutes = routesForDate.filter((r) => r.status === "geplant" || r.status === "aktiv");
 
   const routeIdsKey = routesForDate.map((r) => r.id).sort().join(",");
+  const routeRevenues = useRouteRevenues(routeIdsKey ? routeIdsKey.split(",") : [], `${refreshKey}|${routesForDate.map((r) => r.status).join()}`);
   useEffect(() => {
     const ids = routeIdsKey ? routeIdsKey.split(",") : [];
     if (ids.length === 0) { setRouteProgress({}); return; }
@@ -642,9 +645,12 @@ const RoutenplanungPage = () => {
                             <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
                             <div className="truncate text-body font-medium">{r.name}</div>
                           </div>
-                          <div className="mt-0.5 text-caption text-muted-foreground tabular-nums truncate">
-                            {r.drivers?.name ?? "–"}
-                            {r.vehicles?.kennzeichen && ` · ${r.vehicles.kennzeichen}`}
+                          <div className="mt-0.5 flex items-center justify-between gap-2">
+                            <span className="text-caption text-muted-foreground tabular-nums truncate">
+                              {r.drivers?.name ?? "–"}
+                              {r.vehicles?.kennzeichen && ` · ${r.vehicles.kennzeichen}`}
+                            </span>
+                            <RouteRevenueBadge info={routeRevenues[r.id]} />
                           </div>
                         </button>
                         <div className="flex items-center gap-2 shrink-0">
