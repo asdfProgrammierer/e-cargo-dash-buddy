@@ -820,7 +820,7 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                     <div className="border-y border-border/50">
-                      {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} onTogglePin={togglePin} onOrderClick={onOrderClick} selected={selectedIds.has(s.id)} onToggleSelect={toggleSelect} />)}
+                      {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} onTogglePin={togglePin} onOrderClick={onOrderClick} selected={selectedIds.has(s.id)} onToggleSelect={toggleSelect} margin={stopMargins?.[s.id]} />)}
                     </div>
                   </SortableContext>
                 </DndContext>
@@ -836,10 +836,11 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
       </div>
 
       {/* RIGHT: Map */}
-      <div className="lg:col-span-2">
+      <div className="lg:col-span-2 space-y-4">
         <Card className="overflow-hidden">
           <div ref={containerRef} className="h-[70vh] w-full" />
         </Card>
+        {belowMap}
       </div>
     </div>
   );

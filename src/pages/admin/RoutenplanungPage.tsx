@@ -650,7 +650,6 @@ const RoutenplanungPage = () => {
                               {r.drivers?.name ?? "–"}
                               {r.vehicles?.kennzeichen && ` · ${r.vehicles.kennzeichen}`}
                             </span>
-                            <RouteRevenueBadge info={routeRevenues[r.id]} />
                           </div>
                         </button>
                         <div className="flex items-center gap-2 shrink-0">
