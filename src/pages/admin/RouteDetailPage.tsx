@@ -6,12 +6,15 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { RouteBuilder } from "@/components/admin/RouteBuilder";
+import { RouteProfitPanel, type StopMarginInfo } from "@/components/admin/RouteProfitPanel";
 import { generateRoutePrintPdf, type RoutePrintData } from "@/lib/routePrint";
 
 const RouteDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [printing, setPrinting] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+  const [stopMargins, setStopMargins] = useState<Record<string, StopMarginInfo>>({});
 
   if (!id) return null;
 
@@ -45,7 +48,13 @@ const RouteDetailPage = () => {
             {printing ? "Bereite Druck vor..." : "Drucken"}
           </Button>
         </div>
-        <RouteBuilder routeId={id} />
+        <RouteBuilder
+          routeId={id}
+          onOptimized={() => setRefresh((n) => n + 1)}
+          onStopsChanged={() => setRefresh((n) => n + 1)}
+          stopMargins={stopMargins}
+          belowMap={<RouteProfitPanel routeId={id} refreshKey={refresh} onStopMargins={setStopMargins} />}
+        />
       </div>
     </AdminLayout>
   );

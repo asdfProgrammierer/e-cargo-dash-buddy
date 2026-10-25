@@ -121,7 +121,7 @@ const STATUS_DOT: Record<StopRow["status"], string> = {
   uebersprungen: "bg-destructive shadow-[0_0_8px_hsl(var(--destructive)/0.4)]",
 };
 
-function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrderClick, selected, onToggleSelect }: {
+function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrderClick, selected, onToggleSelect, margin }: {
   stop: StopRow; index: number;
   onRemove: (id: string) => void;
   onCycleStatus: (id: string, current: StopRow["status"]) => void;
@@ -129,6 +129,7 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrd
   onOrderClick?: (orderId: string) => void;
   selected: boolean;
   onToggleSelect: (id: string, checked: boolean) => void;
+  margin?: { margin: number; revenue: number; cost: number };
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stop.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -173,6 +174,14 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrd
               title={`Position ungenau${stop.orders.geocode_note ? `: ${stop.orders.geocode_note}` : ""}. Bitte Adresse prüfen.`}
             >
               ⚠ Ungenau
+            </span>
+          )}
+          {margin && margin.margin < 0 && (
+            <span
+              className="shrink-0 rounded border border-destructive bg-destructive/10 px-1 text-[10px] font-medium text-destructive"
+              title={`Minus-Stopp: Kosten ${margin.cost.toFixed(2).replace(".", ",")} € übersteigen Erlös ${margin.revenue.toFixed(2).replace(".", ",")} €`}
+            >
+              {margin.margin.toFixed(2).replace(".", ",")} €
             </span>
           )}
         </div>
@@ -260,9 +269,15 @@ interface RouteBuilderProps {
   onOrderClick?: (orderId: string) => void;
   /** Called after a successful route optimization so the parent can refresh maps/lists. */
   onOptimized?: () => void;
+  /** Called (debounced) after stops were added, removed or changed status. */
+  onStopsChanged?: () => void;
+  /** Admin-only: per-stop margin; negative stops get a red marker. */
+  stopMargins?: Record<string, { margin: number; revenue: number; cost: number }>;
+  /** Content rendered below the map in the full view. */
+  belowMap?: React.ReactNode;
 }
 
-export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimized }: RouteBuilderProps) {
+export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimized, onStopsChanged, stopMargins, belowMap }: RouteBuilderProps) {
   const [route, setRoute] = useState<RouteRow | null>(null);
   const [stops, setStops] = useState<StopRow[]>([]);
   const [depots, setDepots] = useState<Depot[]>([]);
@@ -312,6 +327,17 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
     return stopRows;
   }, [routeId]);
   useEffect(() => { void load(); }, [load]);
+
+  // Tell the parent when stops change (added, removed, status) so dependent panels can refresh.
+  const stopsSig = stops.map((s) => `${s.id}:${s.status}`).sort().join(",");
+  const firstSig = useRef(true);
+  useEffect(() => {
+    if (loading) return;
+    if (firstSig.current) { firstSig.current = false; return; }
+    const t = window.setTimeout(() => onStopsChanged?.(), 400);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stopsSig, loading]);
 
   // Realtime: keep stops + route fresh when the driver updates a stop status
   // in the app or when the route geometry changes (e.g. after optimization
@@ -794,7 +820,7 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                     <div className="border-y border-border/50">
-                      {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} onTogglePin={togglePin} onOrderClick={onOrderClick} selected={selectedIds.has(s.id)} onToggleSelect={toggleSelect} />)}
+                      {displayStops.map((s, i) => <SortableStop key={s.id} stop={s} index={i} onRemove={removeStop} onCycleStatus={cycleStatus} onTogglePin={togglePin} onOrderClick={onOrderClick} selected={selectedIds.has(s.id)} onToggleSelect={toggleSelect} margin={stopMargins?.[s.id]} />)}
                     </div>
                   </SortableContext>
                 </DndContext>
@@ -810,10 +836,11 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
       </div>
 
       {/* RIGHT: Map */}
-      <div className="lg:col-span-2">
+      <div className="lg:col-span-2 space-y-4">
         <Card className="overflow-hidden">
           <div ref={containerRef} className="h-[70vh] w-full" />
         </Card>
+        {belowMap}
       </div>
     </div>
   );
