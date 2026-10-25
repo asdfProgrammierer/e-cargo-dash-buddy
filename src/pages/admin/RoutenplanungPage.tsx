@@ -22,8 +22,6 @@ import { generateRoutePrintPdf } from "@/lib/routePrint";
 import { sendOrderStatusEmailsForIds } from "@/lib/orderEmail";
 import { buildPostcodeZoneMap, type ZoneInfo, type ZoneWithPostcodes } from "@/lib/deliveryZoneLookup";
 import { zoneInfoFor, NO_ZONE_ID } from "@/lib/deliveryZoneLookup";
-import { useRouteRevenues } from "@/hooks/useRouteRevenues";
-import { RouteRevenueBadge } from "@/components/admin/RouteRevenueBadge";
 
 interface Driver { id: string; name: string; }
 interface Vehicle { id: string; kennzeichen: string; }
@@ -333,7 +331,6 @@ const RoutenplanungPage = () => {
   const printableRoutes = routesForDate.filter((r) => r.status === "geplant" || r.status === "aktiv");
 
   const routeIdsKey = routesForDate.map((r) => r.id).sort().join(",");
-  const routeRevenues = useRouteRevenues(routeIdsKey ? routeIdsKey.split(",") : [], `${refreshKey}|${routesForDate.map((r) => r.status).join()}`);
   useEffect(() => {
     const ids = routeIdsKey ? routeIdsKey.split(",") : [];
     if (ids.length === 0) { setRouteProgress({}); return; }
