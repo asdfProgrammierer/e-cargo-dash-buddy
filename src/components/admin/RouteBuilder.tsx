@@ -491,7 +491,7 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
         try { map.fitBounds(bounds, { padding: 60, maxZoom: 14, duration: 600 }); } catch { /* noop */ }
       }
     };
-    if (map.loaded()) apply();
+    if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
   }, [stops, startDepot, endDepot, route]);
 

@@ -23,7 +23,7 @@ export function RouteProfitPanel({ routeId, refreshKey, onStopMargins }: {
     let cancel = false;
     (async () => {
       const { data: r } = await supabase.from("routes")
-        .select("id, status, driver_id, vehicle_id, exclusive_merchant_user_id, total_distance_m, total_duration_s, stop_duration_minutes, route_stops(id, order_id, status, created_at, detour_duration_s, stop_duration_minutes, orders(user_id, pakete))")
+        .select("id, status, driver_id, vehicle_id, exclusive_merchant_user_id, total_distance_m, total_duration_s, stop_duration_minutes, route_stops(id, order_id, status, created_at, detour_duration_s, orders(user_id, pakete))")
         .eq("id", routeId).single();
       if (!r || cancel) return;
       const route = r as any;
@@ -56,7 +56,7 @@ export function RouteProfitPanel({ routeId, refreshKey, onStopMargins }: {
         served: s.status === "erledigt" || s.status === "uebersprungen",
         billPackages: (earliest.get(s.order_id)?.id ?? s.id) === s.id,
         detourSec: s.detour_duration_s,
-        stopSec: s.stop_duration_minutes != null ? s.stop_duration_minutes * 60 : defStop,
+        stopSec: defStop,
       }));
       const plannedH = (route.total_duration_s ?? 0) / 3600;
       const completed = route.status === "abgeschlossen";
