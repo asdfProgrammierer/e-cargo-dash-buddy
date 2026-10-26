@@ -117,15 +117,14 @@ async function syncConnection(
 
     // Pakete + Gewicht aus line_items aggregieren
     const lineItems = (o.line_items ?? []) as Array<Record<string, unknown>>;
-    let pakete = 0;
+    const pakete = 1;
     let gewichtG = 0;
     for (const li of lineItems) {
       const qty = Number(li.quantity ?? 0);
-      pakete += qty;
+      // Eine Shopify-Bestellung = 1 Paket (unabhängig von Artikelanzahl)
       const grams = Number(li.grams ?? 0);
       gewichtG += grams * qty;
     }
-    if (pakete === 0) pakete = 1;
     const gewicht = gewichtG > 0 ? Math.max(0.1, +(gewichtG / 1000).toFixed(2)) : 1;
 
     const orderName = String(o.name ?? `#${externalId}`);
