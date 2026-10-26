@@ -87,14 +87,13 @@ async function importOrder(admin: any, conn: any, merchantCode: string, order: a
   const email = String(order.email ?? order.contact_email ?? order.customer?.email ?? "").trim();
 
   const lineItems = Array.isArray(order.line_items) ? order.line_items : [];
-  let pakete = 0;
+  const pakete = 1;
   let gramm = 0;
   for (const li of lineItems) {
     const qty = Number(li.quantity ?? 0);
-    pakete += qty;
+    // Eine Shopify-Bestellung = 1 Paket (unabhängig von Artikelanzahl)
     gramm += Number(li.grams ?? 0) * qty;
   }
-  if (!pakete || pakete < 1) pakete = 1;
   const gewicht = gramm > 0 ? Math.max(0.1, +(gramm / 1000).toFixed(2)) : 1;
 
   const payload = {
