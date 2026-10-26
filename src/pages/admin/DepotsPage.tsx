@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { geocodeAndSaveOrder } from "@/lib/geocodeOrder";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { SettingsTabs } from "@/components/admin/SettingsTabs";
+import { RouteDefaultsCard } from "@/components/admin/RouteDefaultsCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,7 +79,6 @@ const DepotsPage = () => {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [bulkRunning, setBulkRunning] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -233,52 +233,13 @@ const DepotsPage = () => {
     await load();
   };
 
-  const bulkGeocodeOrders = async () => {
-    setBulkRunning(true);
-    try {
-      const { data: orders, error } = await supabase
-        .from("orders")
-        .select("id, empfaenger_adresse, empfaenger_plz, empfaenger_stadt")
-        .is("geocoded_at", null)
-        .not("empfaenger_stadt", "is", null)
-        .limit(50);
-      if (error) throw error;
-      if (!orders || orders.length === 0) {
-        toast.info("Alle Bestellungen sind bereits geocodiert");
-        return;
-      }
-      let success = 0;
-      let failed = 0;
-      for (const o of orders) {
-        try {
-          const res = await geocodeAndSaveOrder(o.id, {
-            strasse: o.empfaenger_adresse,
-            plz: o.empfaenger_plz,
-            stadt: o.empfaenger_stadt,
-          });
-          if (!res) {
-            failed++;
-            continue;
-          }
-          success++;
-          await new Promise((r) => setTimeout(r, 250));
-        } catch {
-          failed++;
-        }
-      }
-      toast.success(`Geocoding: ${success} erfolgreich, ${failed} fehlgeschlagen (max. 50 pro Lauf)`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Bulk-Geocoding fehlgeschlagen");
-    } finally {
-      setBulkRunning(false);
-    }
-  };
 
   return (
     <AdminLayout title="Einstellungen">
       <SettingsTabs />
 
       <div className="space-y-6">
+        <RouteDefaultsCard />
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-4">
             <div>
@@ -288,10 +249,6 @@ const DepotsPage = () => {
               </CardDescription>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={bulkGeocodeOrders} disabled={bulkRunning}>
-                {bulkRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
-                Bestellungen geocodieren
-              </Button>
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
                   <Button onClick={openCreate}>
