@@ -1,43 +1,88 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { MapPinned, Warehouse, Route as RouteIcon, Mail, Truck, KeyRound, PackageCheck, CalendarDays } from "lucide-react";
+import { Route as RouteIcon, Users, FileText, ShieldCheck } from "lucide-react";
 
-const tabs = [
-  { to: "/admin/einstellungen/liefergebiet", label: "Liefergebiet", icon: MapPinned },
-  { to: "/admin/einstellungen/depots", label: "Depots", icon: Warehouse },
-  { to: "/admin/einstellungen/routen", label: "Routen", icon: RouteIcon },
-  { to: "/admin/einstellungen/einsatzplan", label: "Einsatzplan", icon: CalendarDays },
-  { to: "/admin/einstellungen/uebergabe", label: "Übergabe-Modi", icon: PackageCheck },
-  { to: "/admin/einstellungen/emails", label: "E-Mail-Vorlagen", icon: Mail },
-  { to: "/admin/einstellungen/dhl", label: "DHL Versand", icon: Truck },
-  { to: "/admin/einstellungen/konto", label: "Konto", icon: KeyRound },
+/** Einstellungen in 4 Bereiche gruppiert; jeder Bereich hat eigene Unterseiten. */
+const groups = [
+  {
+    label: "Touren & Logistik",
+    icon: RouteIcon,
+    items: [
+      { to: "/admin/einstellungen/depots", label: "Depots & Stopp-Dauer" },
+      { to: "/admin/einstellungen/liefergebiet", label: "Liefergebiet" },
+    ],
+  },
+  {
+    label: "Fahrer & Zustellung",
+    icon: Users,
+    items: [
+      { to: "/admin/einstellungen/einsatzplan", label: "Einsatzplan" },
+      { to: "/admin/einstellungen/uebergabe", label: "Übergabe-Modi" },
+    ],
+  },
+  {
+    label: "Vorlagen & Tarife",
+    icon: FileText,
+    items: [
+      { to: "/admin/einstellungen/emails", label: "E-Mail-Vorlagen" },
+      { to: "/admin/einstellungen/dhl", label: "DHL-Tarife" },
+    ],
+  },
+  {
+    label: "System & Konto",
+    icon: ShieldCheck,
+    items: [{ to: "/admin/einstellungen/konto", label: "Konto, Admins & Wartung" }],
+  },
 ];
 
 export function SettingsTabs() {
-  const location = useLocation();
+  const { pathname } = useLocation();
+  const activeGroup = groups.find((g) => g.items.some((i) => pathname.startsWith(i.to))) ?? groups[0];
+
   return (
-    <div className="mb-6 border-b border-border overflow-x-auto">
-      <nav className="flex gap-1 -mb-px min-w-max">
-        {tabs.map((tab) => {
-          const active = location.pathname.startsWith(tab.to);
-          const Icon = tab.icon;
+    <div className="mb-6 space-y-3">
+      <nav className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        {groups.map((g) => {
+          const Icon = g.icon;
+          const active = g === activeGroup;
           return (
             <NavLink
-              key={tab.to}
-              to={tab.to}
+              key={g.label}
+              to={g.items[0].to}
               className={cn(
-                "flex shrink-0 items-center gap-2 whitespace-nowrap px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
+                "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors",
                 active
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border",
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              <Icon className="h-4 w-4" />
-              {tab.label}
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="truncate">{g.label}</span>
             </NavLink>
           );
         })}
       </nav>
+      {activeGroup.items.length > 1 && (
+        <nav className="flex flex-wrap gap-1 border-b border-border">
+          {activeGroup.items.map((i) => {
+            const active = pathname.startsWith(i.to);
+            return (
+              <NavLink
+                key={i.to}
+                to={i.to}
+                className={cn(
+                  "-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+                  active
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {i.label}
+              </NavLink>
+            );
+          })}
+        </nav>
+      )}
     </div>
   );
 }

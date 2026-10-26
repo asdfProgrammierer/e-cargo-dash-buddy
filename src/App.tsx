@@ -29,7 +29,6 @@ const RoutenplanungPage = lazy(() => import("./pages/admin/RoutenplanungPage"));
 const RouteDetailPage = lazy(() => import("./pages/admin/RouteDetailPage"));
 const DeliveryZonesPage = lazy(() => import("./pages/admin/DeliveryZonesPage"));
 const DepotsPage = lazy(() => import("./pages/admin/DepotsPage"));
-const RouteSettingsPage = lazy(() => import("./pages/admin/RouteSettingsPage"));
 const ScheduleSettingsPage = lazy(() => import("./pages/admin/ScheduleSettingsPage"));
 const DeliveryModesPage = lazy(() => import("./pages/admin/DeliveryModesPage"));
 const EmailTemplatesPage = lazy(() => import("./pages/admin/EmailTemplatesPage"));
@@ -157,7 +156,7 @@ const AppRoutes = () => (
     <Route path="/admin/einstellungen" element={<Navigate to="/admin/einstellungen/liefergebiet" replace />} />
     <Route path="/admin/einstellungen/liefergebiet" element={<AdminRoute><DeliveryZonesPage /></AdminRoute>} />
     <Route path="/admin/einstellungen/depots" element={<AdminRoute><DepotsPage /></AdminRoute>} />
-    <Route path="/admin/einstellungen/routen" element={<AdminRoute><RouteSettingsPage /></AdminRoute>} />
+    <Route path="/admin/einstellungen/routen" element={<Navigate to="/admin/einstellungen/depots" replace />} />
     <Route path="/admin/einstellungen/einsatzplan" element={<AdminRoute><ScheduleSettingsPage /></AdminRoute>} />
     <Route path="/admin/einstellungen/uebergabe" element={<AdminRoute><DeliveryModesPage /></AdminRoute>} />
     <Route path="/admin/einstellungen/emails" element={<AdminRoute><EmailTemplatesPage /></AdminRoute>} />

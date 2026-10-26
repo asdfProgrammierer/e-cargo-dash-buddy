@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { SettingsTabs } from "@/components/admin/SettingsTabs";
+import { GeocodeMaintenanceCard } from "@/components/admin/GeocodeMaintenanceCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,6 +116,7 @@ export default function AccountSettingsPage() {
     <AdminLayout title="Einstellungen">
       <div className="space-y-6">
         <SettingsTabs />
+        <GeocodeMaintenanceCard />
         <Card className="max-w-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
