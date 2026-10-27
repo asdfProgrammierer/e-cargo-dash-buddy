@@ -597,7 +597,8 @@ export function RouteBuilder({ routeId, compact = false, onOrderClick, onOptimiz
     const next: StopRow["status"] = current === "offen" ? "erledigt" : current === "erledigt" ? "uebersprungen" : "offen";
     const { error } = await supabase.from("route_stops").update({ status: next }).eq("id", stopId);
     if (error) { toast.error("Status konnte nicht aktualisiert werden"); return; }
-    setStops((prev) => prev.map((s) => s.id === stopId ? { ...s, status: next } : s));
+    // Erledigte/übersprungene Stopps werden per DB-Trigger fixiert, "offen" löst die Fixierung
+    setStops((prev) => prev.map((s) => s.id === stopId ? { ...s, status: next, pinned: next !== "offen" } : s));
   };
 
   const togglePin = async (stopId: string, current: boolean) => {

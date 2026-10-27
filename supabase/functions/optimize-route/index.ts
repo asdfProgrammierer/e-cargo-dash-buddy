@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     // Load stops + their orders
     const { data: stops } = await admin
       .from("route_stops")
-      .select("id, order_id, position, pinned, orders(id, lat, lng, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt)")
+      .select("id, order_id, position, pinned, status, orders(id, lat, lng, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt)")
       .eq("route_id", body.routeId)
       .order("position", { ascending: true });
     if (!stops || stops.length === 0) return json({ error: "Keine Stops vorhanden" }, 400);
@@ -111,6 +111,8 @@ Deno.serve(async (req) => {
     // their relative order since `valid` is already sorted by position.
     valid.forEach((s, idx) => {
       s.position = idx + 1;
+      // Erledigte/übersprungene Stopps sind immer fixe Anker
+      if ((s as any).status === "erledigt" || (s as any).status === "uebersprungen") s.pinned = true;
     });
 
     // Unveränderte Route nicht erneut berechnen (spart ORS-Kontingent).
