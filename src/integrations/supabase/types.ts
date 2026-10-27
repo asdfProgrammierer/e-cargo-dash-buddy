@@ -1582,6 +1582,24 @@ export type Database = {
         }
         Relationships: []
       }
+      tracking_rate_limits: {
+        Row: {
+          count: number
+          key: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          key: string
+          window_start?: string
+        }
+        Update: {
+          count?: number
+          key?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -2073,6 +2091,10 @@ export type Database = {
         }
       }
       anonymize_order: { Args: { _order_id: string }; Returns: boolean }
+      check_rate_limit: {
+        Args: { p_key: string; p_max: number; p_window_seconds: number }
+        Returns: Json
+      }
       cleanup_stale_work_sessions: { Args: never; Returns: undefined }
       current_driver_id: { Args: never; Returns: string }
       driver_end_work_session: {

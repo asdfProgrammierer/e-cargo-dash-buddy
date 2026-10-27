@@ -18,21 +18,7 @@ function corsFor(req: Request): Record<string, string> {
   };
 }
 
-// Naive in-memory rate limit (per function instance)
-const HITS = new Map<string, { count: number; resetAt: number }>();
-const LIMIT = 10;
-const WINDOW_MS = 10 * 60 * 1000;
-
-function rateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = HITS.get(ip);
-  if (!entry || entry.resetAt < now) {
-    HITS.set(ip, { count: 1, resetAt: now + WINDOW_MS });
-    return false;
-  }
-  entry.count++;
-  return entry.count > LIMIT;
-}
+import { checkRateLimit, clientIp } from "../_shared/rate-limit.ts";
 
 const AUFTRAGS_NR_RE = /^EC-[A-Z0-9]+-P?\d{7}$/;
 
@@ -50,15 +36,16 @@ Deno.serve(async (req) => {
     });
   }
 
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-    req.headers.get("cf-connecting-ip") ||
-    "unknown";
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
 
-  if (rateLimited(ip)) {
+  const rl = await checkRateLimit(supabase, "lookup", clientIp(req));
+  if (!rl.allowed) {
     return new Response(JSON.stringify({ error: "Zu viele Versuche, bitte später erneut." }), {
       status: 429,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json", "Retry-After": String(rl.retryAfter) },
     });
   }
 
@@ -80,11 +67,6 @@ Deno.serve(async (req) => {
       headers: { ...cors, "Content-Type": "application/json" },
     });
   }
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
 
   const { data, error } = await supabase
     .from("orders")
