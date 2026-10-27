@@ -134,6 +134,13 @@
       "when": 1792828609192,
       "tag": "0018_route_stop_detour",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793111728858,
+      "tag": "0019_auto_pin_finished_stops",
+      "breakpoints": true
     }
   ]
 }
