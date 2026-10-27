@@ -36,15 +36,16 @@ Deno.serve(async (req) => {
     });
   }
 
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-    req.headers.get("cf-connecting-ip") ||
-    "unknown";
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
 
-  if (rateLimited(ip)) {
+  const rl = await checkRateLimit(supabase, "lookup", clientIp(req));
+  if (!rl.allowed) {
     return new Response(JSON.stringify({ error: "Zu viele Versuche, bitte später erneut." }), {
       status: 429,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json", "Retry-After": String(rl.retryAfter) },
     });
   }
 
@@ -66,11 +67,6 @@ Deno.serve(async (req) => {
       headers: { ...cors, "Content-Type": "application/json" },
     });
   }
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
 
   const { data, error } = await supabase
     .from("orders")
