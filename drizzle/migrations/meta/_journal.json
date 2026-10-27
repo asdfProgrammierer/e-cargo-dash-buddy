@@ -141,6 +141,13 @@
       "when": 1793111728858,
       "tag": "0019_auto_pin_finished_stops",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793113070290,
+      "tag": "0020_tracking_rate_limits",
+      "breakpoints": true
     }
   ]
 }

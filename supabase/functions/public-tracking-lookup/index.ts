@@ -18,21 +18,7 @@ function corsFor(req: Request): Record<string, string> {
   };
 }
 
-// Naive in-memory rate limit (per function instance)
-const HITS = new Map<string, { count: number; resetAt: number }>();
-const LIMIT = 10;
-const WINDOW_MS = 10 * 60 * 1000;
-
-function rateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = HITS.get(ip);
-  if (!entry || entry.resetAt < now) {
-    HITS.set(ip, { count: 1, resetAt: now + WINDOW_MS });
-    return false;
-  }
-  entry.count++;
-  return entry.count > LIMIT;
-}
+import { checkRateLimit, clientIp } from "../_shared/rate-limit.ts";
 
 const AUFTRAGS_NR_RE = /^EC-[A-Z0-9]+-P?\d{7}$/;
 
