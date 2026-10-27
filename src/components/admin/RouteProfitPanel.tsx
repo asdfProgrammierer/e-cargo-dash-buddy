@@ -149,7 +149,7 @@ export function RouteProfitPanel({ routeId, refreshKey, onStopMargins }: {
         )}
 
         <div className="text-caption text-muted-foreground space-y-1">
-          <p>Kosten pro Stopp werden {res.splitByDetour ? "nach echtem Umweg (Hin- und Weiterfahrt) plus Standzeit" : "gleichmäßig nach Anzahl der Stopps"} verteilt. Minus-Stopps sind in der Stoppliste rot markiert.</p>
+          <p>Kosten pro Stopp werden {res.splitByDetour ? "nach echtem Umweg (Hin- und Weiterfahrt) plus Standzeit" : "gleichmäßig nach Anzahl der Stopps"} verteilt. Stopps in der Liste zeigen das Einzelergebnis: grün Gewinn, rot Verlust, orange kostendeckend.</p>
           {missing.length > 0 && (
             <p className="flex items-center gap-1 text-warning"><AlertTriangle className="h-3.5 w-3.5" />Ungenau: {missing.join(", ")}.</p>
           )}
