@@ -176,14 +176,27 @@ function SortableStop({ stop, index, onRemove, onCycleStatus, onTogglePin, onOrd
               ⚠ Ungenau
             </span>
           )}
-          {margin && margin.margin < 0 && (
-            <span
-              className="shrink-0 rounded border border-destructive bg-destructive/10 px-1 text-[10px] font-medium text-destructive"
-              title={`Minus-Stopp: Kosten ${margin.cost.toFixed(2).replace(".", ",")} € übersteigen Erlös ${margin.revenue.toFixed(2).replace(".", ",")} €`}
-            >
-              {margin.margin.toFixed(2).replace(".", ",")} €
-            </span>
-          )}
+          {margin && (() => {
+            const f = (n: number) => n.toFixed(2).replace(".", ",");
+            const even = Math.abs(margin.margin) < 0.005;
+            const loss = !even && margin.margin < 0;
+            const cls = even
+              ? "border-warning bg-warning/10 text-warning"
+              : loss
+                ? "border-destructive bg-destructive/10 text-destructive"
+                : "border-success bg-success/10 text-success";
+            const label = even ? "0,00 €" : `${loss ? "" : "+"}${f(margin.margin)} €`;
+            const title = even
+              ? `Kostendeckend: Erlös ${f(margin.revenue)} € · Kosten ${f(margin.cost)} €`
+              : loss
+                ? `Verlust: Kosten ${f(margin.cost)} € übersteigen Erlös ${f(margin.revenue)} €`
+                : `Gewinn: Erlös ${f(margin.revenue)} € · Kosten ${f(margin.cost)} €`;
+            return (
+              <span className={`shrink-0 rounded border px-1 text-[10px] font-medium ${cls}`} title={title}>
+                {label}
+              </span>
+            );
+          })()}
         </div>
         <div className="text-caption text-muted-foreground truncate">
           {stop.orders.empfaenger_adresse ? `${stop.orders.empfaenger_adresse} · ` : ""}
