@@ -101,6 +101,7 @@ const DriverRouteDetailPage = () => {
   const [reason, setReason] = useState(REASONS[0]);
   const [extraNote, setExtraNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const submittedIdsRef = useRef<Set<string>>(new Set());
 
   // Delivery confirmation sheet state
   const [deliverStop, setDeliverStop] = useState<Stop | null>(null);
@@ -528,6 +529,8 @@ const DriverRouteDetailPage = () => {
 
   const submitDelivery = () => {
     if (!deliverStop) return;
+    // Doppel-Tipp-Schutz: denselben Stopp nicht zweimal absenden.
+    if (submittedIdsRef.current.has(deliverStop.id)) return;
     if (!activeMode) {
       toast.error("Übergabe-Art wählen");
       return;
@@ -548,6 +551,8 @@ const DriverRouteDetailPage = () => {
     // GPS schon jetzt anfordern – läuft parallel im Hintergrund, blockt den
     // Fahrer nicht. Wird im Edge-Call und im archivierten PDF verwendet.
     const gpsPromise = getCurrentGps();
+    submittedIdsRef.current.add(deliverStop.id);
+    setTimeout(() => submittedIdsRef.current.delete(deliverStop.id), 5000);
     updateStatus(deliverStop.id, "erledigt", {
       delivery_mode: deliveryMode,
       delivery_note: deliveryNote.trim() || undefined,
