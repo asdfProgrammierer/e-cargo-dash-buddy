@@ -144,7 +144,17 @@ Deno.serve(async (req) => {
       stopUpdate.delivery_mode = deliveryMode ?? "persoenlich";
       stopUpdate.delivery_note = deliveryNote ?? null;
       stopUpdate.delivery_recipient = deliveryRecipient ?? null;
-      stopUpdate.delivered_at = new Date().toISOString();
+      // Offline nachgesendete Zustellungen behalten ihren echten Zeitpunkt
+      // (max. 48 h zurück, nicht in der Zukunft).
+      let deliveredAt = new Date();
+      if (typeof body.completed_at === "string") {
+        const c = new Date(body.completed_at);
+        const now = Date.now();
+        if (!isNaN(c.getTime()) && c.getTime() <= now + 5 * 60_000 && c.getTime() >= now - 48 * 3600_000) {
+          deliveredAt = c;
+        }
+      }
+      stopUpdate.delivered_at = deliveredAt.toISOString();
     }
     if (status === "erledigt" || status === "uebersprungen") {
       if (completedLat !== undefined && completedLng !== undefined) {

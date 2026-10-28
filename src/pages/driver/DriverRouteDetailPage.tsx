@@ -18,6 +18,14 @@ import { getCurrentGps } from "@/lib/gps";
 import { startBackgroundGpsWatcher } from "@/lib/backgroundGps";
 import { Capacitor } from "@capacitor/core";
 import { driverBtn } from "@/lib/driverButtonConfig";
+import {
+  enqueueDelivery,
+  onDeliverySynced,
+  onDeliveryFailed,
+  listQueued,
+  cacheRoute,
+  readCachedRoute,
+} from "@/lib/offlineDeliveryQueue";
 
 interface Stop {
   id: string;
@@ -155,7 +163,7 @@ const DriverRouteDetailPage = () => {
       }
     }
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("route_stops")
       .select(
         "id, position, status, eta, notiz, order_id, orders(id, auftrags_nr, absender_name, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, empfaenger_telefon, pakete, notizen, lat, lng, signature_required)",
@@ -163,15 +171,27 @@ const DriverRouteDetailPage = () => {
       .eq("route_id", id)
       .order("position", { ascending: true });
 
-    const mapped: Stop[] = (data ?? []).map((s: any) => ({
-      id: s.id,
-      position: s.position,
-      status: s.status,
-      eta: s.eta,
-      notiz: s.notiz,
-      order: s.orders,
-    }));
-    setStops(mapped);
+    let mapped: Stop[];
+    if (error || !data) {
+      // Offline: letzte bekannte Stoppliste anzeigen statt leerer Liste.
+      const cached = readCachedRoute<{ stops: Stop[] }>(id);
+      if (!cached && stopsRef.current.length === 0) { setLoading(false); return; }
+      mapped = cached?.stops ?? stopsRef.current;
+    } else {
+      mapped = data.map((s: any) => ({
+        id: s.id,
+        position: s.position,
+        status: s.status,
+        eta: s.eta,
+        notiz: s.notiz,
+        order: s.orders,
+      }));
+      cacheRoute(id, { stops: mapped });
+    }
+    // Noch nicht übertragene Bestätigungen behalten ihren lokalen Status.
+    const queued = await listQueued().catch((): Awaited<ReturnType<typeof listQueued>> => []);
+    const queuedStatus = new Map<string, string>(queued.map((q) => [q.id, q.body.status] as [string, string]));
+    setStops(mapped.map((s) => (queuedStatus.has(s.id) ? { ...s, status: queuedStatus.get(s.id)! } : s)));
     setLoading(false);
   };
 
@@ -360,63 +380,62 @@ const DriverRouteDetailPage = () => {
     setDeliveryNote("");
     setDeliveryRecipient("");
     setDeliveryMode("persoenlich");
+    const createdAt = new Date().toISOString();
     toast.success(
-      status === "erledigt"
-        ? "Zugestellt · wird im Hintergrund übermittelt"
-        : "Nicht zugestellt · wird im Hintergrund übermittelt",
+      status === "erledigt" ? "Zugestellt · lokal gesichert" : "Nicht zugestellt · lokal gesichert",
     );
 
-    const orderId = stops.find((s) => s.id === stopId)?.order?.id;
-
-    // Hintergrund-Upload: GPS, Status, PDF-Archiv – Fahrer wartet nicht darauf.
+    // Lokal sichern (inkl. Foto/Unterschrift) und dann automatisch senden.
+    // Bei fehlendem Netz bleibt alles gespeichert und wird später nachgesendet.
     void (async () => {
-      // Prefer the GPS fix captured at submit time. Fall back to a fresh fix.
       const gps =
         payload.gps ??
         (payload.gpsPromise ? await payload.gpsPromise : await getCurrentGps());
-      const { data, error } = await supabase.functions.invoke("driver-update-stop-status", {
-        body: {
-          stop_id: stopId,
-          status,
-          reason: payload.reason,
-          delivery_mode: payload.delivery_mode,
-          delivery_note: payload.delivery_note,
-          delivery_recipient: payload.delivery_recipient,
-          signature_base64: payload.signature_base64,
-          photo_base64: payload.photo_base64,
-          ...(gps
-            ? { completed_lat: gps.lat, completed_lng: gps.lng, completed_accuracy_m: gps.acc }
-            : {}),
-        },
-      });
-      if (error || (data as any)?.error) {
-        const msg = (data as any)?.error ?? error?.message ?? "Fehler beim Speichern";
-        if (msg === "Ungültige Sitzung" || msg === "Nicht authentifiziert" || /401|403/.test(String(msg))) {
-          toast.error("Sitzung abgelaufen, bitte erneut anmelden");
-          await supabase.auth.signOut();
-          window.location.href = "/fahrer/login";
-          return;
-        }
-        toast.error(`Übermittlung fehlgeschlagen: ${msg}`);
-        // Optimistisches Update zurückrollen
+      try {
+        await enqueueDelivery({
+          id: stopId,
+          routeId: id ?? "",
+          createdAt,
+          body: {
+            stop_id: stopId,
+            status,
+            reason: payload.reason,
+            delivery_mode: payload.delivery_mode,
+            delivery_note: payload.delivery_note,
+            delivery_recipient: payload.delivery_recipient,
+            signature_base64: payload.signature_base64,
+            photo_base64: payload.photo_base64,
+            ...(gps ? { completed_lat: gps.lat, completed_lng: gps.lng, completed_accuracy_m: gps.acc } : {}),
+          },
+        });
+      } catch (e) {
+        console.error("enqueue failed", e);
+        toast.error("Konnte nicht lokal gespeichert werden – bitte erneut bestätigen");
         await load();
-        return;
       }
+    })();
+  };
 
-      if (status === "erledigt" && orderId) {
-        const archived = await archiveDeliveryNote(stopId, orderId, {
-          signatureDataUrl: payload.signature_base64 ?? null,
-          photoDataUrl: payload.photo_base64 ?? null,
-          gps: gps ?? null,
-          deliveryMode: payload.delivery_mode ?? null,
-          deliveryNote: payload.delivery_note ?? null,
-          deliveryRecipient: payload.delivery_recipient ?? null,
+  // Nach erfolgreichem Nachsenden: Lieferschein archivieren, Routenabschluss.
+  useEffect(() => {
+    const offSynced = onDeliverySynced(async ({ item, data }) => {
+      if (item.routeId !== id) return;
+      const b = item.body;
+      const orderId = stopsRef.current.find((s) => s.id === b.stop_id)?.order?.id;
+      if (b.status === "erledigt" && orderId) {
+        const archived = await archiveDeliveryNote(b.stop_id, orderId, {
+          signatureDataUrl: b.signature_base64 ?? null,
+          photoDataUrl: b.photo_base64 ?? null,
+          gps: b.completed_lat != null && b.completed_lng != null
+            ? { lat: b.completed_lat, lng: b.completed_lng, acc: b.completed_accuracy_m ?? 0 }
+            : null,
+          deliveryMode: b.delivery_mode ?? null,
+          deliveryNote: b.delivery_note ?? null,
+          deliveryRecipient: b.delivery_recipient ?? null,
         });
         if (archived) toast.success("Lieferschein archiviert");
       }
-
-      // Auto-close route + start navigation back to depot
-      const result = data as { route_completed?: boolean; end_depot?: Depot | null };
+      const result = data as { route_completed?: boolean; end_depot?: Depot | null } | null;
       if (result?.route_completed) {
         const depot = result.end_depot ?? endDepot;
         setRouteStatus("abgeschlossen");
@@ -428,11 +447,16 @@ const DriverRouteDetailPage = () => {
           toast.success("Route abgeschlossen");
         }
       }
-
-      // Hintergrund-Sync mit echten Daten
       void load();
-    })();
-  };
+    });
+    const offFailed = onDeliveryFailed((item, msg) => {
+      if (item.routeId !== id) return;
+      toast.error(`Übermittlung abgelehnt: ${msg}`);
+      void load();
+    });
+    return () => { offSynced(); offFailed(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, endDepot]);
 
   const startRoute = async () => {
     if (!id) return;

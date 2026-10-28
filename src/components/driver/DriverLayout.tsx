@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Home, User, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { DriverSyncStatus } from "@/components/driver/DriverSyncStatus";
 
 interface DriverLayoutProps {
   children: ReactNode;
@@ -23,6 +24,7 @@ export const DriverLayout = ({ children, title, showBack }: DriverLayoutProps) =
           </Button>
         )}
         <h1 className="font-semibold text-lg flex-1 truncate">{title ?? "e-cargo"}</h1>
+        <DriverSyncStatus />
       </header>
       <main className="flex-1 pb-[calc(env(safe-area-inset-bottom)+5rem)]">{children}</main>
       <nav className="fixed bottom-0 inset-x-0 bg-card border-t flex h-16 z-10 pb-[env(safe-area-inset-bottom)]">
