@@ -189,8 +189,8 @@ const DriverRouteDetailPage = () => {
       cacheRoute(id, { stops: mapped });
     }
     // Noch nicht übertragene Bestätigungen behalten ihren lokalen Status.
-    const queued = await listQueued().catch(() => []);
-    const queuedStatus = new Map(queued.map((q) => [q.id, q.body.status]));
+    const queued = await listQueued().catch((): Awaited<ReturnType<typeof listQueued>> => []);
+    const queuedStatus = new Map<string, string>(queued.map((q) => [q.id, q.body.status] as [string, string]));
     setStops(mapped.map((s) => (queuedStatus.has(s.id) ? { ...s, status: queuedStatus.get(s.id)! } : s)));
     setLoading(false);
   };
