@@ -101,6 +101,7 @@ const DriverRouteDetailPage = () => {
   const [reason, setReason] = useState(REASONS[0]);
   const [extraNote, setExtraNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const submittedIdsRef = useRef<Set<string>>(new Set());
 
   // Delivery confirmation sheet state
   const [deliverStop, setDeliverStop] = useState<Stop | null>(null);
@@ -528,6 +529,8 @@ const DriverRouteDetailPage = () => {
 
   const submitDelivery = () => {
     if (!deliverStop) return;
+    // Doppel-Tipp-Schutz: denselben Stopp nicht zweimal absenden.
+    if (submittedIdsRef.current.has(deliverStop.id)) return;
     if (!activeMode) {
       toast.error("Übergabe-Art wählen");
       return;
@@ -548,6 +551,8 @@ const DriverRouteDetailPage = () => {
     // GPS schon jetzt anfordern – läuft parallel im Hintergrund, blockt den
     // Fahrer nicht. Wird im Edge-Call und im archivierten PDF verwendet.
     const gpsPromise = getCurrentGps();
+    submittedIdsRef.current.add(deliverStop.id);
+    setTimeout(() => submittedIdsRef.current.delete(deliverStop.id), 5000);
     updateStatus(deliverStop.id, "erledigt", {
       delivery_mode: deliveryMode,
       delivery_note: deliveryNote.trim() || undefined,
@@ -964,9 +969,30 @@ const DriverRouteDetailPage = () => {
           className="rounded-t-2xl max-h-[95vh] overflow-y-auto pb-[max(env(safe-area-inset-bottom),0.75rem)]"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <SheetHeader className="pb-1">
+          <SheetHeader className="pb-1 text-left">
             <SheetTitle>Zustellung bestätigen</SheetTitle>
           </SheetHeader>
+          {deliverStop?.order && (
+            <div className="rounded-lg border-2 border-primary/40 bg-primary/5 p-3">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                Stopp #{deliverStop.position + 1}
+              </div>
+              <div className="text-lg font-bold leading-tight">{deliverStop.order.empfaenger_name}</div>
+              <div className="text-sm text-muted-foreground">
+                {deliverStop.order.empfaenger_adresse}, {deliverStop.order.empfaenger_plz} {deliverStop.order.empfaenger_stadt}
+                {" · "}{deliverStop.order.pakete} {deliverStop.order.pakete === 1 ? "Paket" : "Pakete"}
+              </div>
+            </div>
+          )}
+          {deliverStop && nextStop?.order && nextStop.id !== deliverStop.id && (
+            <div className="mt-2 rounded-lg border-2 border-warning bg-warning/10 p-3 text-sm">
+              <div className="font-semibold">⚠️ Abweichende Reihenfolge</div>
+              <div>
+                Planmäßig wäre als Nächstes <strong>Stopp #{nextStop.position + 1} ({nextStop.order.empfaenger_name})</strong> dran.
+                Du bestätigst gerade <strong>Stopp #{deliverStop.position + 1}</strong>.
+              </div>
+            </div>
+          )}
           <div className="pt-2 pb-2 space-y-3">
             <div>
               <Label className="text-xs uppercase tracking-wide text-muted-foreground mb-1.5 block">
