@@ -36,3 +36,6 @@ verify_jwt = false
 
 [functions.driver-abort-route]
 verify_jwt = true
+
+[functions.merchant-order-inquiry]
+verify_jwt = true
