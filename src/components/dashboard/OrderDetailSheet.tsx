@@ -26,7 +26,9 @@ import {
   AlertTriangle,
   Loader2,
   Trash2,
+  MessageSquare,
 } from "lucide-react";
+import { OrderInquiryDialog } from "./OrderInquiryDialog";
 import { Order, OrderStatus, STATUS_LABELS, STATUS_COLORS, MAX_DELIVERY_ATTEMPTS } from "@/types/order";
 import { getZoneBadgeStyle } from "@/lib/deliveryZones";
 import { getOrderZoneMeta, printShippingLabels } from "@/lib/shippingLabels";
@@ -78,6 +80,7 @@ export function OrderDetailSheet({
   onDeleted,
 }: OrderDetailSheetProps) {
   const [editing, setEditing] = useState(false);
+  const [inquiryOpen, setInquiryOpen] = useState(false);
   const [form, setForm] = useState<Partial<Order>>({});
   const [pendingStatus, setPendingStatus] = useState<OrderStatus | null>(null);
   const [statusReason, setStatusReason] = useState("");
@@ -659,6 +662,22 @@ export function OrderDetailSheet({
 
         {/* Actions */}
         <div className="py-4 space-y-3">
+          {!canUpdateStatus && (
+            <>
+              <Button className="w-full" onClick={() => setInquiryOpen(true)}>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Nachfrage zur Sendung
+              </Button>
+              <OrderInquiryDialog
+                orderId={order.id}
+                auftragsNr={order.auftragsNr}
+                empfaenger={order.empfaengerName}
+                open={inquiryOpen}
+                onOpenChange={setInquiryOpen}
+              />
+            </>
+          )}
+
           <Button variant="outline" className="w-full" onClick={printLabel}>
             <Printer className="mr-2 h-4 w-4" />
             Versandetikett drucken
