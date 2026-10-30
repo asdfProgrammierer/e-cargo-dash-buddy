@@ -88,15 +88,19 @@ export function AdminCreateOrderDialog({
   useEffect(() => {
     if (!open || !needsMerchantPicker || merchants.length > 0) return;
     (async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("user_id, firma_name, ansprechpartner, strasse, plz, stadt")
-        .eq("approved", true)
-        .is("parent_user_id", null)
-        .order("firma_name", { ascending: true });
+      const [{ data }, { data: adminRows }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("user_id, firma_name, ansprechpartner, strasse, plz, stadt")
+          .eq("approved", true)
+          .is("parent_user_id", null)
+          .order("firma_name", { ascending: true }),
+        supabase.from("user_roles").select("user_id").eq("role", "admin"),
+      ]);
+      const adminIds = new Set((adminRows ?? []).map((r) => r.user_id));
       if (data) {
         setMerchants(
-          data.map((p) => ({
+          data.filter((p) => !adminIds.has(p.user_id)).map((p) => ({
             user_id: p.user_id,
             label: p.firma_name?.trim() || p.ansprechpartner?.trim() || "Unbekannter Händler",
             senderName: p.firma_name?.trim() || p.ansprechpartner?.trim() || "",
