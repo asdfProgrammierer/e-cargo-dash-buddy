@@ -53,6 +53,8 @@ const HaendlerVerwaltungPage = () => {
   const [merchants, setMerchants] = useState<MerchantProfile[]>([]);
   const [search, setSearch] = useState("");
   const [onlyMissing, setOnlyMissing] = useState(false);
+  const [showAdmins, setShowAdmins] = useState(false);
+  const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [exportingId, setExportingId] = useState<string | null>(null);
@@ -80,10 +82,14 @@ const HaendlerVerwaltungPage = () => {
   };
 
   const fetchMerchants = async () => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, user_id, firma_name, ansprechpartner, stadt, telefon, paketpreis, stopppreis, stundenpreis, tagespauschale, grundbeitrag_monat, merchant_code, approved, pickup_enabled, pickup_weekdays, is_virtual, created_at")
-      .order("created_at", { ascending: false });
+    const [{ data, error }, { data: adminRows }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, user_id, firma_name, ansprechpartner, stadt, telefon, paketpreis, stopppreis, stundenpreis, tagespauschale, grundbeitrag_monat, merchant_code, approved, pickup_enabled, pickup_weekdays, is_virtual, created_at")
+        .order("created_at", { ascending: false }),
+      supabase.from("user_roles").select("user_id").eq("role", "admin"),
+    ]);
+    setAdminIds(new Set((adminRows ?? []).map((r) => r.user_id)));
     if (error) {
       toast.error("Fehler beim Laden der Händler");
     } else {
@@ -118,8 +124,13 @@ const HaendlerVerwaltungPage = () => {
     }
   };
 
+  // Pure admin = admin role without own shop (no company name). Admins with a shop stay visible as merchants.
+  const isPureAdmin = (m: MerchantProfile) => adminIds.has(m.user_id) && !m.firma_name?.trim();
+  const pureAdminCount = merchants.filter(isPureAdmin).length;
+
   const filtered = merchants.filter((m) => {
     const q = search.toLowerCase();
+    if (!showAdmins && isPureAdmin(m)) return false;
     if (onlyMissing && setPrices(m).length > 0) return false;
     return (
       !q ||
@@ -163,8 +174,13 @@ const HaendlerVerwaltungPage = () => {
           </div>
           <div className="flex items-center gap-2">
             <Button type="button" size="sm" variant={onlyMissing ? "default" : "outline"} onClick={() => setOnlyMissing((v) => !v)}>
-              Ohne Preis ({merchants.filter((m) => setPrices(m).length === 0).length})
+              Ohne Preis ({merchants.filter((m) => !isPureAdmin(m) && setPrices(m).length === 0).length})
             </Button>
+            {pureAdminCount > 0 && (
+              <Button type="button" size="sm" variant={showAdmins ? "default" : "outline"} onClick={() => setShowAdmins((v) => !v)}>
+                {showAdmins ? "Admins ausblenden" : `Admins anzeigen (${pureAdminCount})`}
+              </Button>
+            )}
             <AdminVirtualMerchantDialog onCreated={fetchMerchants} />
           </div>
         </div>
@@ -210,6 +226,9 @@ const HaendlerVerwaltungPage = () => {
                         {m.is_virtual && (
                           <Badge variant="outline" className="text-xs">Intern</Badge>
                         )}
+                        {isPureAdmin(m) && (
+                          <Badge variant="secondary" className="text-xs">Admin</Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>{m.ansprechpartner || "–"}</TableCell>
@@ -235,6 +254,7 @@ const HaendlerVerwaltungPage = () => {
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <Switch
                         checked={m.approved}
+                        disabled={isPureAdmin(m)}
                         onCheckedChange={() => toggleApproval(m)}
                       />
                     </TableCell>
@@ -245,7 +265,7 @@ const HaendlerVerwaltungPage = () => {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            disabled={deletingId === m.id}
+                            disabled={deletingId === m.id || isPureAdmin(m)}
                             className="text-destructive hover:text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />
