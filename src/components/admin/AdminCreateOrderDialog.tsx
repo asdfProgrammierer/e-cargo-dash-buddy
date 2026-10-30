@@ -100,7 +100,7 @@ export function AdminCreateOrderDialog({
       const adminIds = new Set((adminRows ?? []).map((r) => r.user_id));
       if (data) {
         setMerchants(
-          data.filter((p) => !adminIds.has(p.user_id)).map((p) => ({
+          data.filter((p) => !adminIds.has(p.user_id) || !!p.firma_name?.trim()).map((p) => ({
             user_id: p.user_id,
             label: p.firma_name?.trim() || p.ansprechpartner?.trim() || "Unbekannter Händler",
             senderName: p.firma_name?.trim() || p.ansprechpartner?.trim() || "",
