@@ -281,7 +281,12 @@ export function useOrderStore() {
     if (updates.signatureRequired !== undefined) dbUpdates.signature_required = updates.signatureRequired === true;
     
     const { error } = await supabase.from("orders").update(dbUpdates).eq("id", id);
-    if (error) { toast.error("Änderungen konnten nicht gespeichert werden"); return; }
+    if (error) {
+      toast.error(error.message?.includes("gesperrt")
+        ? "Dieser Auftrag ist bereits in Zustellung und kann nicht mehr geändert werden"
+        : "Änderungen konnten nicht gespeichert werden");
+      return;
+    }
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...updates } : o)));
   };
 
