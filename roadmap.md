@@ -6,3 +6,6 @@
 - [x] Verify saving and reopening entries; keep work-time statistics unchanged.
 - [x] Make the plan blue a strong blue and add brown to the status colour list.
 - [x] Restrict planned start times to the 15-minute rhythm in the planner and settings.
+- [ ] Update routes, stop progress and new shipments live without clearing selections.
+- [ ] Preserve map zoom during live updates and add manual centering.
+- [ ] Prevent stale route navigation and cache admin checks safely; verify the flows.

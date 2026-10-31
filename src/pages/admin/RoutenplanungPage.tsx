@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useScheduleStatuses } from "@/lib/driverSchedule";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,6 +60,15 @@ const RoutenplanungPage = () => {
   const [form, setForm] = useState(emptyForm);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [refreshKey, setRefreshKey] = useState(0);
+  const [liveRefreshKey, setLiveRefreshKey] = useState(0);
+  const mounted = useRef(false);
+  const loadVersion = useRef(0);
+  const ordersVersion = useRef(0);
+  const initiallySelected = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; loadVersion.current++; ordersVersion.current++; };
+  }, []);
   const [daySchedule, setDaySchedule] = useState<Record<string, string>>({});
   const { statuses: scheduleStatuses } = useScheduleStatuses();
   const scheduleLabel = (k?: string) => scheduleStatuses.find((x) => x.key === k)?.label ?? k ?? "";
@@ -130,6 +139,7 @@ const RoutenplanungPage = () => {
   });
 
   const load = async () => {
+    const version = ++loadVersion.current;
     const [r, d, v, dep, zonesRes] = await Promise.all([
       supabase
         .from("routes")
@@ -147,6 +157,8 @@ const RoutenplanungPage = () => {
         .order("sort_order", { ascending: true })
         .order("name", { ascending: true }),
     ]);
+    if (!mounted.current || version !== loadVersion.current) return;
+    if (r.error) { toast.error("Routen konnten nicht geladen werden"); setLoading(false); return; }
     const list = (r.data as Route[]) ?? [];
     setRoutes(list);
     setDrivers((d.data as Driver[]) ?? []);
@@ -161,13 +173,48 @@ const RoutenplanungPage = () => {
       postcodes: (z.delivery_zone_postcodes ?? []).map((p) => p.postcode),
     })));
     setLoading(false);
-    // auto-select first if none selected
-    if (!selectedId && list.length > 0) {
-      setSearchParams({ route: list[0].id }, { replace: true });
-    }
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+  // Navigation is synchronous with the mounted page, never a delayed fetch callback.
+  useEffect(() => {
+    if (loading || initiallySelected.current) return;
+    initiallySelected.current = true;
+    const first = routes.find((r) => r.datum === date);
+    if (!selectedId && first) setSearchParams({ route: first.id }, { replace: true });
+  }, [loading, routes, date, selectedId, setSearchParams]);
+
+  useEffect(() => {
+    let timer: number | undefined;
+    let disposed = false;
+    const refresh = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (disposed) return;
+        void load();
+        setLiveRefreshKey((k) => k + 1);
+      }, 300);
+    };
+    const channel = supabase.channel(`route-planning-${crypto.randomUUID()}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "routes" }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "route_stops" }, refresh)
+      // Unfiltered: also catch orders leaving 'neu' and delivery status changes.
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, refresh)
+      .subscribe((status) => { if (status === "SUBSCRIBED") refresh(); });
+    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    window.addEventListener("online", refresh);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      disposed = true;
+      window.clearTimeout(timer);
+      window.removeEventListener("online", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+      void supabase.removeChannel(channel);
+    };
+    // load only writes data, so this subscription stays stable across selections.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-run background geocoding once when the admin opens this page so
   // missing coordinates are filled in without manual button clicks.
@@ -205,20 +252,22 @@ const RoutenplanungPage = () => {
   }, []);
 
   const loadNewOrders = async () => {
-    setNewOrdersLoading(true);
+    const version = ++ordersVersion.current;
     const { data, error } = await supabase
       .from("orders")
       .select("id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, pakete, gewicht, lat, lng, created_at, is_pickup, geocode_quality, geocode_note")
       .eq("status", "neu")
       .order("created_at", { ascending: false })
       .limit(500);
+    if (!mounted.current || version !== ordersVersion.current) return;
     if (error) { toast.error("Bestellungen konnten nicht geladen werden"); setNewOrdersLoading(false); return; }
-    setNewOrders((data as NewOrderRow[]) ?? []);
-    setSelectedNewOrders(new Set());
+    const rows = (data as NewOrderRow[]) ?? [];
+    setNewOrders(rows);
+    setSelectedNewOrders((previous) => new Set([...previous].filter((id) => rows.some((row) => row.id === id))));
     setNewOrdersLoading(false);
   };
 
-  useEffect(() => { loadNewOrders(); }, [refreshKey]);
+  useEffect(() => { loadNewOrders(); }, [refreshKey, liveRefreshKey]);
 
   const zoneByPostcode = useMemo(() => buildPostcodeZoneMap(zones), [zones]);
   const zoneListForFilter: ZoneInfo[] = useMemo(
@@ -277,7 +326,7 @@ const RoutenplanungPage = () => {
       toast.success("Route erstellt");
       const newRoute = data as Route | null;
       if (newRoute) {
-        setSearchParams({ route: newRoute.id });
+        if (mounted.current) setSearchParams({ route: newRoute.id }, { replace: true });
         // If user came from "Zur Route → Neue Route erstellen", assign selected orders now.
         if (pendingAssignIds && pendingAssignIds.length > 0) {
           const rows = pendingAssignIds.map((order_id, i) => ({
@@ -325,7 +374,7 @@ const RoutenplanungPage = () => {
     setOpen(true);
   };
 
-  const selectRoute = (id: string) => setSearchParams({ route: id });
+  const selectRoute = (id: string) => setSearchParams({ route: id }, { replace: true });
 
   const routesForDate = routes.filter((r) => r.datum === date);
   const printableRoutes = routesForDate.filter((r) => r.status === "geplant" || r.status === "aktiv");
@@ -352,7 +401,7 @@ const RoutenplanungPage = () => {
       setRouteProgress(agg);
     })();
     return () => { cancelled = true; };
-  }, [routeIdsKey, refreshKey]);
+  }, [routeIdsKey, refreshKey, liveRefreshKey]);
 
   const generateRoutePdf = async (routeId: string) => {
     const route = routes.find((r) => r.id === routeId);
@@ -701,8 +750,8 @@ const RoutenplanungPage = () => {
               date={date}
               mapOnly
               highlightRouteId={selectedId}
-              refreshKey={refreshKey}
-              onSelectRoute={(id) => setSearchParams({ route: id })}
+              refreshKey={refreshKey + liveRefreshKey}
+              onSelectRoute={selectRoute}
               hidden={hiddenRoutes}
               newOrders={showNewOnMap ? visibleNewOrders : []}
               selectedNewOrderIds={selectedNewOrders}
@@ -731,7 +780,7 @@ const RoutenplanungPage = () => {
                 setForm(buildEmptyForm(date));
                 setOpen(true);
               }}
-              onSelectRoute={(id) => setSearchParams({ route: id })}
+              onSelectRoute={selectRoute}
               zones={zoneListForFilter}
               zoneByPostcode={zoneByPostcode}
               selectedZoneIds={selectedZoneIds}

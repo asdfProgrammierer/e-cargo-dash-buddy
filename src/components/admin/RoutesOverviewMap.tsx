@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { MapPin, Eye, EyeOff } from "lucide-react";
+import { MapPin, Eye, EyeOff, LocateFixed } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fetchPostcodePolygons } from "@/lib/plzBoundaries";
 
@@ -116,6 +116,10 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const pinnedRef = useRef<boolean>(false);
+  const centeredDateRef = useRef<string | null>(null);
+  const loadedDateRef = useRef<string | null>(null);
+  const centerViewRef = useRef<(() => void) | null>(null);
+  const mapLoadVersion = useRef(0);
 
   const colorByRoute = useMemo(() => {
     const m: Record<string, string> = {};
@@ -214,7 +218,7 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
   }, [showZones, zones, zonePolygons, routes]);
 
   const load = async () => {
-    setLoading(true);
+    const version = ++mapLoadVersion.current;
     const [r, d] = await Promise.all([
       supabase.from("routes")
         .select("id, name, datum, status, start_depot_id, end_depot_id, geometry, drivers(name), vehicles(kennzeichen)")
@@ -222,43 +226,52 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
         .order("name"),
       supabase.from("depots").select("id, name, lat, lng, is_default").eq("active", true),
     ]);
+    if (version !== mapLoadVersion.current || r.error || d.error) return;
     const routeList = (r.data as unknown as RouteRow[]) ?? [];
-    setRoutes(routeList);
-    setDepots((d.data as Depot[]) ?? []);
+    let stopList: StopRow[] = [];
     if (routeList.length > 0) {
       const ids = routeList.map((x) => x.id);
-      const { data: s } = await supabase.from("route_stops")
+      const { data: s, error } = await supabase.from("route_stops")
         .select("id, route_id, position, status, orders(id, auftrags_nr, empfaenger_name, empfaenger_adresse, empfaenger_plz, empfaenger_stadt, lat, lng)")
         .in("route_id", ids)
         .order("position", { ascending: true });
-      setStops((s as unknown as StopRow[]) ?? []);
-    } else {
-      setStops([]);
+      if (version !== mapLoadVersion.current || error) return;
+      stopList = (s as unknown as StopRow[]) ?? [];
     }
+    loadedDateRef.current = date;
+    setRoutes(routeList);
+    setDepots((d.data as Depot[]) ?? []);
+    setStops(stopList);
     setLoading(false);
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [date, refreshKey]);
+  useEffect(() => {
+    void load();
+    return () => { mapLoadVersion.current++; };
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [date, refreshKey]);
 
   // Realtime: reload immediately when route geometry/stops/status changes
   // (e.g. after admin optimizes a route, or a driver marks a stop in the app).
   useEffect(() => {
+    if (mapOnly) return; // The planning page owns this subscription.
     let debounce: number | undefined;
     const trigger = () => {
       window.clearTimeout(debounce);
       debounce = window.setTimeout(() => { void load(); }, 300);
     };
     const channel = supabase
-      .channel("routes-overview-live")
+      .channel(`routes-overview-live-${crypto.randomUUID()}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "route_stops" }, trigger)
       .on("postgres_changes", { event: "*", schema: "public", table: "routes" }, trigger)
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, trigger)
       .subscribe();
     return () => {
       window.clearTimeout(debounce);
       supabase.removeChannel(channel);
     };
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [date]);
+  }, [date, mapOnly]);
 
   // Live driver locations: initial load + realtime subscription.
   useEffect(() => {
@@ -280,7 +293,7 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
     };
     void loadLocs();
     const channel = supabase
-      .channel("driver-locations")
+      .channel(`driver-locations-${crypto.randomUUID()}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "driver_locations" }, () => {
         void loadLocs();
       })
@@ -318,14 +331,11 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
       popupRef.current?.remove();
     });
 
-    // As soon as we know the actual default depot, recenter
-    supabase.from("depots").select("lat, lng").eq("active", true).eq("is_default", true).maybeSingle()
-      .then(({ data }) => {
-        if (!mapRef.current || !data?.lat || !data?.lng) return;
-        mapRef.current.jumpTo({ center: [Number(data.lng), Number(data.lat)], zoom: 12 });
-      });
-
-    return () => { map.remove(); mapRef.current = null; };
+    return () => {
+      centerViewRef.current = null;
+      centeredDateRef.current = null;
+      map.remove(); mapRef.current = null;
+    };
   }, []);
 
   /** Show a small popup near a marker. Returns the popup so callers can pin it. */
@@ -360,6 +370,7 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
     const map = mapRef.current;
     if (!map) return;
     const apply = () => {
+      if (mapRef.current !== map || loadedDateRef.current !== date) return;
       // Clear previous markers
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
@@ -411,7 +422,8 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
         // Stops
         const routeStops = stops.filter((s) => s.route_id === r.id && s.orders?.lat != null && s.orders?.lng != null);
         routeStops.forEach((s, idx) => {
-          const o = s.orders!;
+          const o = s.orders;
+          if (!o || o.lat == null || o.lng == null) return;
           const done = s.status === "erledigt";
           const skip = s.status === "uebersprungen";
           const stopStatusLabel = done ? "Erledigt" : skip ? "Übersprungen" : "Offen";
@@ -552,16 +564,23 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
       const hasRouteContent = routes.some((r) => !hidden.has(r.id) && (r.geometry || stops.some((s) => s.route_id === r.id && s.orders?.lat != null)));
 
       const hasNewOrderPins = newOrders.some((o) => o.lat != null && o.lng != null);
-      if ((hasRouteContent || hasNewOrderPins) && hasPoint) {
-        try { map.fitBounds(bounds, { padding: 60, maxZoom: 13, duration: 600 }); } catch { /* noop */ }
-      } else if (defaultDepot) {
-        // No routes for this date → center on the default depot
-        map.flyTo({ center: [Number(defaultDepot.lng), Number(defaultDepot.lat)], zoom: 12, duration: 600 });
+      centerViewRef.current = () => {
+        const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 600;
+        if ((hasRouteContent || hasNewOrderPins) && hasPoint) {
+          try { map.fitBounds(bounds, { padding: 60, maxZoom: 13, duration }); } catch { /* noop */ }
+        } else if (defaultDepot) {
+          map.flyTo({ center: [Number(defaultDepot.lng), Number(defaultDepot.lat)], zoom: 12, duration });
+        }
+      };
+      if (centeredDateRef.current !== date) {
+        centeredDateRef.current = date;
+        centerViewRef.current();
       }
     };
     if (map.loaded()) apply();
     else map.once("load", apply);
-  }, [routes, stops, depots, hidden, colorByRoute, onSelectRoute, highlightRouteId, newOrders, selectedNewOrderIds, onNewOrderClick, driverLocs]);
+    return () => { map.off("load", apply); };
+  }, [date, routes, stops, depots, hidden, colorByRoute, onSelectRoute, highlightRouteId, newOrders, selectedNewOrderIds, onNewOrderClick, driverLocs]);
 
   const toggleHidden = (id: string) => {
     setHidden((prev) => {
@@ -580,8 +599,11 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
   if (mapOnly) {
     return (
       <Card className="overflow-hidden border-border/60 shadow-card h-full">
-        <CardContent className="p-0 h-full">
+        <CardContent className="relative p-0 h-full">
           <div ref={containerRef} className="h-full w-full min-h-[300px]" />
+          <Button variant="outline" size="icon" className="absolute left-3 top-3 h-9 w-9 bg-background shadow-sm" aria-label="Ansicht zentrieren" title="Ansicht zentrieren" onClick={() => centerViewRef.current?.()}>
+            <LocateFixed className="h-4 w-4" />
+          </Button>
         </CardContent>
       </Card>
     );
@@ -704,8 +726,11 @@ export function RoutesOverviewMap({ onSelectRoute, mapOnly = false, date: datePr
 
       {/* Map */}
       <Card className="overflow-hidden border-border/60 shadow-card">
-        <CardContent className="p-0">
+        <CardContent className="relative p-0">
           <div ref={containerRef} className="h-[78vh] w-full" />
+          <Button variant="outline" size="icon" className="absolute left-3 top-3 h-9 w-9 bg-background shadow-sm" aria-label="Ansicht zentrieren" title="Ansicht zentrieren" onClick={() => centerViewRef.current?.()}>
+            <LocateFixed className="h-4 w-4" />
+          </Button>
         </CardContent>
       </Card>
     </div>
