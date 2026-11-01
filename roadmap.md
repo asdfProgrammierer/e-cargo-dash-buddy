@@ -9,3 +9,5 @@
 - [x] Update routes, stop progress and new shipments live without clearing selections.
 - [x] Preserve map zoom during live updates and add manual centering.
 - [x] Prevent stale route navigation and cache admin checks safely; verify the flows.
+- [ ] Repair Shopify's 15-minute cron authentication without granting public write access.
+- [ ] Exclude DHL/WMS shipments and require e-cargo delivery stops for Shopify write-backs; test and verify deployed behavior.
