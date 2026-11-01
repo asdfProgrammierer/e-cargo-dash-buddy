@@ -1,9 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { buildTrackingUrl } from "../_shared/site-url.ts";
+import { hasCronAuthorization, isEcargoDelivery } from "./policy.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-key",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -48,30 +49,12 @@ async function pushFulfillment(
     return { orderId: order.id, error: "Verbindung unvollständig" };
   }
 
-  const isDhl = !!order.dhl_tracking_number;
-
-  // Tracking-Info: bevorzugt DHL, sonst e-cargo Tracking
-  const trackingNumber = order.dhl_tracking_number?.trim() || order.auftrags_nr;
+  // DHL/WMS shipments are excluded before any Shopify request.
+  const trackingNumber = order.auftrags_nr;
   const ecargoTrackingUrl = buildTrackingUrl(order.tracking_token, req);
-  const dhlTrackingUrl = order.dhl_tracking_number
-    ? `https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=${encodeURIComponent(order.dhl_tracking_number)}`
-    : null;
-  const trackingUrl = dhlTrackingUrl || ecargoTrackingUrl;
-  const trackingCompany = isDhl ? "DHL" : "e-cargo";
-
-  // Label-Link für die Order-Note: bevorzugt direkt das DHL-Label-PDF (signed URL),
-  // sonst die e-cargo Tracking-Seite, von der aus der Händler das Label drucken kann.
-  let labelLink: string | null = order.dhl_label_url ?? null;
-  if (isDhl && order.dhl_label_url) {
-    // Wenn dhl_label_url ein Storage-Pfad statt einer signed URL ist, signieren.
-    if (!/^https?:\/\//i.test(order.dhl_label_url)) {
-      const { data: signed } = await admin.storage
-        .from("delivery-notes")
-        .createSignedUrl(order.dhl_label_url, 60 * 60 * 24 * 7);
-      labelLink = signed?.signedUrl ?? labelLink;
-    }
-  }
-  if (!labelLink) labelLink = ecargoTrackingUrl;
+  const trackingUrl = ecargoTrackingUrl;
+  const trackingCompany = "e-cargo";
+  const labelLink = ecargoTrackingUrl;
 
   // 0. Order-Note in Shopify ergänzen (idempotent über Marker)
   if (labelLink) {
@@ -123,8 +106,7 @@ async function pushFulfillment(
     body: JSON.stringify({
       fulfillment: {
         message: "Versand durch e-cargo",
-        // Bei DHL keine Shopify-Kundenmail (konsistent mit unterdrückter e-cargo Mail).
-        notify_customer: !isDhl,
+        notify_customer: true,
         tracking_info: {
           number: trackingNumber,
           url: trackingUrl || undefined,
@@ -169,7 +151,10 @@ async function syncDeliveryEvents(admin: ReturnType<typeof createClient>, req: R
 
   let q = admin
     .from("orders")
-    .select("id, status, auftrags_nr, tracking_token, external_order_ref, shop_connection_id, shopify_fulfillment_id, shopify_event_status")
+    .select("id, status, auftrags_nr, tracking_token, external_order_ref, shop_connection_id, shopify_fulfillment_id, shopify_event_status, is_pickup, dhl_tracking_number, dhl_label_url, route_stops!inner(routes!inner(status))")
+    .eq("is_pickup", false)
+    .is("dhl_tracking_number", null)
+    .is("dhl_label_url", null)
     .in("shop_connection_id", conns.map((c) => c.id))
     .not("external_order_ref", "is", null)
     .in("status", ["neu", ...Object.keys(SHOPIFY_EVENT_FOR_STATUS)])
@@ -181,10 +166,12 @@ async function syncDeliveryEvents(admin: ReturnType<typeof createClient>, req: R
 
   const results: Array<Record<string, unknown>> = [];
   for (const o of orders ?? []) {
+    if (!isEcargoDelivery(o)) continue;
     const event = SHOPIFY_EVENT_FOR_STATUS[o.status as string];
     const needsTracking = !o.shopify_fulfillment_id;
     if (!needsTracking && (!event || o.shopify_event_status === event)) continue;
-    const conn = connMap.get(o.shop_connection_id as string)!;
+    const conn = connMap.get(o.shop_connection_id as string);
+    if (!conn) continue;
     const domain = normalizeDomain(conn.shop_domain ?? conn.api_url);
     if (!domain || !conn.api_key) continue;
     try {
@@ -239,9 +226,14 @@ Deno.serve(async (req) => {
   const authHeader = req.headers.get("Authorization") ?? "";
   const token = authHeader.replace(/^Bearer\s+/i, "");
   let isAuthorized = false;
+  // Use the existing private Shopify scheduler credential, never the public apikey.
+  isAuthorized = await hasCronAuthorization(req.headers, async (key) => {
+    const { data, error } = await admin.rpc("verify_shopify_poll_cron_key", { _key: key });
+    return !error && data === true;
+  });
   if (token && token === serviceKey) {
     isAuthorized = true;
-  } else if (token) {
+  } else if (!isAuthorized && token) {
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: `Bearer ${token}` } },
     });
@@ -266,19 +258,20 @@ Deno.serve(async (req) => {
     let body: { orderId?: string } = {};
     try { body = await req.json(); } catch { /* ignore */ }
 
-    // Trigger: Shopify-Orders mit fertigem Etikett (DHL ODER e-cargo Druck) bzw. ab
-    // Status 'in_bearbeitung' / 'unterwegs' / 'zugestellt'.
+    // Only e-cargo delivery orders assigned to real tours; WMS owns DHL.
     let q = admin
       .from("orders")
-      .select("id, external_order_ref, shop_connection_id, status, tracking_token, dhl_tracking_number, dhl_label_url, auftrags_nr")
+      .select("id, external_order_ref, shop_connection_id, status, tracking_token, dhl_tracking_number, dhl_label_url, auftrags_nr, is_pickup, route_stops!inner(routes!inner(status))")
+      .eq("is_pickup", false)
+      .is("dhl_tracking_number", null)
+      .is("dhl_label_url", null)
       .not("shop_connection_id", "is", null)
       .not("external_order_ref", "is", null)
       .is("shopify_fulfilled_at", null);
     if (body.orderId) {
       q = q.eq("id", body.orderId);
     } else {
-      // Cron-Run: nur Orders mit Label oder fortgeschrittenem Status.
-      q = q.or("dhl_label_url.not.is.null,status.in.(in_bearbeitung,unterwegs,zugestellt)");
+      q = q.in("status", ["in_bearbeitung", "unterwegs", "zugestellt"]);
     }
 
     const { data: orders, error: oErr } = await q;
@@ -301,10 +294,11 @@ Deno.serve(async (req) => {
 
     const results = [];
     for (const o of orders) {
+      if (!isEcargoDelivery(o)) continue;
       const conn = connMap.get(o.shop_connection_id as string);
       if (!conn || conn.platform !== "shopify" || !conn.active || !conn.auto_fulfill) continue;
       try {
-        results.push(await pushFulfillment(admin, o as never, conn as never, req));
+        results.push(await pushFulfillment(admin, o, conn, req));
       } catch (err) {
         console.error("push error", o.id, err);
         results.push({ orderId: o.id, error: String(err) });
