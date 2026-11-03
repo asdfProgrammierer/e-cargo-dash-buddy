@@ -379,12 +379,18 @@ Deno.serve(async (req) => {
         expected: legCount,
         got: routeSegments?.length ?? 0,
       });
-      // Fallback: pro Leg einzeln über Directions abfragen
+      // Fallback: pro Leg einzeln über Directions abfragen; scheitert ein Leg
+      // (z. B. Ratenlimit), wird es per Luftlinie geschätzt statt leer gelassen.
+      const detour = 1.35;
+      const speedKmh = profile === "driving-car" ? 30 : profile === "cycling-electric" ? 18 : 15;
       for (let i = 0; i < legCount; i++) {
         const a = coords[i];
         const b = coords[i + 1];
+        const straight = haversineM(a[1], a[0], b[1], b[0]);
+        if (straight < 5) { legDurations[i] = 0; legDistances[i] = 0; continue; }
+        let ok = false;
         try {
-          const legRes = await fetch(`https://api.openrouteservice.org/v2/directions/${profile}`, {
+          const legRes = await fetchOrsWithRetry(`https://api.openrouteservice.org/v2/directions/${profile}`, {
             method: "POST",
             headers: {
               Authorization: apiKey,
@@ -392,19 +398,23 @@ Deno.serve(async (req) => {
               Accept: "application/json",
             },
             body: JSON.stringify({ coordinates: [a, b], instructions: false }),
-          });
-          if (!legRes.ok) {
-            console.error("Leg fallback failed", i, await legRes.text());
-            continue;
-          }
+          }, "Teilstrecke");
           const legJson = await legRes.json();
           const summary = legJson?.routes?.[0]?.summary;
-          if (summary) {
-            legDurations[i] = summary.duration ?? 0;
+          if (summary && (summary.duration ?? 0) > 0) {
+            legDurations[i] = summary.duration;
             legDistances[i] = summary.distance ?? 0;
+            ok = true;
           }
         } catch (e) {
           console.error("Leg fallback error", i, e);
+          fallbackReasons.push(e instanceof Error ? e.message : String(e));
+        }
+        if (!ok) {
+          fallbackUsed = true;
+          const dist = straight * detour;
+          legDistances[i] = dist;
+          legDurations[i] = dist / (speedKmh * 1000 / 3600);
         }
       }
       }
