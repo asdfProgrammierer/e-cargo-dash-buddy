@@ -398,7 +398,7 @@ Deno.serve(async (req) => {
               Accept: "application/json",
             },
             body: JSON.stringify({ coordinates: [a, b], instructions: false }),
-          }, "Teilstrecke");
+          }, "Teilstrecke", 2);
           const legJson = await legRes.json();
           const summary = legJson?.routes?.[0]?.summary;
           if (summary && (summary.duration ?? 0) > 0) {
