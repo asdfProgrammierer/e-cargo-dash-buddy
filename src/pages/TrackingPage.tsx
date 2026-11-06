@@ -436,7 +436,7 @@ export default function TrackingPage() {
                       {order.eta ? order.eta.window : "Wird Ihnen kurz vor der Zustellung mitgeteilt"}
                     </p>
                     {order.eta && (
-                      <p className="text-xs text-muted-foreground mt-0.5 capitalize">{order.eta.date}</p>
+                      <p className="text-sm text-foreground mt-0.5">am {order.eta.date}</p>
                     )}
                   </div>
                 </div>

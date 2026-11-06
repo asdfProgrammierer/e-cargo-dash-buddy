@@ -19,6 +19,15 @@ const fmtBerlinDate = (d: Date) =>
     timeZone: "Europe/Berlin",
   }).format(d);
 
+// Short date like "Sa., 07.11." for display next to a time window.
+export const fmtBerlinShortDate = (d: Date) =>
+  new Intl.DateTimeFormat("de-DE", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "Europe/Berlin",
+  }).format(d);
+
 export const ETA_FALLBACK_TEXT = "Wird Ihnen kurz vor der Zustellung mitgeteilt";
 
 export interface EtaWindow {
