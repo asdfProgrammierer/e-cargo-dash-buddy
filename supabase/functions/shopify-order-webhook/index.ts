@@ -11,6 +11,7 @@
 // Dadurch gelten dieselben Validierungen, Liefergebiets-Checks, Idempotenz und
 // Etikettenerzeugung wie für jedes andere angebundene System.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { shopifyRecipientName } from "../_shared/shopify-recipient.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -225,10 +226,10 @@ Deno.serve(async (req) => {
   // Vor-/Nachname getrennt, falls Shopify sie getrennt liefert
   const firstName = String(ship.first_name ?? order.customer?.first_name ?? "").trim();
   const lastName = String(ship.last_name ?? order.customer?.last_name ?? "").trim();
-  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim()
-    || String(ship.name ?? "").trim()
-    || String(ship.company ?? "").trim()
-    || "Empfänger";
+  const fullName = shopifyRecipientName(
+    [firstName, lastName].filter(Boolean).join(" ").trim() || String(ship.name ?? "").trim(),
+    String(ship.company ?? ""),
+  );
   const street = [ship.address1, ship.address2].filter(Boolean).join(" ").trim();
   // Telefonnummer ist bei Shopify optional; wir übertragen sie leer statt abzubrechen.
   const phone = String(ship.phone ?? order.phone ?? order.customer?.phone ?? "").trim();
@@ -265,6 +266,7 @@ Deno.serve(async (req) => {
       phone: phone || undefined,
     },
     package: { count: pakete, weight_kg: gewicht },
+    notes: order.note ? String(order.note).trim().slice(0, 1000) || undefined : undefined,
   };
 
   // 7. Übertragung an die Routenplanung über deren REST-API

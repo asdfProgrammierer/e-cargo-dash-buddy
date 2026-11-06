@@ -280,7 +280,13 @@ async function buildLabelPdf(params: {
     borderColor: rgb(0, 0, 0),
   });
   page.drawText("EMPFÄNGER", { x: padX + 2 * mm, y: y - 4 * mm, size: 7, font: helv, color: rgb(0.37, 0.37, 0.37) });
-  page.drawText(params.recipient.name.slice(0, 34), { x: padX + 2 * mm, y: y - 9 * mm, size: 14, font: helvBold });
+  {
+    const nm = params.recipient.name.slice(0, 70);
+    const maxW = W - 2 * padX - 4 * mm;
+    let sz = 14;
+    while (sz > 8 && helvBold.widthOfTextAtSize(nm, sz) > maxW) sz -= 0.5;
+    page.drawText(nm, { x: padX + 2 * mm, y: y - 9 * mm, size: sz, font: helvBold });
+  }
   page.drawText(params.recipient.street.slice(0, 40), { x: padX + 2 * mm, y: y - 14 * mm, size: 11, font: helvBold });
   page.drawText(
     `${params.recipient.postal_code} ${params.recipient.city}`.slice(0, 40),

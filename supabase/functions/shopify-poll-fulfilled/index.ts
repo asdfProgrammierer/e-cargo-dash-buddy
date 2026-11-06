@@ -12,6 +12,7 @@
 //   2. keine shipping_address                            -> verwerfen
 //   3. Liefergebiet/PLZ prueft die Routenplanungs-API
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { shopifyRecipientName } from "../_shared/shopify-recipient.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -78,10 +79,10 @@ async function importOrder(admin: any, conn: any, merchantCode: string, order: a
 
   const firstName = String(ship.first_name ?? order.customer?.first_name ?? "").trim();
   const lastName = String(ship.last_name ?? order.customer?.last_name ?? "").trim();
-  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim()
-    || String(ship.name ?? "").trim()
-    || String(ship.company ?? "").trim()
-    || "Empfänger";
+  const fullName = shopifyRecipientName(
+    [firstName, lastName].filter(Boolean).join(" ").trim() || String(ship.name ?? "").trim(),
+    String(ship.company ?? ""),
+  );
   const street = [ship.address1, ship.address2].filter(Boolean).join(" ").trim();
   const phone = String(ship.phone ?? order.phone ?? order.customer?.phone ?? "").trim();
   const email = String(order.email ?? order.contact_email ?? order.customer?.email ?? "").trim();
@@ -111,6 +112,7 @@ async function importOrder(admin: any, conn: any, merchantCode: string, order: a
       phone: phone || undefined,
     },
     package: { count: pakete, weight_kg: gewicht },
+    notes: order.note ? String(order.note).trim().slice(0, 1000) || undefined : undefined,
   };
 
   const apiRes = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/wms-create-shipment`, {
