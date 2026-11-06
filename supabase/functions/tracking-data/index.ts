@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { verifyTrackingSession, extractBearer } from '../_shared/tracking-session.ts'
-import { buildEtaWindow } from '../_shared/eta.ts'
+import { buildEtaWindow, fmtBerlinShortDate } from '../_shared/eta.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -123,6 +123,11 @@ Deno.serve(async (req) => {
   let etaWindow: { window: string; center: string; fromIso: string; toIso: string; centerIso: string } | null = null
   if (order.status === 'in_bearbeitung' || order.status === 'unterwegs') {
     etaWindow = buildEtaWindow(stopRow?.eta ?? null)
+    // Datum immer mitliefern, damit Kunden (Seite + Website-Modal) auch bei
+    // Touren für morgen wissen, an welchem Tag das Zeitfenster gilt.
+    if (etaWindow) {
+      etaWindow = { ...etaWindow, window: `${fmtBerlinShortDate(new Date(etaWindow.centerIso))}, ${etaWindow.window}` }
+    }
   }
 
   // Lieferanweisungen können bis 1h vor ETA bearbeitet werden, solange die Bestellung
