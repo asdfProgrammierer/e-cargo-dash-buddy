@@ -99,6 +99,25 @@ Deno.serve(async (req) => {
       return { quality: "exact", note: null };
     };
 
+    // 0) Eigener Adress-Speicher: bekannte Adressen ohne externe Dienste.
+    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const canCache = !body.query && wantsHouseNumber && /\d{5}/.test(plz);
+    let cacheKey: string | null = null;
+    if (canCache) {
+      const { data: k } = await admin.rpc("geocode_cache_key", { _street: street, _plz: plz });
+      cacheKey = (k as string) ?? null;
+      if (cacheKey) {
+        const { data: hit } = await admin.from("geocode_cache").select("lat,lng,hits").eq("address_key", cacheKey).maybeSingle();
+        if (hit) {
+          await admin.from("geocode_cache").update({ hits: (hit.hits ?? 0) + 1, updated_at: new Date().toISOString() }).eq("address_key", cacheKey);
+          return json({
+            lat: Number(hit.lat), lng: Number(hit.lng), formatted: text, provider: "cache", layer: "address",
+            quality: "exact", note: null, confidence: null, matchType: "exact",
+          });
+        }
+      }
+    }
+
     const candidates: Candidate[] = [];
 
     // 1) OpenRouteService (Pelias)
@@ -233,6 +252,11 @@ Deno.serve(async (req) => {
     };
     const best = candidates.reduce((a, b) => (score(b) > score(a) ? b : a));
     const { quality, note } = classify(best);
+    if (quality === "exact" && cacheKey) {
+      await admin.from("geocode_cache").upsert({
+        address_key: cacheKey, strasse: street, plz, stadt, lat: best.lat, lng: best.lng, source: best.provider,
+      }, { onConflict: "address_key" });
+    }
     if (quality !== "exact") console.warn(`[geocode] approximate "${text}" → ${best.provider}: ${note}`);
 
     return json({
