@@ -791,6 +791,45 @@ export type Database = {
           },
         ]
       }
+      geocode_cache: {
+        Row: {
+          address_key: string
+          created_at: string
+          hits: number
+          lat: number
+          lng: number
+          plz: string | null
+          source: string
+          stadt: string | null
+          strasse: string | null
+          updated_at: string
+        }
+        Insert: {
+          address_key: string
+          created_at?: string
+          hits?: number
+          lat: number
+          lng: number
+          plz?: string | null
+          source?: string
+          stadt?: string | null
+          strasse?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address_key?: string
+          created_at?: string
+          hits?: number
+          lat?: number
+          lng?: number
+          plz?: string | null
+          source?: string
+          stadt?: string | null
+          strasse?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       maintenance_schedule: {
         Row: {
           bezeichnung: string
@@ -2111,6 +2150,10 @@ export type Database = {
         Returns: undefined
       }
       gdpr_cleanup_personal_data: { Args: never; Returns: undefined }
+      geocode_cache_key: {
+        Args: { _plz: string; _street: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
