@@ -15,3 +15,4 @@
 - Route planning owns a debounced, lifecycle-scoped realtime subscription; live refreshes do not remount RouteBuilder or clear surviving order selections, and fetch callbacks never auto-navigate, preventing stale requests from undoing sidebar navigation.
 - RoutesOverviewMap centers once per loaded date or by explicit user action; driver and order updates redraw data without changing the camera.
 - Admin navigation checks use session/user-scoped in-memory React Query results from user_roles, cleared on sign-out and revalidated on focus; server RLS remains the authorization boundary.
+- `geocode-address` checks `geocode_cache` (key = `geocode_cache_key(street, plz)`) before external geocoders and stores only exact results there — recurring addresses never depend on rate-limited providers.
