@@ -21,6 +21,7 @@ interface Candidate {
   formatted: string;
   housenumber: string | null;
   postcode: string | null;
+  street: string | null;
   provider: string;
   layer: string | null;
 }
@@ -38,6 +39,16 @@ export function expandStreet(s: string | undefined): string {
     .replace(/([a-zäöüß])str\.?(?=\s|\d|,|$)/gi, "$1straße")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** Normalize a street name for comparison: "Freie Vogel Str. 7" → "freievogelstr". */
+export function normStreet(s: string | null | undefined): string {
+  return (s ?? "")
+    .toLowerCase()
+    .replace(/ß/g, "ss")
+    .replace(/\d.*$/, "")
+    .replace(/(strasse|str\.?)(?=[^a-z]|$)/g, "str")
+    .replace(/[^a-zäöü]/g, "");
 }
 
 const normNum = (s: string | null | undefined) => (s ?? "").replace(/\s/g, "").toLowerCase();
@@ -81,7 +92,15 @@ Deno.serve(async (req) => {
     const wantsHouseNumber = !!wantedNum;
 
     /** Classify a candidate: exact only if house number AND postcode match. */
+    const wantedStreet = normStreet(street);
+    const streetOk = (c: Candidate) => !wantedStreet || !c.street || normStreet(c.street) === wantedStreet;
     const classify = (c: Candidate): { quality: Quality; note: string | null } => {
+      if (wantedStreet && !c.street) {
+        return { quality: "approximate", note: "Straßenname im Treffer nicht prüfbar – bitte Position kontrollieren" };
+      }
+      if (!streetOk(c)) {
+        return { quality: "approximate", note: `Andere Straße gefunden (${c.street})` };
+      }
       if (plz && c.postcode && c.postcode !== plz) {
         return { quality: "approximate", note: `Gefundene PLZ ${c.postcode} weicht von ${plz} ab` };
       }
@@ -147,6 +166,7 @@ Deno.serve(async (req) => {
               formatted: p.label ?? text,
               housenumber: p.housenumber ?? null,
               postcode: p.postalcode ?? null,
+              street: p.street ?? null,
               provider: "ors",
               layer: p.layer ?? null,
             });
@@ -191,6 +211,7 @@ Deno.serve(async (req) => {
               formatted: h.display_name ?? text,
               housenumber: h?.address?.house_number ?? null,
               postcode: h?.address?.postcode ?? null,
+              street: h?.address?.road ?? h?.address?.pedestrian ?? null,
               provider: "nominatim",
               layer: h.addresstype ?? h.class ?? null,
             });
@@ -226,6 +247,7 @@ Deno.serve(async (req) => {
                   .filter(Boolean).join(", ") || text,
               housenumber: p.housenumber ?? null,
               postcode: p.postcode ?? null,
+              street: p.street ?? (p.type === "street" ? p.name ?? null : null),
               provider: "photon",
               layer: p.type ?? null,
             });
@@ -236,7 +258,35 @@ Deno.serve(async (req) => {
       }
     }
 
+    // 4) Vorschlag: Straße existiert in dieser PLZ nicht → gleiche Straße ohne PLZ suchen.
+    let suggestion: string | null = null;
+    if (!body.query && wantedStreet && plz && !candidates.some((c) => streetOk(c) && c.street && (!c.postcode || c.postcode === plz))) {
+      try {
+        const u = new URL("https://nominatim.openstreetmap.org/search");
+        u.searchParams.set("format", "json");
+        u.searchParams.set("limit", "5");
+        u.searchParams.set("countrycodes", "de");
+        u.searchParams.set("addressdetails", "1");
+        u.searchParams.set("email", "kontakt@ecargo-logistik.de");
+        u.searchParams.set("street", street);
+        if (stadt) u.searchParams.set("city", stadt);
+        const r = await fetchWithTimeout(u.toString(), {
+          headers: { Accept: "application/json", "User-Agent": "e-cargo-logistik/1.0 (kontakt@ecargo-logistik.de)" },
+        });
+        if (r.ok) {
+          const hit = ((await r.json()) as any[]).find((h) => normStreet(h?.address?.road) === wantedStreet && h?.address?.postcode);
+          if (hit) {
+            const a = hit.address;
+            suggestion = `${a.road}${a.house_number ? " " + a.house_number : ""}, ${a.postcode} ${a.city ?? a.town ?? stadt}`;
+          }
+        }
+      } catch (e) {
+        console.warn("[geocode] suggestion lookup failed", e);
+      }
+    }
+
     if (!candidates.length) {
+      if (suggestion) return json({ error: `Straße nicht in PLZ ${plz} gefunden – Vorschlag: ${suggestion}`, suggestion }, 404);
       console.warn(`[geocode] no result for "${text}"`);
       return json({ error: "Keine Treffer für Adresse" }, 404);
     }
@@ -244,14 +294,19 @@ Deno.serve(async (req) => {
     // Pick best: exact > house number + matching PLZ > matching PLZ > anything
     const score = (c: Candidate) => {
       const { quality } = classify(c);
-      if (quality === "exact") return 3;
+      if (quality === "exact") return 4;
+      if (!streetOk(c)) return 0;
       const plzOk = !plz || !c.postcode || c.postcode === plz;
-      if (c.housenumber && plzOk) return 2;
-      if (plzOk) return 1;
-      return 0;
+      if (c.housenumber && plzOk) return 3;
+      if (plzOk) return 2;
+      return 1;
     };
     const best = candidates.reduce((a, b) => (score(b) > score(a) ? b : a));
-    const { quality, note } = classify(best);
+    const classified = classify(best);
+    const quality = classified.quality;
+    const note = suggestion
+      ? `Straße nicht in PLZ ${plz} gefunden – Vorschlag: ${suggestion}`
+      : classified.note;
     if (quality === "exact" && cacheKey) {
       await admin.from("geocode_cache").upsert({
         address_key: cacheKey, strasse: street, plz, stadt, lat: best.lat, lng: best.lng, source: best.provider,
@@ -267,6 +322,7 @@ Deno.serve(async (req) => {
       layer: best.layer,
       quality,
       note,
+      suggestion,
       // legacy fields
       confidence: null,
       matchType: quality === "exact" ? "exact" : "fallback",
