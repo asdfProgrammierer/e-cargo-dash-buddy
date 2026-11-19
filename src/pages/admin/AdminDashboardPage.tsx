@@ -7,11 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, Package, FileDown, Loader2, TrendingUp, Gauge } from "lucide-react";
-import { STATUS_COLORS, STATUS_LABELS, type OrderStatus } from "@/types/order";
+import { Users, Package, FileDown, Loader2, TrendingUp, Gauge, Printer } from "lucide-react";
+import { STATUS_COLORS, STATUS_LABELS, type OrderStatus, type Order } from "@/types/order";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { downloadOrderPdf } from "@/lib/orderPdf";
+import { printShippingLabels } from "@/lib/shippingLabels";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 import { sendOrderStatusEmail } from "@/lib/orderEmail";
 import { AdminCreateOrderDialog } from "@/components/admin/AdminCreateOrderDialog";
@@ -379,12 +381,7 @@ const AdminDashboardPage = () => {
     [merchantNameMap],
   );
 
-  const handleDownloadPdf = async (e: React.MouseEvent, order: RecentOrder) => {
-    e.stopPropagation();
-    if (pdfLoadingId) return;
-    setPdfLoadingId(order.id);
-    try {
-      await downloadOrderPdf({
+  const toOrder = (order: RecentOrder): Order => ({
         id: order.id,
         auftragsNr: order.auftrags_nr,
         absenderName: order.absender_name,
@@ -406,6 +403,37 @@ const AdminDashboardPage = () => {
         dhlTrackingNumber: order.dhl_tracking_number ?? undefined,
         dhlLabelUrl: order.dhl_label_url ?? undefined,
       });
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [printing, setPrinting] = useState(false);
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  const printLabels = async (list: RecentOrder[]) => {
+    if (list.length === 0) return;
+    setPrinting(true);
+    try {
+      const dhl = list.filter((o) => o.dhl_label_url);
+      const std = list.filter((o) => !o.dhl_label_url);
+      dhl.forEach((o) => window.open(o.dhl_label_url!, "_blank", "noopener,noreferrer"));
+      if (std.length > 0) await printShippingLabels(std.map(toOrder));
+    } catch (err) {
+      console.error("Etikettendruck fehlgeschlagen", err);
+      toast.error("Etiketten konnten nicht erstellt werden.");
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  const handleDownloadPdf = async (e: React.MouseEvent, order: RecentOrder) => {
+    e.stopPropagation();
+    if (pdfLoadingId) return;
+    setPdfLoadingId(order.id);
+    try {
+      await downloadOrderPdf(toOrder(order));
     } catch (err) {
       console.error("PDF-Erstellung fehlgeschlagen", err);
       toast.error("PDF konnte nicht erstellt werden. Bitte erneut versuchen.");
@@ -477,10 +505,28 @@ const AdminDashboardPage = () => {
               Für diesen Status sind aktuell keine Bestellungen vorhanden.
             </div>
           ) : (
+            <div className="space-y-3">
+            {selectedIds.size > 0 && (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg bg-primary/10 p-3">
+                <span className="text-sm font-medium text-foreground">{selectedIds.size} ausgewählt</span>
+                <Button size="sm" variant="outline" disabled={printing} onClick={() => printLabels(filteredOrders.filter((o) => selectedIds.has(o.id)))}>
+                  {printing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
+                  Etiketten drucken ({selectedIds.size})
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>Auswahl aufheben</Button>
+              </div>
+            )}
             <div className="overflow-x-auto">
             <Table className="min-w-[820px]">
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      aria-label="Alle auswählen"
+                      checked={filteredOrders.length > 0 && filteredOrders.every((o) => selectedIds.has(o.id))}
+                      onCheckedChange={(c) => setSelectedIds(c ? new Set(filteredOrders.map((o) => o.id)) : new Set())}
+                    />
+                  </TableHead>
                   <TableHead>Auftragsnr.</TableHead>
                   <TableHead>Händler</TableHead>
                   <TableHead>Empfänger</TableHead>
@@ -488,12 +534,15 @@ const AdminDashboardPage = () => {
                   <TableHead className="text-center">Pakete</TableHead>
                   <TableHead>Erstellt</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-16 text-right">PDF</TableHead>
+                  <TableHead className="w-24 text-right">Aktionen</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredOrders.map((order) => (
                   <TableRow key={order.id} className="cursor-pointer hover:bg-muted/30" onClick={() => handleSelectOrder(order.id)}>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Checkbox aria-label={`${order.auftrags_nr} auswählen`} checked={selectedIds.has(order.id)} onCheckedChange={() => toggleSelect(order.id)} />
+                    </TableCell>
                     <TableCell className="font-medium">{order.auftrags_nr}</TableCell>
                     <TableCell>{merchantNameMap.get(order.user_id) ?? "Unbekannter Händler"}</TableCell>
                     <TableCell>{order.empfaenger_name}</TableCell>
@@ -513,7 +562,10 @@ const AdminDashboardPage = () => {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Etikett drucken" onClick={() => printLabels([order])}>
+                        <Printer className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -533,6 +585,7 @@ const AdminDashboardPage = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
             </div>
           )}
         </CardContent>
