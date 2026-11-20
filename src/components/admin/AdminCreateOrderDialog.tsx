@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { sendOrderStatusEmail } from "@/lib/orderEmail";
 import { lookupCityByPostcode, isCompletePostcode } from "@/lib/plzCity";
+import { orderCreationError } from "@/lib/orderCreationError";
 
 interface AdminCreateOrderDialogProps {
   merchantUserId?: string;
@@ -238,7 +239,7 @@ export function AdminCreateOrderDialog({
     setSubmitting(false);
     if (error) {
       console.error(error);
-      toast.error("Auftrag konnte nicht angelegt werden");
+      toast.error(orderCreationError(error, "Auftrag konnte nicht angelegt werden"));
       return;
     }
     if (inserted) {

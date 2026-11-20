@@ -11,3 +11,5 @@
 - [x] Prevent stale route navigation and cache admin checks safely; verify the flows.
 - [x] Repair Shopify's 15-minute cron authentication without granting public write access.
 - [x] Exclude DHL/WMS shipments and require e-cargo delivery stops for Shopify write-backs; test and verify deployed behavior.
+- [x] Check missing merchant-code failures across manual creation, imports, Shopify/WMS and automatic pickups; preserve failed imports and explain the cause.
+- [ ] Verify Bochum Marketing's real order creation after its administrator supplies a merchant code; blocked by missing merchant code.

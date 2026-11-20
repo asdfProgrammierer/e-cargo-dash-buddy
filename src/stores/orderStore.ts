@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { orderCreationError } from "@/lib/orderCreationError";
 import { Order, OrderStatus } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
 import { geocodeAndSaveOrder } from "@/lib/geocodeOrder";
@@ -152,7 +153,7 @@ export function useOrderStore() {
       .select()
       .single();
     if (error) {
-      toast.error("Auftrag konnte nicht gespeichert werden");
+      toast.error(orderCreationError(error, "Auftrag konnte nicht gespeichert werden"));
       console.error(error);
       return null;
     }
@@ -202,7 +203,7 @@ export function useOrderStore() {
     }));
     const { data, error } = await supabase.from("orders").insert(rows).select();
     if (error) {
-      toast.error("Import fehlgeschlagen");
+      toast.error(orderCreationError(error, "Import fehlgeschlagen"));
       console.error(error);
       return [];
     }

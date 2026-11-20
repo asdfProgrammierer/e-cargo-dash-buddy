@@ -14,6 +14,7 @@ import { geocodeAndSaveOrder } from "@/lib/geocodeOrder";
 import { ExcelImport } from "@/components/dashboard/ExcelImport";
 import type { Order } from "@/types/order";
 import { sendOrderStatusEmailsForIds } from "@/lib/orderEmail";
+import { orderCreationError } from "@/lib/orderCreationError";
 
 interface Props {
   merchantUserId: string;
@@ -56,8 +57,8 @@ export function AdminExcelImportDialog({
     }));
     const { data, error } = await supabase.from("orders").insert(payload).select("id, empfaenger_stadt, empfaenger_plz, empfaenger_adresse");
     if (error) {
-      toast.error(`Import fehlgeschlagen: ${error.message}`);
-      return;
+      toast.error(orderCreationError(error, "Import fehlgeschlagen"));
+      return [];
     }
     const created = data ?? [];
     toast.success(`${created.length} Aufträge importiert`);
@@ -75,6 +76,7 @@ export function AdminExcelImportDialog({
     }
     onCreated?.(created.length);
     setOpen(false);
+    return created;
   };
 
   return (

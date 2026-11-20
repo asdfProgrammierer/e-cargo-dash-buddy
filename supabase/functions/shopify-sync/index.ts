@@ -58,6 +58,17 @@ async function syncConnection(
     return { connectionId: conn.id, error: "Access Token fehlt", imported: 0, skipped: 0 };
   }
 
+  // Stop before reading orders or advancing the cursor when numbering is not configured.
+  const { data: merchant, error: merchantError } = await admin
+    .from("profiles").select("merchant_code").eq("user_id", conn.user_id).maybeSingle();
+  if (merchantError || !merchant?.merchant_code) {
+    const error = merchantError ? "Händlerprofil konnte nicht geladen werden" : "Händlercode fehlt";
+    await admin.from("shop_connections").update({
+      last_sync_at: new Date().toISOString(), last_sync_status: "error", last_sync_error: error,
+    }).eq("id", conn.id);
+    return { connectionId: conn.id, error, imported: 0, skipped: 0 };
+  }
+
   const params = new URLSearchParams({
     status: "open",
     financial_status: "paid",
