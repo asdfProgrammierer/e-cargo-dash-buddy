@@ -1,4 +1,5 @@
 # Project rules
+- Merchant exclusive tours use authenticated, owner-scoped read-only RPC projections gated by an admin-protected profile flag; never widen route/driver RLS for this view. Order realtime invalidates the session-scoped queries, with foreground refresh covering route-only changes.
 - Manual and spreadsheet order creation share `orderCreationError` for known configuration failures; failed import callbacks return an empty array so input is retained and success is not reported.
 
 - Driver schedule date expansion and planned-time validation live in `src/lib/driverScheduleDates.ts`; planned start times are per-day local clock values restricted to the 15-minute rhythm (00, 15, 30, 45) via `QuarterTimeSelect`, separate from actual work sessions, so scheduling cannot change payroll statistics.

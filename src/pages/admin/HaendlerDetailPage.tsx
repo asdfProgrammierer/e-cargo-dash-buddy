@@ -50,6 +50,7 @@ interface MerchantProfile {
   pickup_weekdays: number[];
   pickup_note: string | null;
   dhl_enabled: boolean;
+  exclusive_tours_enabled: boolean;
   is_virtual: boolean;
   created_at: string;
   updated_at: string;
@@ -82,6 +83,7 @@ const HaendlerDetailPage = () => {
   const [shopConn, setShopConn] = useState<ShopConnection | null>(null);
   const [loading, setLoading] = useState(true);
   const [orderCount, setOrderCount] = useState(0);
+  const [savingExclusive, setSavingExclusive] = useState(false);
 
   // Shop form state
   const [platform, setPlatform] = useState("");
@@ -121,6 +123,7 @@ const HaendlerDetailPage = () => {
           pickup_enabled: p.pickup_enabled ?? false,
           pickup_weekdays: Array.isArray(p.pickup_weekdays) ? p.pickup_weekdays : [],
           dhl_enabled: p.dhl_enabled ?? false,
+          exclusive_tours_enabled: p.exclusive_tours_enabled ?? false,
           is_virtual: p.is_virtual ?? false,
         } as MerchantProfile);
 
@@ -198,6 +201,19 @@ const HaendlerDetailPage = () => {
       setProfile({ ...profile, dhl_enabled: next });
       toast.success(next ? "DHL-Versand aktiviert" : "DHL-Versand deaktiviert");
     }
+  };
+
+  const toggleExclusiveTours = async (next: boolean) => {
+    if (!profile || savingExclusive) return;
+    setSavingExclusive(true);
+    const { error } = await supabase.from("profiles").update({ exclusive_tours_enabled: next }).eq("id", profile.id);
+    setSavingExclusive(false);
+    if (error) {
+      toast.error("Exklusivtouren-Freigabe konnte nicht gespeichert werden");
+      return;
+    }
+    setProfile(current => current ? { ...current, exclusive_tours_enabled: next } : current);
+    toast.success(next ? "Exklusivtouren freigeschaltet" : "Exklusivtouren deaktiviert");
   };
 
   const saveMerchantCode = async () => {
@@ -843,6 +859,11 @@ const HaendlerDetailPage = () => {
                     </p>
                   </div>
                   <Switch checked={profile.approved} onCheckedChange={toggleApproval} />
+                </div>
+
+                <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-4">
+                  <Label htmlFor="exclusive-tours-access" className="text-sm font-medium">Exklusivtouren freischalten</Label>
+                  <Switch id="exclusive-tours-access" checked={profile.exclusive_tours_enabled} disabled={savingExclusive} onCheckedChange={toggleExclusiveTours} />
                 </div>
 
                 <div className="rounded-lg border border-border p-4 space-y-3">

@@ -11,6 +11,7 @@ import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { useDriverCheck } from "@/hooks/useDriverCheck";
 
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const ExklusivtourenPage = lazy(() => import("./pages/ExklusivtourenPage"));
 const AuftraegePage = lazy(() => import("./pages/AuftraegePage"));
 const AdressbuchPage = lazy(() => import("./pages/AdressbuchPage"));
 const ImportPage = lazy(() => import("./pages/ImportPage"));
@@ -136,6 +137,7 @@ const AppRoutes = () => (
     <Route path="/pending" element={<PendingRoute><PendingApprovalPage /></PendingRoute>} />
     <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
     <Route path="/auftraege" element={<ProtectedRoute><AuftraegePage /></ProtectedRoute>} />
+    <Route path="/exklusivtouren" element={<ProtectedRoute><ExklusivtourenPage /></ProtectedRoute>} />
     <Route path="/adressbuch" element={<ProtectedRoute><AdressbuchPage /></ProtectedRoute>} />
     <Route path="/import" element={<ProtectedRoute><ImportPage /></ProtectedRoute>} />
     <Route path="/online-shop" element={<ProtectedRoute><OnlineShopPage /></ProtectedRoute>} />

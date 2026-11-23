@@ -169,6 +169,13 @@
       "when": 1794900000000,
       "tag": "0023_geocode_cache_cleanup",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795433709848,
+      "tag": "0024_merchant_exclusive_tours",
+      "breakpoints": true
     }
   ]
 }

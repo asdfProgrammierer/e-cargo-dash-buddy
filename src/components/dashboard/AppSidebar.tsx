@@ -1,10 +1,11 @@
-import { LayoutDashboard, Package, Upload, LogOut, UserCircle, BookUser, ShoppingBag, Shield } from "lucide-react";
+import { LayoutDashboard, Package, Upload, LogOut, UserCircle, BookUser, ShoppingBag, Shield, Route } from "lucide-react";
 import logoAsset from "@/assets/logo.png.asset.json";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
+import { useExclusiveToursAccess } from "@/hooks/useExclusiveToursAccess";
 import {
   Sidebar,
   SidebarContent,
@@ -22,6 +23,7 @@ import {
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Aufträge", url: "/auftraege", icon: Package },
+  { title: "Exklusivtouren", url: "/exklusivtouren", icon: Route, exclusiveOnly: true },
   { title: "Adressbuch", url: "/adressbuch", icon: BookUser },
   { title: "Excel Import", url: "/import", icon: Upload },
   { title: "Online-Shop", url: "/online-shop", icon: ShoppingBag, mainOnly: true },
@@ -33,6 +35,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { signOut, user, isSubAccount } = useAuth();
   const isAdmin = useAdminCheck();
+  const exclusiveAccess = useExclusiveToursAccess();
 
   return (
     <Sidebar collapsible="icon">
@@ -55,7 +58,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.filter((item) => !((item as any).mainOnly && isSubAccount)).map((item) => (
+              {navItems.filter((item) => !(item.mainOnly && isSubAccount) && (!item.exclusiveOnly || exclusiveAccess.data === true)).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink

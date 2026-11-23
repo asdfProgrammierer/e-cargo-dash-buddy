@@ -38,7 +38,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        if (_event === "SIGNED_OUT") queryClient.removeQueries({ queryKey: ["admin-check"] });
+        if (_event === "SIGNED_OUT") {
+          queryClient.removeQueries({ queryKey: ["admin-check"] });
+          queryClient.removeQueries({ queryKey: ["exclusive-tours"] });
+        }
         setSession(session);
         if (session?.user) {
           fetchApproval(session.user.id);

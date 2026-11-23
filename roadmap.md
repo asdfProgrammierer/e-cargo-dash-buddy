@@ -1,4 +1,6 @@
 # Tasks
+- [ ] Add admin-controlled exclusive-tour access, a merchant page with current/upcoming tours and paginated history, and live stop progress.
+- [ ] Test access isolation, activation and tour details end-to-end.
 - [x] Add explicit single-day / same-series deletion for driver schedules, including recurring and date-range entries.
 - [x] Verify series boundaries and save/delete round trips without touching working-time statistics.
 - [x] Correct Einsatzplan date-range validation and show saved entries in the selected month.

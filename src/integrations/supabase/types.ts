@@ -1134,6 +1134,7 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           dhl_enabled: boolean
+          exclusive_tours_enabled: boolean
           firma_name: string | null
           grundbeitrag_monat: number | null
           id: string
@@ -1166,6 +1167,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           dhl_enabled?: boolean
+          exclusive_tours_enabled?: boolean
           firma_name?: string | null
           grundbeitrag_monat?: number | null
           id?: string
@@ -1198,6 +1200,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           dhl_enabled?: boolean
+          exclusive_tours_enabled?: boolean
           firma_name?: string | null
           grundbeitrag_monat?: number | null
           id?: string
@@ -2172,6 +2175,15 @@ export type Database = {
       }
       is_route_driver: { Args: { _route_id: string }; Returns: boolean }
       is_stop_route_driver: { Args: { _stop_id: string }; Returns: boolean }
+      merchant_exclusive_tour_detail: {
+        Args: { _route_id: string }
+        Returns: Json
+      }
+      merchant_exclusive_tours: {
+        Args: { _history?: boolean; _page?: number }
+        Returns: Json
+      }
+      merchant_exclusive_tours_enabled: { Args: never; Returns: boolean }
       merchant_owner_id: { Args: { _uid: string }; Returns: string }
       verify_shopify_poll_cron_key: { Args: { _key: string }; Returns: boolean }
     }
