@@ -366,7 +366,7 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride, hide
   ).length;
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       {/* Template selector */}
       {!hideTemplateSelector && (
         <Card>
@@ -444,7 +444,7 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride, hide
       {/* Template download + column info */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">Erwartete Spalten</CardTitle>
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => { void downloadTemplate(template === "auto" ? (detectedTemplate ?? "standard") : template); }}>
               <Download className="h-3.5 w-3.5" />
@@ -465,15 +465,15 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride, hide
 
       {/* Preview with inline editing */}
       {preview.length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <div className="flex items-center gap-2">
-              <FileSpreadsheet className="h-4 w-4 text-primary" />
-              <CardTitle className="text-sm">
+        <Card className="min-w-0">
+          <CardHeader className="sticky top-0 z-20 flex flex-col gap-3 space-y-0 rounded-t-lg border-b bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-2">
+              <FileSpreadsheet className="h-4 w-4 shrink-0 text-primary" />
+              <CardTitle className="min-w-0 break-words text-sm [overflow-wrap:anywhere]">
                 Vorschau: {fileName} ({preview.length} Zeilen)
               </CardTitle>
             </div>
-            <div className="flex gap-2">
+            <div className="flex shrink-0 flex-wrap gap-2">
               <Button variant="ghost" size="sm" onClick={clearPreview}>
                 <X className="mr-1 h-3 w-3" />
                 Abbrechen
@@ -495,9 +495,21 @@ export function ExcelImport({ onImport, merchantIdOverride, senderOverride, hide
                 </Alert>
               </div>
             )}
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
+            <div className="max-h-[45dvh] min-w-0 overflow-auto [&>div]:overflow-visible">
+              <Table className="w-[1200px] table-fixed [&_td]:break-words [&_td]:px-3 [&_td]:py-3 [&_th]:px-3">
+                <colgroup>
+                  <col className="w-[180px]" />
+                  <col className="w-[180px]" />
+                  <col className="w-[100px]" />
+                  <col className="w-[130px]" />
+                  <col className="w-[180px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[70px]" />
+                  <col className="w-[80px]" />
+                  <col className="w-[160px]" />
+                  <col className="w-[80px]" />
+                </colgroup>
+                <TableHeader className="sticky top-0 z-10 bg-muted">
                   <TableRow className="bg-muted/50">
                     <TableHead>Empfänger</TableHead>
                     <TableHead>Straße</TableHead>

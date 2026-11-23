@@ -87,13 +87,13 @@ export function AdminExcelImportDialog({
           Excel-Import
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90dvh] w-[calc(100%-2rem)] min-w-0 flex-col overflow-hidden sm:max-w-4xl">
+        <DialogHeader className="shrink-0 pr-6">
           <DialogTitle>
             Excel-Import{merchantLabel ? ` für ${merchantLabel}` : ""}
           </DialogTitle>
         </DialogHeader>
-        <div className="pt-2">
+        <div className="min-h-0 min-w-0 overflow-y-auto pt-2">
           <ExcelImport
             onImport={handleImport}
             merchantIdOverride={merchantUserId}
