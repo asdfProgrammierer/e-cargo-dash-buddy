@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
     if (apiKey) {
       for (const layers of ["address", undefined]) {
         try {
-          const url = new URL("https://api.openrouteservice.org/geocode/search");
+          const url = new URL("https://api.heigit.org/pelias/v1/search");
           url.searchParams.set("api_key", apiKey);
           url.searchParams.set("text", text);
           url.searchParams.set("size", "5");

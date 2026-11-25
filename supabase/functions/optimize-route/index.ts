@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
         start: [sLng, sLat] as [number, number],
         end: [eLng, eLat] as [number, number],
       }];
-      const segRes = await fetchOrsWithRetry("https://api.openrouteservice.org/optimization", {
+      const segRes = await fetchOrsWithRetry("https://api.heigit.org/vroom/v0", {
         method: "POST",
         headers: {
           Authorization: apiKey,
@@ -332,7 +332,7 @@ Deno.serve(async (req) => {
 
     let dirRes: Response | null = null;
     try {
-      dirRes = await fetchOrsWithRetry(`https://api.openrouteservice.org/v2/directions/${profile}/geojson`, {
+      dirRes = await fetchOrsWithRetry(`https://api.heigit.org/openrouteservice/v2/directions/${profile}/geojson`, {
         method: "POST",
         headers: {
           Authorization: apiKey,
@@ -390,7 +390,7 @@ Deno.serve(async (req) => {
         if (straight < 5) { legDurations[i] = 0; legDistances[i] = 0; continue; }
         let ok = false;
         try {
-          const legRes = await fetchOrsWithRetry(`https://api.openrouteservice.org/v2/directions/${profile}`, {
+          const legRes = await fetchOrsWithRetry(`https://api.heigit.org/openrouteservice/v2/directions/${profile}`, {
             method: "POST",
             headers: {
               Authorization: apiKey,
