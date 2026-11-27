@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { verifyTrackingSession, extractBearer } from '../_shared/tracking-session.ts'
-import { buildEtaWindow, fmtBerlinShortDate } from '../_shared/eta.ts'
+import { buildEtaWindow, fmtBerlinShortDate, formatBerlinDateString } from '../_shared/eta.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
   // Sendungsverfolgung die aktuelle ETA des neuen Zustellversuchs zeigt.
   const { data: stopRows } = await supabase
     .from('route_stops')
-    .select('eta, delivery_mode, delivery_recipient, delivery_note, delivered_at, status, created_at, updated_at')
+    .select('eta, delivery_mode, delivery_recipient, delivery_note, delivered_at, status, created_at, updated_at, route:routes(datum)')
     .eq('order_id', order.id)
     .order('created_at', { ascending: false })
     .limit(5)
@@ -121,6 +121,7 @@ Deno.serve(async (req) => {
 
   // ETA-Fenster (sinnvoll ab Status "in_bearbeitung", solange noch nicht zugestellt)
   let etaWindow: { window: string; center: string; fromIso: string; toIso: string; centerIso: string } | null = null
+  let plannedDate: string | null = null
   if (order.status === 'in_bearbeitung' || order.status === 'unterwegs') {
     etaWindow = buildEtaWindow(stopRow?.eta ?? null)
     // Datum immer mitliefern, damit Kunden (Seite + Website-Modal) auch bei
@@ -128,6 +129,9 @@ Deno.serve(async (req) => {
     if (etaWindow) {
       etaWindow = { ...etaWindow, window: `${fmtBerlinShortDate(new Date(etaWindow.centerIso))}, ${etaWindow.window}` }
     }
+    const rawRoute = (stopRow as { route?: { datum?: string | null } | { datum?: string | null }[] | null } | null)?.route
+    const routeDatum = Array.isArray(rawRoute) ? rawRoute[0]?.datum : rawRoute?.datum
+    plannedDate = formatBerlinDateString(routeDatum)
   }
 
   // Lieferanweisungen können bis 1h vor ETA bearbeitet werden, solange die Bestellung
@@ -163,6 +167,7 @@ Deno.serve(async (req) => {
         deliveredAt: order.delivered_at,
         haendlerName: profile?.firma_name?.trim() || profile?.ansprechpartner?.trim() || 'Ihr Händler',
         eta: etaWindow,
+        plannedDate,
         delivery: deliveryDetails,
         deliveryAttempts: (order as { delivery_attempts?: number | null }).delivery_attempts ?? 0,
         maxDeliveryAttempts: 3,

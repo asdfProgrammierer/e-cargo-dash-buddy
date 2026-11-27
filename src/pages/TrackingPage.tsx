@@ -51,6 +51,7 @@ interface OrderInfo {
     toIso: string;
     centerIso: string;
   } | null;
+  plannedDate?: string | null;
   delivery?: {
     mode: string | null;
     recipient: string | null;
@@ -432,11 +433,22 @@ export default function TrackingPage() {
                     <p className="text-xs font-semibold uppercase tracking-wide text-primary">
                       {order.status === "unterwegs" ? "Voraussichtliches Lieferzeitfenster" : "Voraussichtliche Zustellung"}
                     </p>
-                    <p className="text-base font-medium text-foreground mt-1">
-                      {order.eta ? order.eta.window : "Wird Ihnen kurz vor der Zustellung mitgeteilt"}
-                    </p>
-                    {order.eta && (
-                      <p className="text-sm text-foreground mt-0.5">am {order.eta.date}</p>
+                    {order.eta ? (
+                      <>
+                        <p className="text-base font-medium text-foreground mt-1">{order.eta.window}</p>
+                        <p className="text-sm text-foreground mt-0.5">am {order.eta.date}</p>
+                      </>
+                    ) : order.plannedDate ? (
+                      <>
+                        <p className="text-base font-medium text-foreground mt-1">{order.plannedDate}</p>
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                          Das genaue Lieferzeitfenster wird Ihnen kurz vor der Zustellung mitgeteilt
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-base font-medium text-foreground mt-1">
+                        Wird Ihnen kurz vor der Zustellung mitgeteilt
+                      </p>
                     )}
                   </div>
                 </div>

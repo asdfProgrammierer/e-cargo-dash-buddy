@@ -28,6 +28,14 @@ export const fmtBerlinShortDate = (d: Date) =>
     timeZone: "Europe/Berlin",
   }).format(d);
 
+// Formats a YYYY-MM-DD route date as "Samstag, 28.11.2026" in Europe/Berlin.
+export function formatBerlinDateString(isoDate: string | null | undefined): string | null {
+  if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return null;
+  const d = new Date(`${isoDate}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  return fmtBerlinDate(d);
+}
+
 export const ETA_FALLBACK_TEXT = "Wird Ihnen kurz vor der Zustellung mitgeteilt";
 
 export interface EtaWindow {
